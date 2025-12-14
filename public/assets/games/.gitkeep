@@ -1,0 +1,14 @@
+# Game Images Directory
+
+Place your game images here with the following naming convention:
+- date-roulette.png (or .jpg, .svg)
+- most-likely-to.png
+- never-have-i-ever.png
+- role-play-generator.png
+- scratch-dates.png
+- would-you-rather.png
+
+You can also add a default.png as a fallback for games without images.
+
+Supported formats: PNG, JPG, SVG, WebP
+
