@@ -19,12 +19,12 @@ import {
 import { Gamepad2, Home, Flag, Smartphone } from 'lucide-react'
 import SignOutButton from './sign-out-button'
 
-const allMenuItems = [
+const developerMenuItems = [
   {
     title: 'Home',
     url: '/home',
     icon: Home,
-    roles: ['admin', 'dev', 'developer', 'promoter'] as const,
+    roles: ['admin', 'dev', 'developer'] as const,
   },
   {
     title: 'Games',
@@ -42,7 +42,22 @@ const allMenuItems = [
     title: 'Devices',
     url: '/devices',
     icon: Smartphone,
-    roles: ['admin', 'dev', 'developer', 'promoter'] as const,
+    roles: ['admin', 'dev', 'developer'] as const,
+  },
+]
+
+const promoterMenuItems = [
+  {
+    title: 'Home',
+    url: '/home',
+    icon: Home,
+    roles: ['promoter'] as const,
+  },
+  {
+    title: 'Devices',
+    url: '/devices',
+    icon: Smartphone,
+    roles: ['promoter'] as const,
   },
 ]
 
@@ -56,9 +71,19 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   const isCollapsed = state === 'collapsed'
 
   // Filter menu items based on user role
-  const menuItems = allMenuItems.filter(item => 
+  const isAdmin = userRole === 'admin' || userRole === 'dev' || userRole === 'developer'
+  
+  const developerItems = developerMenuItems.filter(item => 
     !userRole || (item.roles as readonly string[]).includes(userRole)
   )
+  
+  const promoterItems = promoterMenuItems.filter(item => 
+    !userRole || (item.roles as readonly string[]).includes(userRole)
+  )
+  
+  // Show groups: Admins see all groups, others see only their group
+  const showDeveloperGroup = isAdmin && developerItems.length > 0
+  const showPromoterGroup = (isAdmin || userRole === 'promoter') && promoterItems.length > 0
 
   return (
     <Sidebar collapsible="icon">
@@ -83,32 +108,63 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
         </div>
       </SidebarHeader>
       <SidebarContent className="flex-1 overflow-y-auto">
-        <SidebarGroup className="px-2 py-2">
-          <SidebarGroupLabel className="px-2 mb-1">Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => {
-                const Icon = item.icon
-                const isActive = pathname === item.url || (item.url !== '/home' && pathname?.startsWith(item.url))
-                
-                return (
-                  <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.title}
-                    >
-                      <Link href={item.url} className={`flex items-center w-full ${isCollapsed ? 'justify-center' : 'gap-2'}`}>
-                        <Icon className="h-4 w-4 shrink-0" />
-                        {!isCollapsed && <span className="truncate flex-1">{item.title}</span>}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {showDeveloperGroup && (
+          <SidebarGroup className="px-2 py-2">
+            <SidebarGroupLabel className="px-2 mb-1">Developer</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {developerItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = pathname === item.url || (item.url !== '/home' && pathname?.startsWith(item.url))
+                  
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.title}
+                      >
+                        <Link href={item.url} className={`flex items-center w-full ${isCollapsed ? 'justify-center' : 'gap-2'}`}>
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {!isCollapsed && <span className="truncate flex-1">{item.title}</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        
+        {showPromoterGroup && (
+          <SidebarGroup className="px-2 py-2">
+            <SidebarGroupLabel className="px-2 mb-1">Promoter</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {promoterItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = pathname === item.url || (item.url !== '/home' && pathname?.startsWith(item.url))
+                  
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.title}
+                      >
+                        <Link href={item.url} className={`flex items-center w-full ${isCollapsed ? 'justify-center' : 'gap-2'}`}>
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {!isCollapsed && <span className="truncate flex-1">{item.title}</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className={`border-t border-gray-200 ${isCollapsed ? 'p-2' : 'p-4'}`}>
         <div className="flex justify-center w-full">

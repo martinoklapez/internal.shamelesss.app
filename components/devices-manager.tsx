@@ -25,6 +25,10 @@ interface iCloudProfile {
   street: string
 }
 
+interface Proxy {
+  country: string | null
+}
+
 interface Device {
   id: string
   name: string
@@ -34,6 +38,7 @@ interface Device {
   managerProfilePicture: string | null
   owner: string | null
   iCloudProfile: iCloudProfile | null
+  proxy: Proxy | null
   socialAccounts: SocialAccount[]
 }
 
@@ -199,7 +204,23 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
                   </p>
                 </div>
               </div>
-              <ChevronRight className="h-5 w-5 text-gray-500 shrink-0" />
+              <div className="flex items-center gap-3">
+                {(device.iCloudProfile?.country || device.proxy?.country) && (
+                  <div className="flex items-center gap-2">
+                    {device.iCloudProfile?.country && (
+                      <span className="text-xs text-gray-600 bg-gray-50 px-2 py-0.5 rounded">
+                        iCloud: {device.iCloudProfile.country}
+                      </span>
+                    )}
+                    {device.proxy?.country && (
+                      <span className="text-xs text-gray-600 bg-gray-50 px-2 py-0.5 rounded">
+                        Proxy: {device.proxy.country}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <ChevronRight className="h-5 w-5 text-gray-500 shrink-0" />
+              </div>
             </div>
           </Link>
         )

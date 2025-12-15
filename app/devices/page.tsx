@@ -70,6 +70,11 @@ export default async function DevicesPage() {
         name: acc.name,
         credentials: acc.credentials,
       })),
+      proxy: item.proxy
+        ? {
+            country: item.proxy.country,
+          }
+        : null,
     }
   }) // Show all devices, even without iCloud profiles
 
