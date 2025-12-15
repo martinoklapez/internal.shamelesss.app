@@ -16,14 +16,29 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users } from 'lucide-react'
 import SignOutButton from './sign-out-button'
 
-const developerMenuItems = [
+const generalMenuItems = [
   {
     title: 'Home',
     url: '/home',
     icon: Home,
+    roles: ['admin', 'dev', 'developer', 'promoter'] as const,
+  },
+  {
+    title: 'Knowledge',
+    url: '/knowledge',
+    icon: Home,
+    roles: ['admin', 'dev', 'developer', 'promoter'] as const,
+  },
+]
+
+const developerMenuItems = [
+  {
+    title: 'Feature Flags',
+    url: '/feature-flags',
+    icon: Flag,
     roles: ['admin', 'dev', 'developer'] as const,
   },
   {
@@ -33,31 +48,25 @@ const developerMenuItems = [
     roles: ['admin', 'dev', 'developer'] as const,
   },
   {
-    title: 'Feature Flags',
-    url: '/feature-flags',
-    icon: Flag,
+    title: 'Onboarding',
+    url: '/onboarding',
+    icon: Home,
     roles: ['admin', 'dev', 'developer'] as const,
   },
   {
-    title: 'Devices',
-    url: '/devices',
-    icon: Smartphone,
+    title: 'Users',
+    url: '/users',
+    icon: Users,
     roles: ['admin', 'dev', 'developer'] as const,
   },
 ]
 
 const promoterMenuItems = [
   {
-    title: 'Home',
-    url: '/home',
-    icon: Home,
-    roles: ['promoter'] as const,
-  },
-  {
     title: 'Devices',
     url: '/devices',
     icon: Smartphone,
-    roles: ['promoter'] as const,
+    roles: ['promoter', 'admin'] as const,
   },
 ]
 
@@ -73,6 +82,10 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   // Filter menu items based on user role
   const isAdmin = userRole === 'admin' || userRole === 'dev' || userRole === 'developer'
   
+  const generalItems = generalMenuItems.filter(item =>
+    !userRole || (item.roles as readonly string[]).includes(userRole)
+  )
+  
   const developerItems = developerMenuItems.filter(item => 
     !userRole || (item.roles as readonly string[]).includes(userRole)
   )
@@ -82,8 +95,9 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   )
   
   // Show groups: Admins see all groups, others see only their group
+  const showGeneralGroup = generalItems.length > 0
   const showDeveloperGroup = isAdmin && developerItems.length > 0
-  const showPromoterGroup = (isAdmin || userRole === 'promoter') && promoterItems.length > 0
+  const showPromoterGroup = (userRole === 'promoter' || userRole === 'admin') && promoterItems.length > 0
 
   return (
     <Sidebar collapsible="icon">
@@ -108,6 +122,35 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
         </div>
       </SidebarHeader>
       <SidebarContent className="flex-1 overflow-y-auto">
+        {showGeneralGroup && (
+          <SidebarGroup className="px-2 py-2">
+            <SidebarGroupLabel className="px-2 mb-1">General</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {generalItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = pathname === item.url || (item.url !== '/home' && pathname?.startsWith(item.url))
+                  
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.title}
+                      >
+                        <Link href={item.url} className={`flex items-center w-full ${isCollapsed ? 'justify-center' : 'gap-2'}`}>
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {!isCollapsed && <span className="truncate flex-1">{item.title}</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        
         {showDeveloperGroup && (
           <SidebarGroup className="px-2 py-2">
             <SidebarGroupLabel className="px-2 mb-1">Developer</SidebarGroupLabel>

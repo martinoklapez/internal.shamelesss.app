@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -8,8 +8,10 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Breadcrumb,
   BreadcrumbItem,
+  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
+  BreadcrumbSeparator,
 } from './ui/breadcrumb'
 import { Separator } from './ui/separator'
 import { SidebarTrigger } from './ui/sidebar'
@@ -67,24 +69,38 @@ export function BreadcrumbWrapper() {
       window.removeEventListener('profile-updated', handleProfileUpdate as EventListener)
     }
   }, [supabase])
-  
-  const getPageTitle = () => {
-    if (pathname === '/home') return 'Home'
-    if (pathname === '/games') return 'Games'
-    if (pathname === '/feature-flags') return 'Feature Flags'
-    if (pathname === '/devices') return 'Devices'
-    if (pathname === '/profile') return 'Profile'
-    if (pathname?.startsWith('/devices/')) {
-      return 'Device Details'
+
+  const segments = (pathname || '').split('/').filter(Boolean)
+
+  const getSegmentLabel = (segment: string, index: number) => {
+    // Top-level known routes
+    if (segment === 'home') return 'Home'
+    if (segment === 'games') return 'Games'
+    if (segment === 'devices') return 'Devices'
+    if (segment === 'feature-flags') return 'Feature Flags'
+    if (segment === 'profile') return 'Profile'
+    if (segment === 'onboarding') return 'Onboarding'
+    if (segment === 'knowledge') return 'Knowledge'
+
+    // Nested routes
+    if (segments[0] === 'devices' && index === 1) {
+      return `Device ${segment}`
     }
-    if (pathname?.startsWith('/games/')) {
-      const parts = pathname.split('/')
-      if (parts.length === 2) return 'Games'
-      if (parts.length === 3 && parts[2] === 'content') return 'All Content'
-      if (parts.length === 4 && parts[2] === 'categories') return 'Category Content'
-      return 'Game Details'
+
+    if (segments[0] === 'games') {
+      if (segment === 'content') return 'Content'
+      if (segment === 'categories') return 'Categories'
+      // Treat gameId as readable label
+      if (index === 1) {
+        return segment
+          .split('-')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ')
+      }
     }
-    return 'Admin Panel'
+
+    // Fallback: Capitalize
+    return segment.charAt(0).toUpperCase() + segment.slice(1)
   }
   
   return (
@@ -97,9 +113,32 @@ export function BreadcrumbWrapper() {
         />
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbPage>{getPageTitle()}</BreadcrumbPage>
-            </BreadcrumbItem>
+            {segments.length === 0 ? (
+              <BreadcrumbItem>
+                <BreadcrumbPage>Home</BreadcrumbPage>
+              </BreadcrumbItem>
+            ) : (
+              <>
+                {segments.map((segment, index) => {
+                  const href = '/' + segments.slice(0, index + 1).join('/')
+                  const label = getSegmentLabel(segment, index)
+                  const isLast = index === segments.length - 1
+
+                  return (
+                    <React.Fragment key={href}>
+                      <BreadcrumbItem>
+                        {isLast ? (
+                          <BreadcrumbPage>{label}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink href={href}>{label}</BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                      {!isLast && <BreadcrumbSeparator />}
+                    </React.Fragment>
+                  )
+                })}
+              </>
+            )}
           </BreadcrumbList>
         </Breadcrumb>
       </div>

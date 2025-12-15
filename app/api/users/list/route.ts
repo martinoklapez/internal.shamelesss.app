@@ -13,12 +13,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch users who have roles: admin, developer, and promoter
+    // Fetch users who have roles we care about in the admin panel
     // Using .select('*') to get all columns and ensure we're not missing any data
     const { data: usersWithRoles, error } = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .in('role', ['admin', 'developer', 'promoter'])
+      .in('role', ['admin', 'developer', 'promoter', 'tester'])
 
     if (error) {
       console.error('Error fetching users from user_roles:', error)
@@ -29,11 +29,8 @@ export async function GET() {
       )
     }
 
-    console.log('Users with roles fetched from database:', usersWithRoles)
-    console.log('Number of users with roles:', usersWithRoles?.length || 0)
-
     if (!usersWithRoles || usersWithRoles.length === 0) {
-      console.warn('No users found with roles: admin, developer, promoter')
+      console.warn('No users found with roles: admin, developer, promoter, tester')
       return NextResponse.json({ users: [] }, { status: 200 })
     }
 

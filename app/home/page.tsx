@@ -38,7 +38,7 @@ export default async function HomePage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {(userRole === 'admin' || userRole === 'dev' || userRole === 'developer') && (
-            <Card>
+            <Card className="flex flex-col h-full">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Gamepad2 className="h-5 w-5 text-gray-600" />
@@ -48,7 +48,7 @@ export default async function HomePage() {
                   Manage game categories and content
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="mt-auto">
                 <Link href="/games">
                   <Button variant="outline" className="w-full">
                     Go to Games
@@ -59,7 +59,7 @@ export default async function HomePage() {
             </Card>
           )}
 
-          <Card>
+          <Card className="flex flex-col h-full">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Smartphone className="h-5 w-5 text-gray-600" />
@@ -69,7 +69,7 @@ export default async function HomePage() {
                 Manage devices, iCloud profiles, and social accounts
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="mt-auto">
               <Link href="/devices">
                 <Button variant="outline" className="w-full">
                   Go to Devices
@@ -80,7 +80,7 @@ export default async function HomePage() {
           </Card>
 
           {(userRole === 'admin' || userRole === 'dev' || userRole === 'developer') && (
-            <Card>
+            <Card className="flex flex-col h-full">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Flag className="h-5 w-5 text-gray-600" />
@@ -90,7 +90,7 @@ export default async function HomePage() {
                   Control feature toggles and settings
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="mt-auto">
                 <Link href="/feature-flags">
                   <Button variant="outline" className="w-full">
                     Go to Feature Flags

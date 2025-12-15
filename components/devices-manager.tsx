@@ -150,7 +150,7 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
                 <div className="text-left flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {device.iCloudProfile?.alias || `Device ${device.id}`}
+                      {`Device ${device.id}`}
                     </h3>
                     {device.managerId && (
                       <div className="flex items-center gap-1.5 px-2 py-0.5 bg-gray-100 rounded-full">
@@ -196,8 +196,13 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
                       </div>
                     )}
                   </div>
+                  {device.iCloudProfile?.alias && (
+                    <p className="text-sm text-gray-700 dark:text-gray-200 mb-0.5">
+                      {device.iCloudProfile.alias}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {device.name} • {device.deviceType}
+                    {device.name}
                     {device.owner && ` • Owner: ${device.owner}`}
                     {device.iCloudProfile && ` • ${device.socialAccounts.length} social account${device.socialAccounts.length !== 1 ? 's' : ''}`}
                     {!device.iCloudProfile && ' • No iCloud profile'}

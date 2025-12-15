@@ -152,13 +152,20 @@ export default async function DevicePage({ params }: DevicePageProps) {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                {device.iCloudProfile?.alias || `Device ${device.id}`}
-              </h1>
-              <span className="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                {device.name}
-              </span>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {`Device ${device.id}`}
+                </h1>
+                <span className="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                  {device.name}
+                </span>
+              </div>
+              {device.iCloudProfile?.alias && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  alias {device.iCloudProfile.alias}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-6 text-sm">

@@ -407,7 +407,7 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
       {/* Left Column: iCloud Profile and Proxy */}
       <div className="space-y-6">
         {/* iCloud Profile Section */}
-        <div className="bg-white rounded-lg p-6">
+        <div className="bg-white rounded-lg py-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <DeviceIcon className="h-5 w-5 text-gray-600" />
@@ -454,7 +454,7 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
         </div>
 
         {/* Proxy Section */}
-        <div className="bg-white rounded-lg p-6">
+        <div className="bg-white rounded-lg py-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Network className="h-5 w-5 text-gray-600" />
@@ -704,7 +704,7 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
 
       {/* Right Column: Social Accounts */}
       {/* Social Accounts Section */}
-      <div className="bg-white rounded-lg p-6">
+      <div className="bg-white rounded-lg py-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Social Accounts ({device.socialAccounts.length})
@@ -800,7 +800,7 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
 
       {/* Burned Accounts Documentation Section - Full Width */}
       {(device.archivedICloudProfiles.length > 0 || device.archivedSocialAccounts.length > 0 || (device.archivedProxies && device.archivedProxies.length > 0)) && (
-      <div className="bg-white rounded-lg p-6">
+      <div className="bg-white rounded-lg py-6">
         <div className="flex items-center gap-2 mb-4">
           <FileText className="h-5 w-5 text-gray-600" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
