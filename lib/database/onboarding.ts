@@ -7,7 +7,7 @@ export async function getQuizScreens(): Promise<QuizScreen[]> {
   const { data, error } = await supabase
     .from('quiz_screens_staging')
     .select('*')
-    .order('order_position', { ascending: true, nullsLast: true })
+    .order('order_position', { ascending: true, nullsFirst: false })
 
   if (error) {
     console.error('Error fetching quiz screens:', error)

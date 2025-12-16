@@ -14,6 +14,7 @@ import ReactFlow, {
   NodeTypes,
   Handle,
   Position,
+  MarkerType,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { Button } from './ui/button'
@@ -280,7 +281,7 @@ export default function OnboardingManager({
           animated: true,
           style: { strokeWidth: 2, stroke: '#3b82f6' },
           markerEnd: {
-            type: 'arrowclosed',
+            type: MarkerType.ArrowClosed,
             color: '#3b82f6',
           },
         })
@@ -308,7 +309,7 @@ export default function OnboardingManager({
         animated: true,
         style: { strokeWidth: 2, stroke: '#3b82f6' },
         markerEnd: {
-          type: 'arrowclosed',
+          type: MarkerType.ArrowClosed,
           color: '#3b82f6',
         },
       })
@@ -342,7 +343,7 @@ export default function OnboardingManager({
           animated: true,
           style: { strokeWidth: 2, stroke: '#3b82f6' },
           markerEnd: {
-            type: 'arrowclosed',
+            type: MarkerType.ArrowClosed,
             color: '#3b82f6',
           },
         })
@@ -358,7 +359,7 @@ export default function OnboardingManager({
           animated: true,
           style: { strokeWidth: 2, stroke: '#3b82f6' },
           markerEnd: {
-            type: 'arrowclosed',
+            type: MarkerType.ArrowClosed,
             color: '#3b82f6',
           },
         })
