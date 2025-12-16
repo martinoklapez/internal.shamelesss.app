@@ -528,4 +528,3 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     </div>
   )
 }
-
