@@ -9,13 +9,67 @@ interface ScreenPreviewProps {
 }
 
 export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewProps) {
-  // Move useState to top level (required by React Hooks rules)
+  // All hooks must be at top level (required by React Hooks rules)
   const [selectedValue, setSelectedValue] = useState<string | null>(null)
+  
+  // Testimonial loader hooks (always declared, conditionally used)
+  const [testimonialProgress, setTestimonialProgress] = useState(0)
+  const [currentReviewIndex, setCurrentReviewIndex] = useState(0)
+  const testimonialProgressRef = useRef<number>(0)
+  const testimonialAnimationRef = useRef<number>()
   
   const componentId = screen.component_id
   const options = screen.options || {}
   const title = screen.title || ''
   const description = screen.description || ''
+  
+  // Testimonial Loader - useEffect hooks (must be before any early returns)
+  useEffect(() => {
+    if (componentId !== 'testimonial_loader') return
+
+    const CIRCLE_RADIUS = 70
+    const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS // ~439.82
+    const startTime = Date.now()
+    const duration = 6000
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime
+      const newProgress = Math.min(elapsed / duration, 1)
+      testimonialProgressRef.current = newProgress
+      setTestimonialProgress(newProgress)
+
+      if (newProgress < 1) {
+        testimonialAnimationRef.current = requestAnimationFrame(animate)
+      }
+    }
+
+    testimonialAnimationRef.current = requestAnimationFrame(animate)
+
+    return () => {
+      if (testimonialAnimationRef.current) {
+        cancelAnimationFrame(testimonialAnimationRef.current)
+      }
+    }
+  }, [componentId])
+
+  // Carousel rotation effect
+  useEffect(() => {
+    if (componentId !== 'testimonial_loader') return
+    
+    const reviews = options.reviews || [
+      { id: '1', author: 'Sarah M.', text: 'This app changed my life! The personalized experience is incredible.', rating: 5, avatar: null, initials: 'SM' },
+      { id: '2', author: 'John D.', text: 'Best dating app I\'ve ever used. Highly recommend!', rating: 5, avatar: null, initials: 'JD' },
+      { id: '3', author: 'Emma L.', text: 'Love how it adapts to my preferences. So intuitive!', rating: 5, avatar: null, initials: 'EL' }
+    ]
+
+    if (reviews.length <= 1) return
+
+    const interval = setInterval(() => {
+      setCurrentReviewIndex((prev) => (prev + 1) % reviews.length)
+    }, 1500)
+
+    return () => clearInterval(interval)
+  }, [componentId, options.reviews])
   
   // Calculate progress percentage based on order_position
   const calculateProgress = () => {
@@ -380,10 +434,6 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   if (componentId === 'testimonial_loader') {
     const CIRCLE_RADIUS = 70
     const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS // ~439.82
-    const [progress, setProgress] = useState(0)
-    const [currentReviewIndex, setCurrentReviewIndex] = useState(0)
-    const progressRef = useRef<number>(0)
-    const animationRef = useRef<number>()
 
     // Mock reviews data
     const reviews = options.reviews || [
@@ -413,50 +463,14 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
       }
     ]
 
-    // Progress animation (6 seconds)
-    useEffect(() => {
-      const startTime = Date.now()
-      const duration = 6000
-
-      const animate = () => {
-        const elapsed = Date.now() - startTime
-        const newProgress = Math.min(elapsed / duration, 1)
-        progressRef.current = newProgress
-        setProgress(newProgress)
-
-        if (newProgress < 1) {
-          animationRef.current = requestAnimationFrame(animate)
-        }
-      }
-
-      animationRef.current = requestAnimationFrame(animate)
-
-      return () => {
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current)
-        }
-      }
-    }, [])
-
-    // Carousel rotation (1.5 seconds interval)
-    useEffect(() => {
-      if (reviews.length <= 1) return
-
-      const interval = setInterval(() => {
-        setCurrentReviewIndex((prev) => (prev + 1) % reviews.length)
-      }, 1500)
-
-      return () => clearInterval(interval)
-    }, [reviews.length])
-
-    const progressDisplay = Math.round(progress * 100)
-    const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - progress)
+    const progressDisplay = Math.round(testimonialProgress * 100)
+    const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - testimonialProgress)
 
     // Get status text based on progress
     const getStatusText = () => {
-      if (progress < 0.3) return 'Gathering stories from our community'
-      if (progress < 0.6) return 'Polishing your personalized experience'
-      if (progress < 1) return 'Finalizing results'
+      if (testimonialProgress < 0.3) return 'Gathering stories from our community'
+      if (testimonialProgress < 0.6) return 'Polishing your personalized experience'
+      if (testimonialProgress < 1) return 'Finalizing results'
       return 'All set!'
     }
 
@@ -465,6 +479,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     // Generate avatar initials
     const getAvatarContent = () => {
       if (currentReview.avatar) {
+        // eslint-disable-next-line @next/next/no-img-element
         return (
           <img
             src={currentReview.avatar}
@@ -484,7 +499,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
       const initials = currentReview.author
         .split(' ')
         .slice(0, 2)
-        .map((n) => n[0])
+        .map((n: string) => n[0])
         .join('')
         .toUpperCase()
       return (
