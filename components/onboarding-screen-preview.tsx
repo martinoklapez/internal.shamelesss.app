@@ -9,6 +9,9 @@ interface ScreenPreviewProps {
 }
 
 export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewProps) {
+  // Move useState to top level (required by React Hooks rules)
+  const [selectedValue, setSelectedValue] = useState<string | null>(null)
+  
   const componentId = screen.component_id
   const options = screen.options || {}
   const title = screen.title || ''
@@ -50,7 +53,6 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
       { id: '2', label: 'Option 2', value: 'option2' },
       { id: '3', label: 'Option 3', value: 'option3' },
     ]
-    const [selectedValue, setSelectedValue] = useState<string | null>(null)
     
     // Helper to capitalize first letter and lowercase rest
     const formatLabel = (text: string) => {
@@ -380,7 +382,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
       <div className="w-full h-full flex flex-col items-center justify-center bg-white">
         <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
         <div className="bg-gray-50 rounded-lg p-2 max-w-[80%]">
-          <p className="text-xs text-gray-700 italic mb-1">"This app changed my life!"</p>
+          <p className="text-xs text-gray-700 italic mb-1">&ldquo;This app changed my life!&rdquo;</p>
           <div className="flex items-center gap-1.5">
             <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
             <div>
