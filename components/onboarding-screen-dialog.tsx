@@ -379,18 +379,20 @@ export function OnboardingScreenDialog({
               <div className="bg-black rounded-[2.5rem] p-2 shadow-2xl">
                 {/* Screen */}
                 <div className="bg-white rounded-[2rem] overflow-hidden w-[200px] h-[400px] relative" style={{ aspectRatio: '9/16' }}>
-                  {/* Notch */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-2xl z-10"></div>
+                  {/* Dynamic Island / Notch - integrated into top border */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-[1.75rem] z-10"></div>
                   
                   {/* Status Bar */}
-                  <div className="absolute top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-4 pt-1 z-20">
-                    <span className="text-[10px] font-semibold text-black">9:41</span>
-                    <div className="flex items-center gap-1">
-                      <div className="w-4 h-2 border border-black rounded-sm">
-                        <div className="w-3 h-1.5 bg-black rounded-sm m-0.5"></div>
+                  <div className="absolute top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-3 pt-1 z-20">
+                    <span className="text-[10px] font-semibold text-black ml-2">9:41</span>
+                    <div className="flex items-center gap-1.5 mr-2">
+                      {/* Left icon: black oval with white outline */}
+                      <div className="w-5 h-2.5 bg-black rounded-full border border-white relative">
+                        <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-black rounded-full"></div>
                       </div>
-                      <div className="w-4 h-2 border border-black rounded-sm">
-                        <div className="w-2 h-1 bg-black rounded-sm m-0.5"></div>
+                      {/* Right icon: white oval with black outline */}
+                      <div className="w-5 h-2.5 bg-white rounded-full border border-black relative">
+                        <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-white rounded-full"></div>
                       </div>
                     </div>
                   </div>

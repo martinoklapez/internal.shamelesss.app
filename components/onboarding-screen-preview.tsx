@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 
 interface ScreenPreviewProps {
@@ -378,17 +378,233 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
 
   // Testimonial Loader
   if (componentId === 'testimonial_loader') {
+    const CIRCLE_RADIUS = 70
+    const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS // ~439.82
+    const [progress, setProgress] = useState(0)
+    const [currentReviewIndex, setCurrentReviewIndex] = useState(0)
+    const progressRef = useRef<number>(0)
+    const animationRef = useRef<number>()
+
+    // Mock reviews data
+    const reviews = options.reviews || [
+      {
+        id: '1',
+        author: 'Sarah M.',
+        text: 'This app changed my life! The personalized experience is incredible.',
+        rating: 5,
+        avatar: null,
+        initials: 'SM'
+      },
+      {
+        id: '2',
+        author: 'John D.',
+        text: 'Best dating app I\'ve ever used. Highly recommend!',
+        rating: 5,
+        avatar: null,
+        initials: 'JD'
+      },
+      {
+        id: '3',
+        author: 'Emma L.',
+        text: 'Love how it adapts to my preferences. So intuitive!',
+        rating: 5,
+        avatar: null,
+        initials: 'EL'
+      }
+    ]
+
+    // Progress animation (6 seconds)
+    useEffect(() => {
+      const startTime = Date.now()
+      const duration = 6000
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime
+        const newProgress = Math.min(elapsed / duration, 1)
+        progressRef.current = newProgress
+        setProgress(newProgress)
+
+        if (newProgress < 1) {
+          animationRef.current = requestAnimationFrame(animate)
+        }
+      }
+
+      animationRef.current = requestAnimationFrame(animate)
+
+      return () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current)
+        }
+      }
+    }, [])
+
+    // Carousel rotation (1.5 seconds interval)
+    useEffect(() => {
+      if (reviews.length <= 1) return
+
+      const interval = setInterval(() => {
+        setCurrentReviewIndex((prev) => (prev + 1) % reviews.length)
+      }, 1500)
+
+      return () => clearInterval(interval)
+    }, [reviews.length])
+
+    const progressDisplay = Math.round(progress * 100)
+    const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - progress)
+
+    // Get status text based on progress
+    const getStatusText = () => {
+      if (progress < 0.3) return 'Gathering stories from our community'
+      if (progress < 0.6) return 'Polishing your personalized experience'
+      if (progress < 1) return 'Finalizing results'
+      return 'All set!'
+    }
+
+    const currentReview = reviews[currentReviewIndex] || reviews[0]
+
+    // Generate avatar initials
+    const getAvatarContent = () => {
+      if (currentReview.avatar) {
+        return (
+          <img
+            src={currentReview.avatar}
+            alt={currentReview.author}
+            className="w-full h-full object-cover"
+          />
+        )
+      }
+      if (currentReview.initials) {
+        return (
+          <span className="text-[14px] font-bold text-[#111827]">
+            {currentReview.initials}
+          </span>
+        )
+      }
+      // Generate from author name
+      const initials = currentReview.author
+        .split(' ')
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+      return (
+        <span className="text-[14px] font-bold text-[#111827]">
+          {initials || '⭐'}
+        </span>
+      )
+    }
+
+    // Scale down for phone mockup
+    const SCALE = 0.5 // Scale everything down by 50%
+    const SCALED_CIRCLE_SIZE = 80 // 160 * 0.5
+    const SCALED_RADIUS = 35 // 70 * 0.5
+    const SCALED_CIRCUMFERENCE = 2 * Math.PI * SCALED_RADIUS
+
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-white">
-        <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <div className="bg-gray-50 rounded-lg p-2 max-w-[80%]">
-          <p className="text-xs text-gray-700 italic mb-1">&ldquo;This app changed my life!&rdquo;</p>
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
-            <div>
-              <p className="text-[10px] font-medium text-gray-900">John Doe</p>
-              <p className="text-[8px] text-gray-500">Verified User</p>
+      <div className="w-full h-full flex flex-col bg-white pt-8 overflow-hidden">
+        {/* Progress Bar */}
+        <div className="px-3 pt-1 pb-2 flex-shrink-0">
+          <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-black rounded-full" style={{ width: `${progressPercentage}%` }}></div>
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-3 py-4 gap-3 min-h-0 overflow-hidden">
+          {/* Progress Section */}
+          <div className="flex flex-col items-center gap-2.5 w-full flex-shrink-0">
+            {/* Circular Progress Indicator */}
+            <div className="relative w-[80px] h-[80px] flex items-center justify-center">
+              <svg width="80" height="80" viewBox="0 0 160 160" className="absolute top-0 left-0">
+                {/* Background track */}
+                <circle
+                  cx="80"
+                  cy="80"
+                  r="70"
+                  stroke="#E5E7EB"
+                  strokeWidth="14"
+                  fill="none"
+                />
+                {/* Progress fill */}
+                <circle
+                  cx="80"
+                  cy="80"
+                  r="70"
+                  stroke="#111827"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                  fill="none"
+                  strokeDasharray={CIRCLE_CIRCUMFERENCE}
+                  strokeDashoffset={strokeDashoffset}
+                  transform="rotate(-90 80 80)"
+                  className="transition-all duration-200"
+                />
+              </svg>
+              {/* Percentage text */}
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <span className="text-base font-black text-[#111827] leading-none" style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                  {progressDisplay}%
+                </span>
+              </div>
             </div>
+
+            {/* Progress Headline */}
+            <h3 className="text-[10px] font-semibold text-[#111827] text-center leading-tight px-2" style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+              We&apos;re setting everything up
+            </h3>
+
+            {/* Progress Status */}
+            <p className="text-[8px] text-[#6B7280] text-center leading-tight px-2" style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+              {getStatusText()}
+            </p>
+          </div>
+
+          {/* Testimonial Card Section */}
+          <div className="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden">
+            {reviews.length === 0 ? (
+              // Empty state
+              <div className="bg-[#F3F4F6] rounded-xl px-3 py-2.5 w-full min-h-[55px] flex flex-col gap-1.5 shadow-[0_2px_6px_rgba(0,0,0,0.05)]">
+                <h4 className="text-[9px] font-bold text-[#111827]" style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                  Our community loves Shameless
+                </h4>
+                <p className="text-[7.5px] text-[#4B5563] text-center" style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                  Sit tight while we load what people are saying.
+                </p>
+              </div>
+            ) : (
+              // Review Card
+              <div className="bg-[#F3F4F6] rounded-xl px-3 py-2.5 w-full min-h-[55px] flex flex-col gap-1.5 shadow-[0_2px_6px_rgba(0,0,0,0.05)]">
+                {/* Review Header */}
+                <div className="flex items-center justify-between gap-2 w-full">
+                  {/* Reviewer Info */}
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    {/* Avatar */}
+                    <div className="w-5.5 h-5.5 rounded-full bg-white border border-white flex items-center justify-center overflow-hidden shrink-0">
+                      {currentReview.initials ? (
+                        <span className="text-[7px] font-bold text-[#111827]">
+                          {currentReview.initials}
+                        </span>
+                      ) : (
+                        <span className="text-[7px] font-bold text-[#111827]">⭐</span>
+                      )}
+                    </div>
+                    {/* Author Name */}
+                    <p className="text-[8.5px] font-bold text-[#111827] leading-tight truncate" style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                      {currentReview.author}
+                    </p>
+                  </div>
+                  {/* Rating Stars */}
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    {Array.from({ length: currentReview.rating || 5 }).map((_, i) => (
+                      <span key={i} className="text-[9px] leading-none">⭐</span>
+                    ))}
+                  </div>
+                </div>
+                {/* Review Text */}
+                <p className="text-[8px] text-[#374151] leading-3 text-left" style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                  &ldquo;{currentReview.text}&rdquo;
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
