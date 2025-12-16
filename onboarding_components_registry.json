@@ -1,0 +1,291 @@
+[
+  {
+    "component_key": "loading",
+    "component_name": "Loading Screen",
+    "category": "quiz",
+    "description": "Animated loading screen with progress bar and step text. Automatically navigates to next screen when complete.",
+    "props_schema": {
+      "title": { "type": "string", "required": false },
+      "description": { "type": "string", "required": false },
+      "options": {}
+    },
+    "default_options": {}
+  },
+  {
+    "component_key": "options",
+    "component_name": "Options (Radio Group)",
+    "category": "quiz",
+    "description": "Standard radio button group allowing users to select one option from a list. Selection is required before proceeding.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "value": { "type": "string" }
+            },
+            "required": ["label", "value"]
+          },
+          "default": []
+        }
+      }
+    },
+    "default_options": {
+      "options": []
+    }
+  },
+  {
+    "component_key": "instant_radio",
+    "component_name": "Instant Radio (Social Icons)",
+    "category": "quiz",
+    "description": "Radio button group with input-style variant and automatic icon detection based on option value/id. Automatically proceeds on selection.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "value": { "type": "string" }
+            },
+            "required": ["label", "value"]
+          },
+          "default": []
+        }
+      }
+    },
+    "default_options": {
+      "options": []
+    }
+  },
+  {
+    "component_key": "name_input",
+    "component_name": "Name Input",
+    "category": "quiz",
+    "description": "Text input field for collecting user's name. Validates minimum 2 characters. Saves to user profile.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "placeholder": { "type": "string", "default": "Enter your name" },
+        "minLength": { "type": "number", "default": 2 }
+      }
+    },
+    "default_options": {
+      "placeholder": "Enter your name",
+      "minLength": 2
+    }
+  },
+  {
+    "component_key": "username_input",
+    "component_name": "Username Input",
+    "category": "quiz",
+    "description": "Text input field for collecting username. Validates minimum 3 characters, alphanumeric + underscore only. Checks availability and saves to profile.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "placeholder": { "type": "string", "default": "Enter your username" },
+        "minLength": { "type": "number", "default": 3 },
+        "pattern": { "type": "string", "default": "^[a-zA-Z0-9_]+$" }
+      }
+    },
+    "default_options": {
+      "placeholder": "Enter your username",
+      "minLength": 3,
+      "pattern": "^[a-zA-Z0-9_]+$"
+    }
+  },
+  {
+    "component_key": "age_input",
+    "component_name": "Age Input",
+    "category": "quiz",
+    "description": "Numeric input field for collecting user's age. Validates age between 18 and 120. Saves to user profile.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "placeholder": { "type": "string", "default": "Enter your age" },
+        "min": { "type": "number", "default": 18 },
+        "max": { "type": "number", "default": 120 }
+      }
+    },
+    "default_options": {
+      "placeholder": "Enter your age",
+      "min": 18,
+      "max": 120
+    }
+  },
+  {
+    "component_key": "profile_image",
+    "component_name": "Profile Image Upload",
+    "category": "quiz",
+    "description": "Image picker component for uploading profile photo. Opens device photo library, allows cropping. Saves to user profile. Can be skipped.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "aspectRatio": { "type": "array", "default": [1, 1] },
+        "quality": { "type": "number", "default": 0.8 },
+        "allowsEditing": { "type": "boolean", "default": true },
+        "skipable": { "type": "boolean", "default": true }
+      }
+    },
+    "default_options": {
+      "aspectRatio": [1, 1],
+      "quality": 0.8,
+      "allowsEditing": true,
+      "skipable": true
+    }
+  },
+  {
+    "component_key": "frequency_slider",
+    "component_name": "Frequency Slider",
+    "category": "quiz",
+    "description": "Discrete slider component for selecting frequency (1x-5x). Shows step labels and current value.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "min": { "type": "number", "default": 1 },
+        "max": { "type": "number", "default": 5 },
+        "stepLabels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["1x", "2x", "3x", "4x", "5x"]
+        }
+      }
+    },
+    "default_options": {
+      "min": 1,
+      "max": 5,
+      "stepLabels": ["1x", "2x", "3x", "4x", "5x"]
+    }
+  },
+  {
+    "component_key": "satisfaction_slider",
+    "component_name": "Satisfaction Slider",
+    "category": "quiz",
+    "description": "Discrete slider component for rating satisfaction (1-5). Shows emoji markers and satisfaction labels.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "min": { "type": "number", "default": 1 },
+        "max": { "type": "number", "default": 5 },
+        "stepLabels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["Awful", "Not great", "Okay", "Good", "Amazing"]
+        },
+        "markerLabels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["😡", "😕", "😐", "🙂", "🤩"]
+        },
+        "showRangeLabels": { "type": "boolean", "default": false }
+      }
+    },
+    "default_options": {
+      "min": 1,
+      "max": 5,
+      "stepLabels": ["Awful", "Not great", "Okay", "Good", "Amazing"],
+      "markerLabels": ["😡", "😕", "😐", "🙂", "🤩"],
+      "showRangeLabels": false
+    }
+  },
+  {
+    "component_key": "testimonial_loader",
+    "component_name": "Testimonial Loader",
+    "category": "quiz",
+    "description": "Animated loading component that displays rotating testimonials/reviews from users. Shows circular progress indicator. Auto-advances when complete.",
+    "props_schema": {
+      "title": { "type": "string", "required": false },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "duration": { "type": "number", "default": 6000 },
+        "carouselInterval": { "type": "number", "default": 1500 }
+      }
+    },
+    "default_options": {
+      "duration": 6000,
+      "carouselInterval": 1500
+    }
+  },
+  {
+    "component_key": "info",
+    "component_name": "Info Screen",
+    "category": "quiz",
+    "description": "Simple information screen displaying only title and description with a Next button. No interactive components.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": true },
+      "options": {}
+    },
+    "default_options": {}
+  },
+  {
+    "component_key": "quiz_results",
+    "component_name": "Quiz Results Chart",
+    "category": "conversion",
+    "description": "Displays a comparison chart showing current vs potential improvement using bar charts. Shows percentage improvement.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {}
+    },
+    "default_options": {}
+  },
+  {
+    "component_key": "rate_app_blurred",
+    "component_name": "Rate App (Blurred)",
+    "category": "conversion",
+    "description": "App store rating prompt screen with blurred background overlay and 4-second countdown. Shows reviews, user avatars, and star ratings. Prompts native review dialog.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "countdownDuration": { "type": "number", "default": 4 },
+        "showBlur": { "type": "boolean", "default": true },
+        "showReviews": { "type": "boolean", "default": true },
+        "showUserCount": { "type": "boolean", "default": true }
+      }
+    },
+    "default_options": {
+      "countdownDuration": 4,
+      "showBlur": true,
+      "showReviews": true,
+      "showUserCount": true
+    }
+  },
+  {
+    "component_key": "rate_app_default",
+    "component_name": "Rate App (Default)",
+    "category": "conversion",
+    "description": "App store rating prompt screen without blur overlay. Shows reviews, user avatars, and star ratings. Prompts native review dialog immediately. Always shows Next button.",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "showBlur": { "type": "boolean", "default": false },
+        "showReviews": { "type": "boolean", "default": true },
+        "showUserCount": { "type": "boolean", "default": true }
+      }
+    },
+    "default_options": {
+      "showBlur": false,
+      "showReviews": true,
+      "showUserCount": true
+    }
+  }
+]
+

@@ -20,9 +20,10 @@ import 'reactflow/dist/style.css'
 import { Button } from './ui/button'
 import { Switch } from './ui/switch'
 import { Label } from './ui/label'
-import { Plus, Pencil, Trash2, Lock } from 'lucide-react'
+import { Plus, Pencil, Lock } from 'lucide-react'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 import { OnboardingScreenDialog } from './onboarding-screen-dialog'
+import { OnboardingScreenPreview } from './onboarding-screen-preview'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,65 +42,30 @@ interface OnboardingManagerProps {
 
 // Custom node component for screens
 function ScreenNode({ data }: { data: any }) {
-  const { screen, type, onEdit, onDelete, onToggleShow } = data
+  const { screen, type, onEdit, onDelete, onToggleShow, totalScreens } = data
   const orderPosition = screen.order_position ?? 0
   const shouldShow = screen.should_show ?? true
 
   return (
-    <div className="bg-white border-2 border-gray-300 rounded-[2rem] shadow-sm w-[200px] h-[400px] flex flex-col overflow-hidden relative" style={{ aspectRatio: '9/16' }}>
+    <div className="flex flex-col items-center gap-3 relative">
       {/* Target handle (left side - input) */}
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: '#10b981', width: 12, height: 12, border: '2px solid white' }}
+        style={{ background: '#10b981', width: 12, height: 12, border: '2px solid white', top: '50%' }}
       />
       
       {/* Source handle (right side - output) */}
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: '#3b82f6', width: 12, height: 12, border: '2px solid white' }}
+        style={{ background: '#3b82f6', width: 12, height: 12, border: '2px solid white', top: '50%' }}
       />
-      
-      <div className="p-4 space-y-3 flex-1 flex flex-col">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs shrink-0">
-                {orderPosition}
-              </div>
-              {screen.title && (
-                <h4 className="font-semibold text-gray-900 text-xs break-words flex-1 leading-tight">
-                  {screen.title}
-                </h4>
-              )}
-            </div>
-            <div className="mb-2">
-              <span
-                className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                  shouldShow
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                {shouldShow ? 'Visible' : 'Hidden'}
-              </span>
-            </div>
-            {screen.description && (
-              <p className="text-xs text-gray-600 break-words mb-3 leading-relaxed">
-                {screen.description}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-auto">
-              {screen.event_name && (
-                <span className="bg-gray-50 px-1.5 py-0.5 rounded text-[10px]">
-                  {screen.event_name}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-200 mt-auto">
+
+      {/* Details and Controls Header */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-2 w-[180px]">
+        {/* Controls */}
+        <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center gap-1">
             <Switch
               id={`toggle-${screen.id}`}
@@ -109,28 +75,51 @@ function ScreenNode({ data }: { data: any }) {
             />
             <Label
               htmlFor={`toggle-${screen.id}`}
-              className="text-xs text-gray-700 cursor-pointer"
+              className="text-[10px] text-gray-700 cursor-pointer"
             >
               {shouldShow ? 'Show' : 'Hide'}
             </Label>
           </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onEdit(screen, type)}
-              className="h-6 w-6 p-0"
-            >
-              <Pencil className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onDelete(screen.id, type)}
-              className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(screen, type)}
+            className="h-6 w-6 p-0"
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Phone Mockup */}
+      <div className="relative">
+        {/* Phone Frame */}
+        <div className="bg-black rounded-[2.5rem] p-2 shadow-2xl">
+          {/* Screen */}
+          <div className="bg-white rounded-[2rem] overflow-hidden w-[200px] h-[400px] relative" style={{ aspectRatio: '9/16' }}>
+            {/* Notch */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-2xl z-10"></div>
+            
+            {/* Status Bar */}
+            <div className="absolute top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-4 pt-1 z-20">
+              <span className="text-[10px] font-semibold text-black">9:41</span>
+              <div className="flex items-center gap-1">
+                <div className="w-4 h-2 border border-black rounded-sm">
+                  <div className="w-3 h-1.5 bg-black rounded-sm m-0.5"></div>
+                </div>
+                <div className="w-4 h-2 border border-black rounded-sm">
+                  <div className="w-2 h-1 bg-black rounded-sm m-0.5"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Screen Content */}
+            <div className="w-full h-full overflow-hidden">
+              <OnboardingScreenPreview screen={screen} totalScreens={totalScreens} />
+            </div>
+
+            {/* Home Indicator */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-black rounded-full"></div>
           </div>
         </div>
       </div>
@@ -141,32 +130,70 @@ function ScreenNode({ data }: { data: any }) {
 // Custom node component for auth screen
 function AuthNode() {
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 rounded-[2rem] shadow-sm w-[200px] h-[400px] flex items-center justify-center relative" style={{ aspectRatio: '9/16' }}>
+    <div className="flex flex-col items-center gap-3 relative">
       {/* Target handle (left side - input) */}
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: '#10b981', width: 12, height: 12, border: '2px solid white' }}
+        style={{ background: '#10b981', width: 12, height: 12, border: '2px solid white', top: '50%' }}
       />
       
       {/* Source handle (right side - output) */}
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: '#3b82f6', width: 12, height: 12, border: '2px solid white' }}
+        style={{ background: '#3b82f6', width: 12, height: 12, border: '2px solid white', top: '50%' }}
       />
-      
-      <div className="p-4 flex flex-col items-center gap-3">
-        <div className="bg-blue-500 rounded-lg p-3">
-          <Lock className="h-6 w-6 text-white" />
+
+      {/* Details Header */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3 w-[240px]">
+        <div className="flex items-center gap-2">
+          <Lock className="h-4 w-4 text-gray-400" />
+          <h4 className="font-semibold text-gray-900 text-sm">
+            Authentication Screen
+          </h4>
         </div>
-        <div className="text-center">
-          <span className="text-sm font-semibold text-gray-900 block">
-            Authentication
-          </span>
-          <span className="text-xs text-gray-600">
-            Required step
-          </span>
+        <p className="text-xs text-gray-600 mt-1">
+          Login / Register
+        </p>
+      </div>
+
+      {/* Phone Mockup */}
+      <div className="relative">
+        {/* Phone Frame */}
+        <div className="bg-black rounded-[2.5rem] p-2 shadow-2xl">
+          {/* Screen */}
+          <div className="bg-white rounded-[2rem] overflow-hidden w-[200px] h-[400px] relative" style={{ aspectRatio: '9/16' }}>
+            {/* Notch */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-2xl z-10"></div>
+            
+            {/* Status Bar */}
+            <div className="absolute top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-4 pt-1 z-20">
+              <span className="text-[10px] font-semibold text-black">9:41</span>
+              <div className="flex items-center gap-1">
+                <div className="w-4 h-2 border border-black rounded-sm">
+                  <div className="w-3 h-1.5 bg-black rounded-sm m-0.5"></div>
+                </div>
+                <div className="w-4 h-2 border border-black rounded-sm">
+                  <div className="w-2 h-1 bg-black rounded-sm m-0.5"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Screen Content */}
+            <div className="w-full h-full pt-8 pb-6 px-4 flex flex-col items-center justify-center">
+              <Lock className="h-16 w-16 text-gray-300 mb-4" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                Authentication
+              </h3>
+              <p className="text-sm text-gray-600 text-center">
+                Login or Register to continue
+              </p>
+            </div>
+
+            {/* Home Indicator */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-black rounded-full"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -247,9 +274,9 @@ export default function OnboardingManager({
     const nodes: Node[] = []
     const edges: Edge[] = []
 
-    const cardWidth = 200
-    const cardSpacing = 30 // Reduced gap between cards
-    const rowSpacing = 500 // Vertical spacing between rows
+    const cardWidth = 240 // Width of the details header + phone mockup
+    const cardSpacing = 50 // Gap between cards
+    const rowSpacing = 650 // Vertical spacing between rows (accounts for header + phone + gap)
     const startX = 50
     const row1Y = 50 // Quiz screens row
     const row2Y = row1Y + rowSpacing // Auth row
@@ -257,6 +284,7 @@ export default function OnboardingManager({
 
     // Row 1: Quiz screens (horizontally aligned)
     let currentX = startX
+    const totalQuizScreens = quizScreens.length
     quizScreens.forEach((screen, index) => {
       nodes.push({
         id: `quiz-${screen.id}`,
@@ -268,6 +296,7 @@ export default function OnboardingManager({
           onEdit: handleEdit,
           onDelete: handleDelete,
           onToggleShow: handleToggleShow,
+          totalScreens: totalQuizScreens,
         },
       })
 
@@ -317,6 +346,7 @@ export default function OnboardingManager({
 
     // Row 3: Conversion screens (horizontally aligned)
     currentX = startX
+    const totalConversionScreens = conversionScreens.length
     conversionScreens.forEach((screen, index) => {
       nodes.push({
         id: `conversion-${screen.id}`,
@@ -328,6 +358,7 @@ export default function OnboardingManager({
           onEdit: handleEdit,
           onDelete: handleDelete,
           onToggleShow: handleToggleShow,
+          totalScreens: totalConversionScreens,
         },
       })
 
@@ -488,6 +519,7 @@ export default function OnboardingManager({
           screen={editingScreen}
           screenType={screenType}
           onSuccess={handleDialogSuccess}
+          onDelete={handleDelete}
         />
       )}
 
