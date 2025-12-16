@@ -49,7 +49,7 @@ const developerMenuItems = [
     roles: ['admin', 'dev', 'developer'] as const,
   },
   {
-    title: 'Onboarding',
+    title: 'App Onboarding',
     url: '/onboarding',
     icon: Home,
     roles: ['admin', 'dev', 'developer'] as const,

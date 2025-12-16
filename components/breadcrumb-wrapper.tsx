@@ -16,7 +16,8 @@ import {
 import { Separator } from './ui/separator'
 import { SidebarTrigger } from './ui/sidebar'
 import { Badge } from './ui/badge'
-import { User } from 'lucide-react'
+import { Button } from './ui/button'
+import { User, Plus } from 'lucide-react'
 
 export function BreadcrumbWrapper() {
   const pathname = usePathname()
@@ -79,7 +80,7 @@ export function BreadcrumbWrapper() {
     if (segment === 'devices') return 'Devices'
     if (segment === 'feature-flags') return 'Feature Flags'
     if (segment === 'profile') return 'Profile'
-    if (segment === 'onboarding') return 'Onboarding'
+    if (segment === 'onboarding') return 'App Onboarding'
     if (segment === 'knowledge') return 'Knowledge'
 
     // Nested routes
@@ -103,6 +104,9 @@ export function BreadcrumbWrapper() {
     return segment.charAt(0).toUpperCase() + segment.slice(1)
   }
   
+  const isOnboardingPage = pathname === '/onboarding'
+  const onboardingHandlers = typeof window !== 'undefined' ? (window as any).onboardingAddHandlers : null
+
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-4 bg-white">
       <div className="flex items-center gap-2">
@@ -142,34 +146,58 @@ export function BreadcrumbWrapper() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-      <Link
-        href="/profile"
-        className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
-      >
-        {userProfile?.profile_picture_url ? (
-          <Image
-            src={userProfile.profile_picture_url}
-            alt={userProfile.name || 'Profile'}
-            width={32}
-            height={32}
-            className="rounded-full"
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-            <User className="h-4 w-4 text-gray-600" />
-          </div>
+      <div className="flex items-center gap-2">
+        {isOnboardingPage && onboardingHandlers && (
+          <>
+            <Button
+              onClick={onboardingHandlers.addQuiz}
+              size="sm"
+              variant="outline"
+              className="h-8"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Quiz Screen
+            </Button>
+            <Button
+              onClick={onboardingHandlers.addConversion}
+              size="sm"
+              variant="outline"
+              className="h-8"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Conversion Screen
+            </Button>
+          </>
         )}
-        {userProfile?.name && (
-          <span className="text-sm font-medium text-gray-700 hidden sm:inline">
-            {userProfile.name}
-          </span>
-        )}
-        {userRole && (
-          <Badge variant="outline" className="text-sm font-medium">
-            {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
-          </Badge>
-        )}
-      </Link>
+        <Link
+          href="/profile"
+          className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
+        >
+          {userProfile?.profile_picture_url ? (
+            <Image
+              src={userProfile.profile_picture_url}
+              alt={userProfile.name || 'Profile'}
+              width={32}
+              height={32}
+              className="rounded-full"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+              <User className="h-4 w-4 text-gray-600" />
+            </div>
+          )}
+          {userProfile?.name && (
+            <span className="text-sm font-medium text-gray-700 hidden sm:inline">
+              {userProfile.name}
+            </span>
+          )}
+          {userRole && (
+            <Badge variant="outline" className="text-sm font-medium">
+              {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+            </Badge>
+          )}
+        </Link>
+      </div>
     </header>
   )
 }
