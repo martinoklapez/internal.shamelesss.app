@@ -79,11 +79,11 @@ export default function FeatureFlagsManager({ featureFlags: initialFeatureFlags 
         return (
           <div
             key={flag.id}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white break-words">
                   {flag.flag_id}
                 </h3>
                 <span
@@ -97,18 +97,21 @@ export default function FeatureFlagsManager({ featureFlags: initialFeatureFlags 
                 </span>
               </div>
               {flag.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 break-words">
                   {flag.description}
                 </p>
               )}
-              <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mt-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-2">
                 <span>Created: {formatDate(flag.created_at)}</span>
                 <span>Updated: {formatDate(flag.updated_at)}</span>
               </div>
             </div>
-            <div className="flex items-center gap-3 ml-4">
+            <div className="flex items-center sm:items-center gap-3 sm:ml-4">
               <div className="flex items-center gap-2">
-                <Label htmlFor={`toggle-${flag.flag_id}`} className="w-16 text-right text-sm font-medium">
+                <Label
+                  htmlFor={`toggle-${flag.flag_id}`}
+                  className="w-20 text-right text-xs sm:text-sm font-medium"
+                >
                   {flag.is_enabled ? 'Enabled' : 'Disabled'}
                 </Label>
                 <Switch

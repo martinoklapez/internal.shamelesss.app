@@ -82,8 +82,18 @@ const SidebarProvider = React.forwardRef<
       setOpen((open) => !open)
     }, [setOpen])
 
-    // Determine if mobile (you can enhance this with a hook)
-    const isMobile = typeof window !== "undefined" && window.innerWidth < 768
+    // Determine if mobile (hydration-safe: default false, update after mount)
+    const [isMobile, setIsMobile] = React.useState(false)
+
+    React.useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth < 768)
+      }
+
+      handleResize()
+      window.addEventListener("resize", handleResize)
+      return () => window.removeEventListener("resize", handleResize)
+    }, [])
 
     const state = open ? "expanded" : "collapsed"
 
@@ -169,6 +179,7 @@ const Sidebar = React.forwardRef<
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
+            side={side}
             data-sidebar={variant}
             data-mobile={isMobile}
             data-state={openMobile ? "open" : "closed"}
@@ -217,7 +228,7 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile, setOpenMobile } = useSidebar()
 
   return (
     <Button
@@ -228,7 +239,11 @@ const SidebarTrigger = React.forwardRef<
       className={cn("h-7 w-7", className)}
       onClick={(event) => {
         onClick?.(event)
-        toggleSidebar()
+        if (isMobile) {
+          setOpenMobile(true)
+        } else {
+          toggleSidebar()
+        }
       }}
       {...props}
     >
@@ -266,13 +281,12 @@ const SidebarInset = React.forwardRef<
       ref={ref}
       className={cn(
         "relative flex min-h-svh flex-1 flex-col bg-white",
+        // On desktop, leave space for the sidebar using CSS only (no JS),
+        // so there is no layout flash on mobile during hydration.
+        "md:ml-[var(--sidebar-width)] md:transition-[margin-left]",
         "peer-data-[variant=inset]:min-w-0",
         className
       )}
-      style={{
-        marginLeft: "var(--sidebar-width)",
-        transition: "margin-left 200ms",
-      } as React.CSSProperties}
       {...props}
     />
   )

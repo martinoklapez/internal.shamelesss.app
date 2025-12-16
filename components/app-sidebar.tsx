@@ -16,7 +16,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone, Users } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users, X } from 'lucide-react'
+import { Button } from './ui/button'
 import SignOutButton from './sign-out-button'
 
 const generalMenuItems = [
@@ -76,7 +77,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ userRole }: AppSidebarProps) {
   const pathname = usePathname()
-  const { state } = useSidebar()
+  const { state, isMobile, setOpenMobile } = useSidebar()
   const isCollapsed = state === 'collapsed'
 
   // Filter menu items based on user role
@@ -120,6 +121,17 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
             </div>
           )}
         </div>
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setOpenMobile(false)}
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close sidebar</span>
+          </Button>
+        )}
       </SidebarHeader>
       <SidebarContent className="flex-1 overflow-y-auto">
         {showGeneralGroup && (
