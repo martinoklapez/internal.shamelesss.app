@@ -403,15 +403,15 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
 
   return (
     <div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       {/* Left Column: iCloud Profile and Proxy */}
       <div className="space-y-6">
         {/* iCloud Profile Section */}
-        <div className="bg-white rounded-lg py-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white rounded-lg py-4 sm:py-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <DeviceIcon className="h-5 w-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <DeviceIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 iCloud Profile
               </h2>
             </div>
@@ -454,11 +454,11 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
         </div>
 
         {/* Proxy Section */}
-        <div className="bg-white rounded-lg py-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white rounded-lg py-4 sm:py-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <Network className="h-5 w-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <Network className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 Proxy
               </h2>
             </div>
@@ -704,9 +704,9 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
 
       {/* Right Column: Social Accounts */}
       {/* Social Accounts Section */}
-      <div className="bg-white rounded-lg py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+      <div className="bg-white rounded-lg py-4 sm:py-6">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
             Social Accounts ({device.socialAccounts.length})
           </h2>
           <AddSocialAccountDialog deviceId={device.id}>
@@ -800,14 +800,14 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
 
       {/* Burned Accounts Documentation Section - Full Width */}
       {(device.archivedICloudProfiles.length > 0 || device.archivedSocialAccounts.length > 0 || (device.archivedProxies && device.archivedProxies.length > 0)) && (
-      <div className="bg-white rounded-lg py-6">
+      <div className="bg-white rounded-lg py-4 sm:py-6">
         <div className="flex items-center gap-2 mb-4">
-          <FileText className="h-5 w-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
             Burned Accounts Documentation
           </h2>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4 break-words">
           Historical record of archived accounts grouped by batch (which accounts worked together).
         </p>
         <div className="space-y-4">

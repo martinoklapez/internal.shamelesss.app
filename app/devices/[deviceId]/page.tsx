@@ -144,34 +144,34 @@ export default async function DevicePage({ params }: DevicePageProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/devices">
               <Button variant="outline" size="icon">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-words">
                   {`Device ${device.id}`}
                 </h1>
-                <span className="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 shrink-0">
                   {device.name}
                 </span>
               </div>
               {device.iCloudProfile?.alias && (
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 break-words">
                   alias {device.iCloudProfile.alias}
                 </p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm">
             {device.managerId && (device.managerName || device.managerProfilePicture) && (
               <div className="flex items-center gap-2">
-                <span className="text-gray-600 dark:text-gray-400 font-semibold">Manager:</span>
+                <span className="text-gray-600 dark:text-gray-400 font-semibold hidden sm:inline">Manager:</span>
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-full">
                   {device.managerId === user.id ? (
                     <>
@@ -188,7 +188,7 @@ export default async function DevicePage({ params }: DevicePageProps) {
                           M
                         </div>
                       )}
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                         Me
                       </span>
                     </>
@@ -207,7 +207,7 @@ export default async function DevicePage({ params }: DevicePageProps) {
                           {(device.managerName || 'M')[0].toUpperCase()}
                         </div>
                       )}
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate max-w-[100px] sm:max-w-none">
                         {device.managerName || 'Manager'}
                       </span>
                     </>
@@ -217,8 +217,8 @@ export default async function DevicePage({ params }: DevicePageProps) {
             )}
             {device.owner && (
               <div className="flex items-center gap-2">
-                <span className="text-gray-600 dark:text-gray-400 font-semibold">Owner:</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                <span className="text-gray-600 dark:text-gray-400 font-semibold hidden sm:inline">Owner:</span>
+                <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white break-words">
                   {device.owner}
                 </span>
               </div>

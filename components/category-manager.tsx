@@ -95,15 +95,16 @@ export default function CategoryManager({ gameId, categories: initialCategories,
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <h4 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
           Categories ({categories.length})
         </h4>
         <div className="flex gap-2">
           <Link href={`/games/${gameId}/content`}>
-            <Button variant="outline" size="sm">
-              <List className="h-4 w-4 mr-2" />
-              Show All Content
+            <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+              <List className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Show All Content</span>
+              <span className="sm:hidden">All</span>
             </Button>
           </Link>
           <Button onClick={handleAdd} size="sm" variant="ghost" className="h-8 w-8 p-0">
@@ -121,17 +122,17 @@ export default function CategoryManager({ gameId, categories: initialCategories,
           {sortedCategories.map((category) => (
             <div
               key={category.id}
-              className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 p-4 bg-white rounded-lg border border-gray-200"
+              className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto_auto] items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-lg border border-gray-200"
             >
-              <span className="text-2xl">{category.emoji}</span>
+              <span className="text-xl sm:text-2xl">{category.emoji}</span>
               
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h5 className="font-medium text-gray-900 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h5 className="font-medium text-sm sm:text-base text-gray-900 dark:text-white break-words">
                     {category.name}
                   </h5>
                   <span
-                    className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                    className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${
                       category.is_active
                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                         : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
@@ -140,16 +141,16 @@ export default function CategoryManager({ gameId, categories: initialCategories,
                     {category.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 break-words">
                   {category.description}
                 </p>
-                <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1 text-xs text-gray-500 dark:text-gray-400">
                   <span>Sort: {category.sort_order}</span>
-                  <span>ID: {category.id}</span>
+                  <span className="break-all">ID: {category.id}</span>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 sm:col-span-1">
                 <Switch
                   id={`category-${category.id}`}
                   checked={category.is_active}
@@ -158,29 +159,29 @@ export default function CategoryManager({ gameId, categories: initialCategories,
                 />
                 <Label
                   htmlFor={`category-${category.id}`}
-                  className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer w-14 text-left"
+                  className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 cursor-pointer w-12 sm:w-14 text-left"
                 >
                   {category.is_active ? 'Active' : 'Inactive'}
                 </Label>
               </div>
               
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 sm:col-span-1">
                 <Link href={`/games/${gameId}/categories/${category.id}`}>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="shrink-0"
+                    className="shrink-0 h-8 w-8 sm:h-9 sm:w-9 p-0"
                   >
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </Link>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleEdit(category)}
-                  className="shrink-0"
+                  className="shrink-0 h-8 w-8 sm:h-9 sm:w-9 p-0"
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </div>
             </div>
