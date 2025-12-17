@@ -148,26 +148,15 @@ export function BreadcrumbWrapper() {
       </div>
       <div className="flex items-center gap-2">
         {isOnboardingPage && onboardingHandlers && (
-          <>
-            <Button
-              onClick={onboardingHandlers.addQuiz}
-              size="sm"
-              variant="outline"
-              className="h-8"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Quiz Screen
-            </Button>
-            <Button
-              onClick={onboardingHandlers.addConversion}
-              size="sm"
-              variant="outline"
-              className="h-8"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Conversion Screen
-            </Button>
-          </>
+          <Button
+            onClick={onboardingHandlers.addScreen}
+            size="sm"
+            variant="outline"
+            className="h-8"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Screen
+          </Button>
         )}
         <Link
           href="/profile"

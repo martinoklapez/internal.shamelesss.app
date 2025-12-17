@@ -28,7 +28,9 @@ export async function GET(request: Request) {
       .order('component_name', { ascending: true })
 
     if (category) {
-      query = query.eq('category', category)
+      // Filter by categories array containing the category
+      // Supabase .contains() method checks if array contains the value
+      query = query.contains('categories', [category])
     }
 
     const { data, error } = await query

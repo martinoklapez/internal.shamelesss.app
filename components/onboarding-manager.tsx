@@ -477,17 +477,16 @@ export default function OnboardingManager({
     [setEdges]
   )
 
-  const handleAdd = useCallback((type: 'quiz' | 'conversion') => {
-    setScreenType(type)
+  const handleAdd = useCallback(() => {
+    setScreenType('quiz') // Pre-select Quiz Screen
     setEditingScreen(null)
     setDialogOpen(true)
   }, [])
 
-  // Expose add handlers to window for breadcrumb access
+  // Expose add handler to window for breadcrumb access
   useEffect(() => {
     (window as any).onboardingAddHandlers = {
-      addQuiz: () => handleAdd('quiz'),
-      addConversion: () => handleAdd('conversion'),
+      addScreen: handleAdd,
     }
     return () => {
       delete (window as any).onboardingAddHandlers
@@ -516,16 +515,17 @@ export default function OnboardingManager({
       </div>
 
       {/* Dialog */}
-      {screenType && (
-        <OnboardingScreenDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          screen={editingScreen}
-          screenType={screenType}
-          onSuccess={handleDialogSuccess}
-          onDelete={handleDelete}
-        />
-      )}
+      <OnboardingScreenDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        screen={editingScreen}
+        screenType={screenType}
+        onSuccess={handleDialogSuccess}
+        onDelete={handleDelete}
+        onScreenTypeChange={setScreenType}
+        existingQuizScreens={quizScreens}
+        existingConversionScreens={conversionScreens}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

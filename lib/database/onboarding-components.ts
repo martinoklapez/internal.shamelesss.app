@@ -4,7 +4,7 @@ export interface OnboardingComponent {
   id: string
   component_key: string
   component_name: string
-  category: 'quiz' | 'conversion'
+  categories: ('quiz' | 'conversion')[]
   description: string | null
   props_schema: any | null
   default_options: any | null
@@ -21,7 +21,9 @@ export async function getOnboardingComponents(category?: 'quiz' | 'conversion'):
     .order('component_name', { ascending: true })
 
   if (category) {
-    query = query.eq('category', category)
+    // Filter by categories array containing the category
+    // PostgREST cs (contains) operator: categories.cs.{value} checks if array contains value
+    query = query.contains('categories', [category])
   }
 
   const { data, error } = await query
