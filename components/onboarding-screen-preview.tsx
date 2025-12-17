@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 
 interface ScreenPreviewProps {
@@ -19,7 +19,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   const testimonialAnimationRef = useRef<number>()
   
   const componentId = screen.component_id
-  const options = screen.options || {}
+  const options = useMemo(() => screen.options || {}, [screen.options])
   const title = screen.title || ''
   const description = screen.description || ''
   

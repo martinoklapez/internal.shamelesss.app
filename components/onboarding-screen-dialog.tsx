@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -172,7 +172,7 @@ export function OnboardingScreenDialog({
   }, [open, screenType, screen])
 
   // Calculate next available order position when creating a new screen
-  const calculateNextOrderPosition = (type: 'quiz' | 'conversion' | null): number => {
+  const calculateNextOrderPosition = useCallback((type: 'quiz' | 'conversion' | null): number => {
     if (!type) return 1
     
     // Get screens of the specific type
@@ -196,7 +196,7 @@ export function OnboardingScreenDialog({
     }
     
     return maxPosition + 1
-  }
+  }, [existingQuizScreens, existingConversionScreens])
 
   useEffect(() => {
     if (screen) {
@@ -224,7 +224,7 @@ export function OnboardingScreenDialog({
       // Default to "options" component
       setComponentId('options')
     }
-  }, [screen, screenType, open, existingQuizScreens, existingConversionScreens])
+  }, [screen, screenType, open, existingQuizScreens, existingConversionScreens, calculateNextOrderPosition])
 
   const handleContinue = () => {
     if (!componentId) {
@@ -801,7 +801,7 @@ export function OnboardingScreenDialog({
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-gray-500">
-                      Enter valid JSON. For components with options array, use format: [{"{"}"label": "Label", "value": "value"{"}"}]
+                      Enter valid JSON. For components with options array, use format: [{"{"}"label": &quot;Label&quot;, &quot;value&quot;: &quot;value&quot;{"}"}]
                     </p>
                   </>
                 )}
