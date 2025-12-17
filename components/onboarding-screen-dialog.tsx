@@ -801,7 +801,7 @@ export function OnboardingScreenDialog({
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-gray-500">
-                      Enter valid JSON. For components with options array, use format: [{"{"}"label": &quot;Label&quot;, &quot;value&quot;: &quot;value&quot;{"}"}]
+                      Enter valid JSON. For components with options array, use format: [{`{"label": "Label", "value": "value"}`}]
                     </p>
                   </>
                 )}
