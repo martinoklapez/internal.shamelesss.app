@@ -24,7 +24,7 @@ import {
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 import type { OnboardingComponent } from '@/lib/database/onboarding-components'
 import { OnboardingScreenPreview } from './onboarding-screen-preview'
-import { Trash2, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 interface OnboardingScreenDialogProps {
@@ -61,7 +61,82 @@ export function OnboardingScreenDialog({
   const [availableComponents, setAvailableComponents] = useState<OnboardingComponent[]>([])
   const [loadingComponents, setLoadingComponents] = useState(false)
   const [currentStep, setCurrentStep] = useState<'select' | 'edit'>('select')
+  const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null)
+  const [newOptionLabel, setNewOptionLabel] = useState('')
+  const [newOptionValue, setNewOptionValue] = useState('')
+  const [showJsonView, setShowJsonView] = useState(false)
   const { toast } = useToast()
+
+  // Check if options is an array of objects with label/value structure
+  const isOptionsArray = (): boolean => {
+    try {
+      const parsed = options.trim() ? JSON.parse(options) : null
+      return (
+        Array.isArray(parsed) &&
+        parsed.every((item: any) => 
+          typeof item === 'object' && 
+          item !== null && 
+          'label' in item && 
+          'value' in item
+        )
+      )
+    } catch {
+      return false
+    }
+  }
+
+  // Get parsed options array
+  const getOptionsArray = (): Array<{ label: string; value: string }> => {
+    try {
+      const parsed = options.trim() ? JSON.parse(options) : []
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+
+  // Update options from array
+  const updateOptionsFromArray = (arr: Array<{ label: string; value: string }>) => {
+    setOptions(JSON.stringify(arr, null, 2))
+  }
+
+  // Add new option
+  const handleAddOption = () => {
+    if (!newOptionLabel.trim() || !newOptionValue.trim()) {
+      toast({
+        title: 'Invalid Option',
+        description: 'Both label and value are required.',
+        variant: 'destructive',
+      })
+      return
+    }
+    const currentOptions = getOptionsArray()
+    updateOptionsFromArray([...currentOptions, { label: newOptionLabel, value: newOptionValue }])
+    setNewOptionLabel('')
+    setNewOptionValue('')
+  }
+
+  // Update existing option
+  const handleUpdateOption = (index: number, label: string, value: string) => {
+    if (!label.trim() || !value.trim()) {
+      toast({
+        title: 'Invalid Option',
+        description: 'Both label and value are required.',
+        variant: 'destructive',
+      })
+      return
+    }
+    const currentOptions = getOptionsArray()
+    currentOptions[index] = { label, value }
+    updateOptionsFromArray(currentOptions)
+    setEditingOptionIndex(null)
+  }
+
+  // Delete option
+  const handleDeleteOption = (index: number) => {
+    const currentOptions = getOptionsArray()
+    updateOptionsFromArray(currentOptions.filter((_, i) => i !== index))
+  }
 
   // Fetch available components when dialog opens and screenType is selected
   useEffect(() => {
@@ -79,6 +154,7 @@ export function OnboardingScreenDialog({
                 setComponentId('options')
                 if (optionsComponent.default_options) {
                   setOptions(JSON.stringify(optionsComponent.default_options, null, 2))
+                  setShowJsonView(false)
                 }
               }
             }
@@ -133,6 +209,7 @@ export function OnboardingScreenDialog({
       setEventName(screen.event_name || (screenType === 'conversion' ? 'step' : ''))
       setShouldShow(screen.should_show ?? true)
       setComponentId(screen.component_id || '')
+      setShowJsonView(false)
     } else {
       // When creating, start at select step
       setCurrentStep('select')
@@ -143,6 +220,7 @@ export function OnboardingScreenDialog({
       setOrderPosition(screenType ? calculateNextOrderPosition(screenType) : 1)
       setEventName(screenType === 'conversion' ? 'step' : '')
       setShouldShow(true)
+      setShowJsonView(false)
       // Default to "options" component
       setComponentId('options')
     }
@@ -379,6 +457,7 @@ export function OnboardingScreenDialog({
                           setComponentId(component.component_key)
                           if (component.default_options) {
                             setOptions(JSON.stringify(component.default_options, null, 2))
+                            setShowJsonView(false)
                           }
                         }}
                       >
@@ -524,6 +603,7 @@ export function OnboardingScreenDialog({
                       const selectedComponent = availableComponents.find(c => c.component_key === value)
                       if (selectedComponent?.default_options) {
                         setOptions(JSON.stringify(selectedComponent.default_options, null, 2))
+                        setShowJsonView(false)
                       }
                     }}
                   >
@@ -553,18 +633,178 @@ export function OnboardingScreenDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="options">Options (JSON)</Label>
-                <Textarea
-                  id="options"
-                  value={options}
-                  onChange={(e) => setOptions(e.target.value)}
-                  placeholder={screenType === 'conversion' ? '[]' : '{} or null'}
-                  rows={6}
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-gray-500">
-                  Enter valid JSON. For conversion screens, default is empty array [].
-                </p>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="options">Options</Label>
+                  {isOptionsArray() && !showJsonView && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowJsonView(true)}
+                      className="text-xs"
+                    >
+                      Edit as JSON
+                    </Button>
+                  )}
+                  {showJsonView && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowJsonView(false)
+                        // Validate JSON when switching back
+                        try {
+                          const parsed = JSON.parse(options)
+                          if (Array.isArray(parsed) && parsed.every((item: any) => 
+                            typeof item === 'object' && item !== null && 'label' in item && 'value' in item
+                          )) {
+                            // Valid array format, keep it
+                          } else {
+                            // Invalid format, reset to empty array
+                            setOptions('[]')
+                          }
+                        } catch {
+                          setOptions('[]')
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      Back to Visual Editor
+                    </Button>
+                  )}
+                </div>
+                
+                {isOptionsArray() && !showJsonView ? (
+                  <div className="space-y-3">
+                    {/* Options List */}
+                    <div className="space-y-2">
+                      {getOptionsArray().map((option, index) => (
+                        <div key={index} className="flex items-center gap-2 p-3 border rounded-lg bg-white">
+                          {editingOptionIndex === index ? (
+                            <>
+                              <Input
+                                value={newOptionLabel}
+                                onChange={(e) => setNewOptionLabel(e.target.value)}
+                                placeholder="Label"
+                                className="flex-1"
+                              />
+                              <Input
+                                value={newOptionValue}
+                                onChange={(e) => setNewOptionValue(e.target.value)}
+                                placeholder="Value"
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleUpdateOption(index, newOptionLabel, newOptionValue)}
+                                disabled={!newOptionLabel.trim() || !newOptionValue.trim()}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingOptionIndex(null)
+                                  setNewOptionLabel('')
+                                  setNewOptionValue('')
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex-1">
+                                <div className="font-medium">{option.label}</div>
+                                <div className="text-xs text-gray-500">{option.value}</div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingOptionIndex(index)
+                                  setNewOptionLabel(option.label)
+                                  setNewOptionValue(option.value)
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteOption(index)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Add New Option */}
+                    {editingOptionIndex === null && (
+                      <div className="flex items-center gap-2 p-3 border-2 border-dashed rounded-lg bg-gray-50">
+                        <Input
+                          value={newOptionLabel}
+                          onChange={(e) => setNewOptionLabel(e.target.value)}
+                          placeholder="Label"
+                          className="flex-1"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newOptionLabel.trim() && newOptionValue.trim()) {
+                              handleAddOption()
+                            }
+                          }}
+                        />
+                        <Input
+                          value={newOptionValue}
+                          onChange={(e) => setNewOptionValue(e.target.value)}
+                          placeholder="Value"
+                          className="flex-1"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newOptionLabel.trim() && newOptionValue.trim()) {
+                              handleAddOption()
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleAddOption}
+                          disabled={!newOptionLabel.trim() || !newOptionValue.trim()}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {getOptionsArray().length === 0 && (
+                      <p className="text-xs text-gray-500 text-center py-4">
+                        No options yet. Add your first option above.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <Textarea
+                      id="options"
+                      value={options}
+                      onChange={(e) => setOptions(e.target.value)}
+                      placeholder={screenType === 'conversion' ? '[]' : '{} or null'}
+                      rows={6}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Enter valid JSON. For components with options array, use format: [{"{"}"label": "Label", "value": "value"{"}"}]
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center space-x-2">

@@ -23,6 +23,20 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   const title = screen.title || ''
   const description = screen.description || ''
   
+  // Helper to get options array - handles both direct array and nested options.options
+  const getOptionsArray = (): Array<{ label: string; value: string; id?: string; icon?: string }> => {
+    // If options is directly an array, use it
+    if (Array.isArray(options)) {
+      return options
+    }
+    // If options is an object with an 'options' property that's an array, use that
+    if (options && typeof options === 'object' && 'options' in options && Array.isArray(options.options)) {
+      return options.options
+    }
+    // Otherwise return empty array (no fallback sample data)
+    return []
+  }
+  
   // Testimonial Loader - useEffect hooks (must be before any early returns)
   useEffect(() => {
     if (componentId !== 'testimonial_loader') return
@@ -56,11 +70,16 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   useEffect(() => {
     if (componentId !== 'testimonial_loader') return
     
-    const reviews = options.reviews || [
-      { id: '1', author: 'Sarah M.', text: 'This app changed my life! The personalized experience is incredible.', rating: 5, avatar: null, initials: 'SM' },
-      { id: '2', author: 'John D.', text: 'Best dating app I\'ve ever used. Highly recommend!', rating: 5, avatar: null, initials: 'JD' },
-      { id: '3', author: 'Emma L.', text: 'Love how it adapts to my preferences. So intuitive!', rating: 5, avatar: null, initials: 'EL' }
-    ]
+    // Get reviews from options - handle both options.reviews and direct reviews array
+    const reviews = (() => {
+      if (Array.isArray(options)) {
+        return []
+      }
+      if (options && typeof options === 'object' && 'reviews' in options && Array.isArray(options.reviews)) {
+        return options.reviews
+      }
+      return []
+    })()
 
     if (reviews.length <= 1) return
 
@@ -69,7 +88,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     }, 1500)
 
     return () => clearInterval(interval)
-  }, [componentId, options.reviews])
+  }, [componentId, options])
   
   // Calculate progress percentage based on order_position
   const calculateProgress = () => {
@@ -102,11 +121,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
 
   // Options (Radio Group)
   if (componentId === 'options') {
-    const radioOptions = options.options || [
-      { id: '1', label: 'Option 1', value: 'option1' },
-      { id: '2', label: 'Option 2', value: 'option2' },
-      { id: '3', label: 'Option 3', value: 'option3' },
-    ]
+    const radioOptions = getOptionsArray()
     
     // Helper to capitalize first letter and lowercase rest
     const formatLabel = (text: string) => {
@@ -212,10 +227,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
 
   // Instant Radio (Social Icons)
   if (componentId === 'instant_radio') {
-    const radioOptions = options.options || [
-      { id: 'instagram', label: 'Instagram', value: 'instagram' },
-      { id: 'tiktok', label: 'TikTok', value: 'tiktok' },
-    ]
+    const radioOptions = getOptionsArray()
     return (
       <div className="w-full h-full flex flex-col bg-white pt-8">
         {title ? (
@@ -435,33 +447,16 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     const CIRCLE_RADIUS = 70
     const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS // ~439.82
 
-    // Mock reviews data
-    const reviews = options.reviews || [
-      {
-        id: '1',
-        author: 'Sarah M.',
-        text: 'This app changed my life! The personalized experience is incredible.',
-        rating: 5,
-        avatar: null,
-        initials: 'SM'
-      },
-      {
-        id: '2',
-        author: 'John D.',
-        text: 'Best dating app I\'ve ever used. Highly recommend!',
-        rating: 5,
-        avatar: null,
-        initials: 'JD'
-      },
-      {
-        id: '3',
-        author: 'Emma L.',
-        text: 'Love how it adapts to my preferences. So intuitive!',
-        rating: 5,
-        avatar: null,
-        initials: 'EL'
+    // Get reviews from options - handle both options.reviews and direct reviews array
+    const reviews = (() => {
+      if (Array.isArray(options)) {
+        return []
       }
-    ]
+      if (options && typeof options === 'object' && 'reviews' in options && Array.isArray(options.reviews)) {
+        return options.reviews
+      }
+      return []
+    })()
 
     const progressDisplay = Math.round(testimonialProgress * 100)
     const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - testimonialProgress)
