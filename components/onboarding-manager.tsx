@@ -312,10 +312,10 @@ export default function OnboardingManager({
           target: `quiz-${quizScreens[index + 1].id}`,
           type: 'straight',
           animated: true,
-          style: { strokeWidth: 2, stroke: '#3b82f6' },
+          style: { strokeWidth: 2, stroke: '#000000' },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: '#3b82f6',
+            color: '#000000',
           },
         })
       }
@@ -340,10 +340,10 @@ export default function OnboardingManager({
         targetHandle: 'target',
         type: 'smoothstep',
         animated: true,
-        style: { strokeWidth: 2, stroke: '#3b82f6' },
+        style: { strokeWidth: 2, stroke: '#000000' },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: '#3b82f6',
+          color: '#000000',
         },
       })
     }
@@ -376,10 +376,10 @@ export default function OnboardingManager({
           targetHandle: 'target',
           type: 'smoothstep',
           animated: true,
-          style: { strokeWidth: 2, stroke: '#3b82f6' },
+          style: { strokeWidth: 2, stroke: '#000000' },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: '#3b82f6',
+            color: '#000000',
           },
         })
       }
@@ -392,10 +392,10 @@ export default function OnboardingManager({
           target: `conversion-${conversionScreens[index + 1].id}`,
           type: 'straight',
           animated: true,
-          style: { strokeWidth: 2, stroke: '#3b82f6' },
+          style: { strokeWidth: 2, stroke: '#000000' },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: '#3b82f6',
+            color: '#000000',
           },
         })
       }
