@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Dialog,
   DialogContent,
@@ -86,7 +86,7 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!deviceModel) {
+    if (!deviceModel || !managerId || !owner) {
       return
     }
 
@@ -100,8 +100,8 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
         },
         body: JSON.stringify({
           device_model: deviceModel,
-          manager_id: managerId || null,
-          owner: owner || null,
+          manager_id: managerId,
+          owner: owner,
         }),
       })
 
@@ -153,11 +153,12 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="manager">Manager (optional)</Label>
+              <Label htmlFor="manager">Manager *</Label>
               <Select
                 value={managerId || undefined}
                 onValueChange={(value) => setManagerId(value)}
                 disabled={loadingUsers}
+                required
               >
                 <SelectTrigger className="flex items-center gap-2">
                   {managerId ? (() => {
@@ -165,19 +166,18 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
                     if (!selectedUser) return <SelectValue placeholder="Select a manager" />
                     return (
                       <>
-                        {selectedUser.profile_picture_url ? (
-                          <Image
-                            src={selectedUser.profile_picture_url}
-                            alt={selectedUser.name || selectedUser.email || 'User'}
-                            width={20}
-                            height={20}
-                            className="rounded-full"
-                          />
-                        ) : (
-                          <div className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
-                            {(selectedUser.name || selectedUser.email || 'U')[0].toUpperCase()}
-                          </div>
-                        )}
+                        <Avatar className="h-5 w-5">
+                          {selectedUser.profile_picture_url ? (
+                            <AvatarImage
+                              src={selectedUser.profile_picture_url}
+                              alt={selectedUser.name || selectedUser.email || 'User'}
+                            />
+                          ) : (
+                            <AvatarFallback className="text-xs">
+                              {(selectedUser.name || selectedUser.email || 'U')[0].toUpperCase()}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
                         <SelectValue>
                           {selectedUser.name || selectedUser.email || `User ${selectedUser.id.substring(0, 8)}...`}
                         </SelectValue>
@@ -198,19 +198,18 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
                       return users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           <div className="flex items-center gap-2">
-                            {user.profile_picture_url ? (
-                              <Image
-                                src={user.profile_picture_url}
-                                alt={user.name || user.email || 'User'}
-                                width={20}
-                                height={20}
-                                className="rounded-full"
-                              />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
-                                {(user.name || user.email || 'U')[0].toUpperCase()}
-                              </div>
-                            )}
+                            <Avatar className="h-5 w-5">
+                              {user.profile_picture_url ? (
+                                <AvatarImage
+                                  src={user.profile_picture_url}
+                                  alt={user.name || user.email || 'User'}
+                                />
+                              ) : (
+                                <AvatarFallback className="text-xs">
+                                  {(user.name || user.email || 'U')[0].toUpperCase()}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
                             <span>{user.name || user.email || `User ${user.id.substring(0, 8)}...`}</span>
                           </div>
                         </SelectItem>
@@ -219,25 +218,15 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
                   )}
                 </SelectContent>
               </Select>
-              {managerId && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setManagerId('')}
-                  className="text-xs"
-                >
-                  Clear selection
-                </Button>
-              )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="owner">Owner (optional)</Label>
+              <Label htmlFor="owner">Owner *</Label>
               <Input
                 id="owner"
                 placeholder="e.g., John Doe, Company Name"
                 value={owner}
                 onChange={(e) => setOwner(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -250,7 +239,7 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || !deviceModel}>
+            <Button type="submit" disabled={isLoading || !deviceModel || !managerId || !owner}>
               {isLoading ? 'Creating...' : 'Create Device'}
             </Button>
           </DialogFooter>
