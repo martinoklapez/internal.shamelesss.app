@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Smartphone, Tablet, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 interface SocialAccount {
   id: string
@@ -55,9 +55,9 @@ const platformIcons: Record<string, string> = {
 }
 
 export default function DevicesManager({ devices, currentUserId, userRole }: DevicesManagerProps) {
-  // Only admin and developer can see "All Devices", others default to "My Devices"
-  const canViewAllDevices = userRole === 'admin' || userRole === 'dev' || userRole === 'developer'
-  const [showMyDevices, setShowMyDevices] = useState(!canViewAllDevices)
+  // Admin and developer can open any device, others can only open their own
+  const canOpenAllDevices = userRole === 'admin' || userRole === 'dev' || userRole === 'developer'
+  const [showMyDevices, setShowMyDevices] = useState(false)
 
   // Filter devices based on toggle state
   const filteredDevices = showMyDevices
@@ -68,20 +68,18 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
     return (
       <div>
         <div className="mb-6 inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
-          {canViewAllDevices && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowMyDevices(false)}
-              className={`h-8 px-4 transition-all ${
-                !showMyDevices
-                  ? 'bg-white text-gray-900 font-semibold shadow-sm border border-gray-200'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              All Devices
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowMyDevices(false)}
+            className={`h-8 px-4 transition-all ${
+              !showMyDevices
+                ? 'bg-white text-gray-900 font-semibold shadow-sm border border-gray-200'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            All Devices
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -107,20 +105,18 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
   return (
     <div>
       <div className="mb-6 inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
-        {canViewAllDevices && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowMyDevices(false)}
-            className={`h-8 px-4 transition-all ${
-              !showMyDevices
-                ? 'bg-white text-gray-900 font-semibold shadow-sm border border-gray-200'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            All Devices
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowMyDevices(false)}
+          className={`h-8 px-4 transition-all ${
+            !showMyDevices
+              ? 'bg-white text-gray-900 font-semibold shadow-sm border border-gray-200'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          All Devices
+        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -137,14 +133,9 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
       <div className="space-y-4">
         {filteredDevices.map((device) => {
         const DeviceIcon = device.deviceType === 'iPhone' ? Smartphone : Tablet
-
-        return (
-          <Link
-            key={device.id}
-            href={`/devices/${device.id}`}
-            className="block border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center justify-between p-4">
+        const canOpenDevice = canOpenAllDevices || device.managerId === currentUserId
+        const deviceContent = (
+          <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3 flex-1">
                 <DeviceIcon className="h-5 w-5 text-gray-600" />
                 <div className="text-left flex-1">
@@ -156,38 +147,34 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
                       <div className="flex items-center gap-1.5 px-2 py-0.5 bg-gray-100 rounded-full">
                         {device.managerId === currentUserId ? (
                           <>
-                            {device.managerProfilePicture ? (
-                              <Image
-                                src={device.managerProfilePicture}
-                                alt="Me"
-                                width={16}
-                                height={16}
-                                className="rounded-full"
-                              />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center text-[10px] text-gray-600">
-                                M
-                              </div>
-                            )}
+                            <Avatar className="h-4 w-4">
+                              {device.managerProfilePicture ? (
+                                <AvatarImage
+                                  src={device.managerProfilePicture}
+                                  alt="Me"
+                                />
+                              ) : (
+                                <AvatarFallback className="text-[10px]">M</AvatarFallback>
+                              )}
+                            </Avatar>
                             <span className="text-xs font-medium text-gray-700">
                               Me
                             </span>
                           </>
                         ) : (
                           <>
-                            {device.managerProfilePicture ? (
-                              <Image
-                                src={device.managerProfilePicture}
-                                alt={device.managerName || 'Manager'}
-                                width={16}
-                                height={16}
-                                className="rounded-full"
-                              />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center text-[10px] text-gray-600">
-                                {(device.managerName || 'M')[0].toUpperCase()}
-                              </div>
-                            )}
+                            <Avatar className="h-4 w-4">
+                              {device.managerProfilePicture ? (
+                                <AvatarImage
+                                  src={device.managerProfilePicture}
+                                  alt={device.managerName || 'Manager'}
+                                />
+                              ) : (
+                                <AvatarFallback className="text-[10px]">
+                                  {(device.managerName || 'M')[0].toUpperCase()}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
                             <span className="text-xs font-medium text-gray-700">
                               {device.managerName || 'Manager'}
                             </span>
@@ -224,10 +211,28 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
                     )}
                   </div>
                 )}
-                <ChevronRight className="h-5 w-5 text-gray-500 shrink-0" />
+                {canOpenDevice && (
+                  <ChevronRight className="h-5 w-5 text-gray-500 shrink-0" />
+                )}
               </div>
             </div>
+        )
+
+        return canOpenDevice ? (
+          <Link
+            key={device.id}
+            href={`/devices/${device.id}`}
+            className="block border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            {deviceContent}
           </Link>
+        ) : (
+          <div
+            key={device.id}
+            className="block border border-gray-200 rounded-lg transition-colors"
+          >
+            {deviceContent}
+          </div>
         )
       })}
       </div>

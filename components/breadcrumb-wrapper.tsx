@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import {
   Breadcrumb,
@@ -17,6 +16,7 @@ import { Separator } from './ui/separator'
 import { SidebarTrigger } from './ui/sidebar'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { User, Plus } from 'lucide-react'
 
 export function BreadcrumbWrapper() {
@@ -162,19 +162,18 @@ export function BreadcrumbWrapper() {
           href="/profile"
           className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
         >
-          {userProfile?.profile_picture_url ? (
-            <Image
-              src={userProfile.profile_picture_url}
-              alt={userProfile.name || 'Profile'}
-              width={32}
-              height={32}
-              className="rounded-full"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-              <User className="h-4 w-4 text-gray-600" />
-            </div>
-          )}
+          <Avatar className="h-8 w-8">
+            {userProfile?.profile_picture_url ? (
+              <AvatarImage
+                src={userProfile.profile_picture_url}
+                alt={userProfile.name || 'Profile'}
+              />
+            ) : (
+              <AvatarFallback>
+                <User className="h-4 w-4 text-gray-600" />
+              </AvatarFallback>
+            )}
+          </Avatar>
           {userProfile?.name && (
             <span className="text-sm font-medium text-gray-700 hidden sm:inline">
               {userProfile.name}

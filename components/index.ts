@@ -1,0 +1,43 @@
+// Components - Barrel exports
+// Named exports
+export * from './add-device-dialog'
+export * from './add-icloud-profile-dialog'
+export * from './add-proxy-dialog'
+export * from './add-social-account-dialog'
+export * from './add-user-dialog'
+export * from './app-sidebar'
+export * from './breadcrumb-wrapper'
+export * from './edit-user-dialog'
+export * from './onboarding-screen-dialog'
+export * from './onboarding-screen-preview'
+export * from './onboarding-screen-renderer'
+export * from './root-layout-wrapper'
+export * from './search-form'
+export * from './sidebar-content'
+export * from './version-switcher'
+
+// Default exports (re-exported as named)
+export { default as AddMostLikelyToDialog } from './add-most-likely-to-dialog'
+export { default as AddNeverHaveIEverDialog } from './add-never-have-i-ever-dialog'
+export { default as AddPositionDialog } from './add-position-dialog'
+export { default as AddRoleplayScenarioDialog } from './add-roleplay-scenario-dialog'
+export { default as AddWouldYouRatherDialog } from './add-would-you-rather-dialog'
+export { default as CategoryDialog } from './category-dialog'
+export { default as CategoryManager } from './category-manager'
+export { default as DeviceDetails } from './device-details'
+export { default as DevicesManager } from './devices-manager'
+export { default as FeatureFlagsManager } from './feature-flags-manager'
+export { default as GameCard } from './game-card'
+export { default as MostLikelyToList } from './most-likely-to-list'
+export { default as NeverHaveIEverList } from './never-have-i-ever-list'
+export { default as OnboardingManager } from './onboarding-manager'
+export { default as PositionsList } from './positions-list'
+export { default as ProfileEditor } from './profile-editor'
+export { default as RoleplayScenariosList } from './roleplay-scenarios-list'
+export { default as SignOutButton } from './sign-out-button'
+export { default as UsersManager } from './users-manager'
+export { default as WouldYouRatherList } from './would-you-rather-list'
+
+// Re-export UI components
+export * from './ui'
+
