@@ -38,6 +38,3 @@ export { default as SignOutButton } from './sign-out-button'
 export { default as UsersManager } from './users-manager'
 export { default as WouldYouRatherList } from './would-you-rather-list'
 
-// Re-export UI components
-export * from './ui'
-
