@@ -35,14 +35,14 @@ export default function CharactersManager({ initialCharacters, characterData = {
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
-      <div className="border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+      <div className="border-b border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-2">
         <h2 className="text-sm font-semibold text-gray-700">Characters</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <span className="text-xs text-gray-500">{characters.length} total</span>
           <CharacterDialog onCharacterCreated={handleCharacterCreated}>
-            <Button size="sm" variant="outline" className="h-8">
+            <Button size="sm" variant="outline" className="h-8 flex-1 sm:flex-initial">
               <Plus className="h-4 w-4 mr-1" />
-              Add Character
+              <span className="sm:inline">Add Character</span>
             </Button>
           </CharacterDialog>
         </div>
@@ -61,13 +61,13 @@ export default function CharactersManager({ initialCharacters, characterData = {
             return (
               <div
                 key={character.id}
-                className="px-6 py-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <Link
                   href={`/characters/${character.id}`}
-                  className="flex-1 min-w-0 flex items-center gap-4"
+                  className="flex-1 min-w-0 flex items-center gap-3 sm:gap-4"
                 >
-                  <Avatar className="h-16 w-16 rounded-lg shrink-0">
+                  <Avatar className="h-12 w-12 sm:h-16 sm:w-16 rounded-lg shrink-0">
                     {profileImage ? (
                       <AvatarImage
                         src={profileImage}
@@ -76,7 +76,7 @@ export default function CharactersManager({ initialCharacters, characterData = {
                       />
                     ) : (
                       <AvatarFallback className="rounded-lg">
-                        <User className="h-8 w-8 text-gray-600" />
+                        <User className="h-6 w-6 sm:h-8 sm:w-8 text-gray-600" />
                       </AvatarFallback>
                     )}
                   </Avatar>

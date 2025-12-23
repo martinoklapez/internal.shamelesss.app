@@ -46,10 +46,10 @@ export default async function CharacterDetailPage({
         }}
       />
       <div className="min-h-screen bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-24 w-24 rounded-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24 rounded-lg shrink-0">
               {profileImage ? (
                 <AvatarImage
                   src={profileImage}
@@ -58,22 +58,22 @@ export default async function CharacterDetailPage({
                 />
               ) : (
                 <AvatarFallback className="rounded-lg">
-                  <User className="h-12 w-12 text-gray-600" />
+                  <User className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-gray-600" />
                 </AvatarFallback>
               )}
             </Avatar>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                 {character.name}
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <ReferenceImagesModal
               characterId={character.id}
               initialImages={character.reference_images}
             >
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="w-full sm:w-auto">
                 Manage Reference Images
               </Button>
             </ReferenceImagesModal>

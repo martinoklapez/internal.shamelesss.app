@@ -116,12 +116,12 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
   const selectedImages = referenceImages.filter(img => selectedReferenceIds.includes(img.id))
 
   return (
-    <div className="h-full flex bg-white">
+    <div className="h-full flex flex-col lg:flex-row bg-white">
       {/* Left Column - Form */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-8 space-y-6 max-w-4xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-4xl mx-auto">
           <div className="grid gap-4">
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="character">Character *</Label>
                 <Select
@@ -206,7 +206,7 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
             {referenceImages.length > 0 && (
               <div className="grid gap-2">
                 <Label className="text-sm">Reference Images</Label>
-                <div className="grid grid-cols-4 gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50 max-h-40 overflow-y-auto">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50 max-h-40 overflow-y-auto">
                   {referenceImages.map((image) => {
                     const isSelected = selectedReferenceIds.includes(image.id)
                     return (
@@ -254,7 +254,7 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 disabled={isGenerating}
-                className="min-h-[280px] resize-y font-mono text-sm"
+                className="min-h-[200px] sm:min-h-[280px] resize-y font-mono text-sm"
                 required
               />
             </div>
@@ -288,8 +288,8 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
       </div>
 
       {/* Right Column - Generated Image Preview */}
-      <div className="w-[400px] shrink-0 flex flex-col bg-white">
-        <div className="flex items-start justify-center p-6 overflow-y-auto">
+      <div className="w-full lg:w-[400px] shrink-0 flex flex-col bg-white border-t lg:border-t-0 lg:border-l border-gray-200">
+        <div className="flex items-start justify-center p-4 sm:p-6 overflow-y-auto">
           {generatedImage ? (
             <div className="relative w-full border border-gray-200 rounded-lg overflow-hidden bg-white group" style={{ aspectRatio: '9/16' }}>
               <Image

@@ -204,7 +204,7 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
           Generated Images ({images.length})
         </h3>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
         {images.map((image, index) => (
           <div
             key={image.id}
@@ -274,10 +274,10 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
             <Button
               variant="ghost"
               size="icon"
-              className="absolute left-6 z-10 text-white hover:bg-white/20 h-12 w-12"
+              className="absolute left-2 sm:left-6 z-10 text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
               onClick={handlePrevious}
             >
-              <ChevronLeft className="h-8 w-8" />
+              <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
             </Button>
           )}
           
@@ -285,20 +285,20 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-[632px] z-10 text-white hover:bg-white/20 h-12 w-12"
+              className="absolute right-2 sm:right-6 lg:right-[632px] z-10 text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
               onClick={handleNext}
             >
-              <ChevronRight className="h-8 w-8" />
+              <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
             </Button>
           )}
 
           {/* Content Container */}
           <div
-            className="relative z-10 w-full h-full flex items-center justify-center gap-6 px-6"
+            className="relative z-10 w-full h-full flex flex-col lg:flex-row items-center justify-center gap-4 sm:gap-6 px-4 sm:px-6"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Image Container - Floating */}
-            <div className="relative flex-1 h-[85vh] flex items-center justify-center">
+            <div className="relative flex-1 w-full lg:w-auto h-[50vh] sm:h-[60vh] lg:h-[85vh] flex items-center justify-center">
               <div className="relative w-full h-full rounded-lg overflow-hidden bg-transparent">
                 <Image
                   src={selectedImage.image_url}
@@ -310,8 +310,8 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
               </div>
             </div>
 
-            {/* Prompt Info - Right Side */}
-            <div className="w-[600px] shrink-0 bg-black/60 text-white px-6 py-4 rounded-lg backdrop-blur-sm h-[85vh] overflow-y-auto">
+            {/* Prompt Info - Right Side / Bottom on Mobile */}
+            <div className="w-full lg:w-[600px] shrink-0 bg-black/60 text-white px-4 sm:px-6 py-4 rounded-lg backdrop-blur-sm h-[35vh] sm:h-[40vh] lg:h-[85vh] overflow-y-auto">
               <div className="mb-4 pb-4 border-b border-white/20 flex items-center justify-between">
                 <p className="text-sm font-medium">
                   #{selectedImage.generation_number} of {images.length}
