@@ -61,12 +61,6 @@ const developerMenuItems = [
     roles: ['admin', 'dev', 'developer'] as const,
   },
   {
-    title: 'Characters',
-    url: '/characters',
-    icon: UserCircle,
-    roles: ['admin', 'dev', 'developer'] as const,
-  },
-  {
     title: 'Generate',
     url: '/generate',
     icon: Sparkles,
@@ -80,6 +74,12 @@ const promoterMenuItems = [
     url: '/devices',
     icon: Smartphone,
     roles: ['promoter', 'admin'] as const,
+  },
+  {
+    title: 'Characters',
+    url: '/characters',
+    icon: UserCircle,
+    roles: ['admin', 'dev', 'developer', 'promoter'] as const,
   },
 ]
 
@@ -109,7 +109,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   
   // Show groups: Admins see all groups, others see only their group
   const showGeneralGroup = generalItems.length > 0
-  const showDeveloperGroup = isAdmin && developerItems.length > 0
+  const showDeveloperGroup = developerItems.length > 0 // Show if user has access to any developer items
   const showPromoterGroup = (userRole === 'promoter' || userRole === 'admin') && promoterItems.length > 0
 
   return (

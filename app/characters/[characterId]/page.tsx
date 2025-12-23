@@ -24,7 +24,7 @@ export default async function CharacterDetailPage({
   }
 
   const userRole = await getUserRole(user.id)
-  if (userRole !== 'admin' && userRole !== 'dev' && userRole !== 'developer') {
+  if (userRole !== 'admin' && userRole !== 'dev' && userRole !== 'developer' && userRole !== 'promoter') {
     redirect('/home')
   }
 
@@ -69,14 +69,16 @@ export default async function CharacterDetailPage({
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-            <ReferenceImagesModal
-              characterId={character.id}
-              initialImages={character.reference_images}
-            >
-              <Button size="sm" variant="outline" className="w-full sm:w-auto">
-                Manage Reference Images
-              </Button>
-            </ReferenceImagesModal>
+            {(userRole === 'admin' || userRole === 'dev' || userRole === 'developer') && (
+              <ReferenceImagesModal
+                characterId={character.id}
+                initialImages={character.reference_images}
+              >
+                <Button size="sm" variant="outline" className="w-full sm:w-auto">
+                  Manage Reference Images
+                </Button>
+              </ReferenceImagesModal>
+            )}
             <CharacterDialog character={character} />
           </div>
         </div>

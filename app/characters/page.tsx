@@ -16,7 +16,7 @@ export default async function CharactersPage() {
   }
 
   const userRole = await getUserRole(user.id)
-  if (userRole !== 'admin' && userRole !== 'dev' && userRole !== 'developer') {
+  if (userRole !== 'admin' && userRole !== 'dev' && userRole !== 'developer' && userRole !== 'promoter') {
     redirect('/home')
   }
 
