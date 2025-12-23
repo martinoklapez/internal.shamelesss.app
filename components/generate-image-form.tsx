@@ -29,7 +29,7 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
   const [prompt, setPrompt] = useState('')
   const [selectedReferenceIds, setSelectedReferenceIds] = useState<string[]>([])
   const [aspectRatio, setAspectRatio] = useState('9:16')
-  const [resolution, setResolution] = useState('1k')
+  const [resolution, setResolution] = useState('4k')
   const [outputFormat, setOutputFormat] = useState('png')
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedImage, setGeneratedImage] = useState<CharacterGeneratedImage | null>(null)
