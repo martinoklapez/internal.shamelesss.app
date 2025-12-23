@@ -4,6 +4,7 @@ import type { RoleplayScenario, Category } from '@/types/database'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from './ui/button'
+import { formatDate } from '@/lib/utils/date'
 import { Trash2, Plus } from 'lucide-react'
 import {
   AlertDialog,
@@ -204,10 +205,10 @@ export default function RoleplayScenariosList({
                       <div className="text-xs text-gray-500 dark:text-gray-400 pt-2">
                         <p><span className="font-semibold">ID:</span> {scenario.id}</p>
                         {scenario.created_at && (
-                          <p><span className="font-semibold">Created:</span> {new Date(scenario.created_at).toLocaleDateString()}</p>
+                          <p><span className="font-semibold">Created:</span> {formatDate(scenario.created_at)}</p>
                         )}
                         {scenario.updated_at && (
-                          <p><span className="font-semibold">Updated:</span> {new Date(scenario.updated_at).toLocaleDateString()}</p>
+                          <p><span className="font-semibold">Updated:</span> {formatDate(scenario.updated_at)}</p>
                         )}
                       </div>
                     </div>

@@ -4,6 +4,7 @@ import type { NeverHaveIEverStatement, Category } from '@/types/database'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from './ui/button'
+import { formatDate } from '@/lib/utils/date'
 import { Trash2, Plus } from 'lucide-react'
 import {
   AlertDialog,
@@ -152,10 +153,10 @@ export default function NeverHaveIEverList({
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         <p><span className="font-semibold">ID:</span> {statement.id}</p>
                         {statement.created_at && (
-                          <p><span className="font-semibold">Created:</span> {new Date(statement.created_at).toLocaleDateString()}</p>
+                          <p><span className="font-semibold">Created:</span> {formatDate(statement.created_at)}</p>
                         )}
                         {statement.updated_at && (
-                          <p><span className="font-semibold">Updated:</span> {new Date(statement.updated_at).toLocaleDateString()}</p>
+                          <p><span className="font-semibold">Updated:</span> {formatDate(statement.updated_at)}</p>
                         )}
                       </div>
                     </div>

@@ -4,6 +4,7 @@ import type { MostLikelyToQuestion, Category } from '@/types/database'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from './ui/button'
+import { formatDate } from '@/lib/utils/date'
 import { Trash2, Plus } from 'lucide-react'
 import {
   AlertDialog,
@@ -152,10 +153,10 @@ export default function MostLikelyToList({
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         <p><span className="font-semibold">ID:</span> {question.id}</p>
                         {question.created_at && (
-                          <p><span className="font-semibold">Created:</span> {new Date(question.created_at).toLocaleDateString()}</p>
+                          <p><span className="font-semibold">Created:</span> {formatDate(question.created_at)}</p>
                         )}
                         {question.updated_at && (
-                          <p><span className="font-semibold">Updated:</span> {new Date(question.updated_at).toLocaleDateString()}</p>
+                          <p><span className="font-semibold">Updated:</span> {formatDate(question.updated_at)}</p>
                         )}
                       </div>
                     </div>

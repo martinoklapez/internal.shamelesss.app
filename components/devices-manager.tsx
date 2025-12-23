@@ -68,18 +68,18 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
     return (
       <div>
         <div className="mb-6 inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowMyDevices(false)}
-            className={`h-8 px-4 transition-all ${
-              !showMyDevices
-                ? 'bg-white text-gray-900 font-semibold shadow-sm border border-gray-200'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            All Devices
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMyDevices(false)}
+              className={`h-8 px-4 transition-all ${
+                !showMyDevices
+                  ? 'bg-white text-gray-900 font-semibold shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              All Devices
+            </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -105,18 +105,18 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
   return (
     <div>
       <div className="mb-6 inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowMyDevices(false)}
-          className={`h-8 px-4 transition-all ${
-            !showMyDevices
-              ? 'bg-white text-gray-900 font-semibold shadow-sm border border-gray-200'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          All Devices
-        </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowMyDevices(false)}
+            className={`h-8 px-4 transition-all ${
+              !showMyDevices
+                ? 'bg-white text-gray-900 font-semibold shadow-sm border border-gray-200'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            All Devices
+          </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -135,7 +135,7 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
         const DeviceIcon = device.deviceType === 'iPhone' ? Smartphone : Tablet
         const canOpenDevice = canOpenAllDevices || device.managerId === currentUserId
         const deviceContent = (
-          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3 flex-1">
                 <DeviceIcon className="h-5 w-5 text-gray-600" />
                 <div className="text-left flex-1">
@@ -148,14 +148,14 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
                         {device.managerId === currentUserId ? (
                           <>
                             <Avatar className="h-4 w-4">
-                              {device.managerProfilePicture ? (
+                            {device.managerProfilePicture ? (
                                 <AvatarImage
-                                  src={device.managerProfilePicture}
-                                  alt="Me"
-                                />
-                              ) : (
+                                src={device.managerProfilePicture}
+                                alt="Me"
+                              />
+                            ) : (
                                 <AvatarFallback className="text-[10px]">M</AvatarFallback>
-                              )}
+                            )}
                             </Avatar>
                             <span className="text-xs font-medium text-gray-700">
                               Me
@@ -164,16 +164,16 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
                         ) : (
                           <>
                             <Avatar className="h-4 w-4">
-                              {device.managerProfilePicture ? (
+                            {device.managerProfilePicture ? (
                                 <AvatarImage
-                                  src={device.managerProfilePicture}
-                                  alt={device.managerName || 'Manager'}
-                                />
-                              ) : (
+                                src={device.managerProfilePicture}
+                                alt={device.managerName || 'Manager'}
+                              />
+                            ) : (
                                 <AvatarFallback className="text-[10px]">
-                                  {(device.managerName || 'M')[0].toUpperCase()}
+                                {(device.managerName || 'M')[0].toUpperCase()}
                                 </AvatarFallback>
-                              )}
+                            )}
                             </Avatar>
                             <span className="text-xs font-medium text-gray-700">
                               {device.managerName || 'Manager'}
@@ -212,7 +212,7 @@ export default function DevicesManager({ devices, currentUserId, userRole }: Dev
                   </div>
                 )}
                 {canOpenDevice && (
-                  <ChevronRight className="h-5 w-5 text-gray-500 shrink-0" />
+                <ChevronRight className="h-5 w-5 text-gray-500 shrink-0" />
                 )}
               </div>
             </div>

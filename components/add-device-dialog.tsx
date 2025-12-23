@@ -167,16 +167,16 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
                     return (
                       <>
                         <Avatar className="h-5 w-5">
-                          {selectedUser.profile_picture_url ? (
+                        {selectedUser.profile_picture_url ? (
                             <AvatarImage
-                              src={selectedUser.profile_picture_url}
-                              alt={selectedUser.name || selectedUser.email || 'User'}
-                            />
-                          ) : (
+                            src={selectedUser.profile_picture_url}
+                            alt={selectedUser.name || selectedUser.email || 'User'}
+                          />
+                        ) : (
                             <AvatarFallback className="text-xs">
-                              {(selectedUser.name || selectedUser.email || 'U')[0].toUpperCase()}
+                            {(selectedUser.name || selectedUser.email || 'U')[0].toUpperCase()}
                             </AvatarFallback>
-                          )}
+                        )}
                         </Avatar>
                         <SelectValue>
                           {selectedUser.name || selectedUser.email || `User ${selectedUser.id.substring(0, 8)}...`}
@@ -199,16 +199,16 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
                         <SelectItem key={user.id} value={user.id}>
                           <div className="flex items-center gap-2">
                             <Avatar className="h-5 w-5">
-                              {user.profile_picture_url ? (
+                            {user.profile_picture_url ? (
                                 <AvatarImage
-                                  src={user.profile_picture_url}
-                                  alt={user.name || user.email || 'User'}
-                                />
-                              ) : (
+                                src={user.profile_picture_url}
+                                alt={user.name || user.email || 'User'}
+                              />
+                            ) : (
                                 <AvatarFallback className="text-xs">
-                                  {(user.name || user.email || 'U')[0].toUpperCase()}
+                                {(user.name || user.email || 'U')[0].toUpperCase()}
                                 </AvatarFallback>
-                              )}
+                            )}
                             </Avatar>
                             <span>{user.name || user.email || `User ${user.id.substring(0, 8)}...`}</span>
                           </div>

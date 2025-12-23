@@ -3,19 +3,11 @@
 import { useState } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { formatDate } from '@/lib/utils/date'
 import type { FeatureFlag } from '@/lib/database/feature-flags'
 
 interface FeatureFlagsManagerProps {
   featureFlags: FeatureFlag[]
-}
-
-// Format date consistently to avoid hydration errors
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${month}/${day}/${year}`
 }
 
 export default function FeatureFlagsManager({ featureFlags: initialFeatureFlags }: FeatureFlagsManagerProps) {

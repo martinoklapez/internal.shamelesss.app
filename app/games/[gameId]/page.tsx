@@ -6,6 +6,7 @@ import { getGames } from '@/lib/database/games'
 import { getCategoriesByGameId } from '@/lib/database/games'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
+import { formatDate } from '@/lib/utils/date'
 
 interface GamePageProps {
   params: {
@@ -70,8 +71,8 @@ export default async function GamePage({ params }: GamePageProps) {
               </span>
             </div>
             <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              <p className="break-words"><span className="font-semibold">Created:</span> {new Date(game.created_at).toLocaleDateString()}</p>
-              <p className="break-words"><span className="font-semibold">Updated:</span> {new Date(game.updated_at).toLocaleDateString()}</p>
+              <p className="break-words"><span className="font-semibold">Created:</span> {formatDate(game.created_at)}</p>
+              <p className="break-words"><span className="font-semibold">Updated:</span> {formatDate(game.updated_at)}</p>
             </div>
           </div>
 

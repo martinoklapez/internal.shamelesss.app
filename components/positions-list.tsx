@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from './ui/button'
+import { formatDate } from '@/lib/utils/date'
 import { Trash2, Plus } from 'lucide-react'
 import {
   AlertDialog,
@@ -152,7 +153,7 @@ export default function PositionsList({
                     <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
                       <p className="truncate"><span className="font-semibold">ID:</span> {position.id}</p>
                       {position.created_at && (
-                        <p><span className="font-semibold">Created:</span> {new Date(position.created_at).toLocaleDateString()}</p>
+                        <p><span className="font-semibold">Created:</span> {formatDate(position.created_at)}</p>
                       )}
                       {position.image_url && (
                         <p className="break-all">

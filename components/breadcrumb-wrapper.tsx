@@ -24,7 +24,13 @@ export function BreadcrumbWrapper() {
   const router = useRouter()
   const [userRole, setUserRole] = useState<'admin' | 'dev' | 'developer' | 'promoter' | null>(null)
   const [userProfile, setUserProfile] = useState<{ name: string | null; profile_picture_url: string | null } | null>(null)
+  const [characterName, setCharacterName] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     async function fetchUserData() {
@@ -71,6 +77,39 @@ export function BreadcrumbWrapper() {
     }
   }, [supabase])
 
+  // Fetch character name if on character detail page (only after mount to avoid hydration errors)
+  useEffect(() => {
+    if (!mounted) return
+    
+    const segments = (pathname || '').split('/').filter(Boolean)
+    if (segments[0] === 'characters' && segments[1]) {
+      // First check if character name was injected via script tag
+      const injectedName = (window as any).__CHARACTER_NAME__ || null
+      
+      if (injectedName) {
+        setCharacterName(injectedName)
+        // Clean up after use
+        delete (window as any).__CHARACTER_NAME__
+      } else {
+        // Fallback to fetching if not injected
+        async function fetchCharacterName() {
+          const { data, error } = await supabase
+            .from('ai_characters')
+            .select('name')
+            .eq('id', segments[1])
+            .single()
+          
+          if (!error && data) {
+            setCharacterName(data.name)
+          }
+        }
+        fetchCharacterName()
+      }
+    } else {
+      setCharacterName(null)
+    }
+  }, [pathname, supabase, mounted])
+
   const segments = (pathname || '').split('/').filter(Boolean)
 
   const getSegmentLabel = (segment: string, index: number) => {
@@ -82,10 +121,18 @@ export function BreadcrumbWrapper() {
     if (segment === 'profile') return 'Profile'
     if (segment === 'onboarding') return 'App Onboarding'
     if (segment === 'knowledge') return 'Knowledge'
+    if (segment === 'generate') return 'Generate Images'
+    if (segment === 'characters') return 'Characters'
 
     // Nested routes
     if (segments[0] === 'devices' && index === 1) {
       return `Device ${segment}`
+    }
+
+    if (segments[0] === 'characters' && index === 1) {
+      // Only show character name after mount to avoid hydration errors
+      // During SSR and initial render, show UUID, then update to name after hydration
+      return mounted && characterName ? characterName : segment
     }
 
     if (segments[0] === 'games') {
@@ -163,16 +210,16 @@ export function BreadcrumbWrapper() {
           className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
         >
           <Avatar className="h-8 w-8">
-            {userProfile?.profile_picture_url ? (
+          {userProfile?.profile_picture_url ? (
               <AvatarImage
-                src={userProfile.profile_picture_url}
-                alt={userProfile.name || 'Profile'}
-              />
-            ) : (
+              src={userProfile.profile_picture_url}
+              alt={userProfile.name || 'Profile'}
+            />
+          ) : (
               <AvatarFallback>
-                <User className="h-4 w-4 text-gray-600" />
+              <User className="h-4 w-4 text-gray-600" />
               </AvatarFallback>
-            )}
+          )}
           </Avatar>
           {userProfile?.name && (
             <span className="text-sm font-medium text-gray-700 hidden sm:inline">

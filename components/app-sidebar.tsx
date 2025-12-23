@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone, Users, X } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles } from 'lucide-react'
 import { Button } from './ui/button'
 import SignOutButton from './sign-out-button'
 
@@ -58,6 +58,18 @@ const developerMenuItems = [
     title: 'Users',
     url: '/users',
     icon: Users,
+    roles: ['admin', 'dev', 'developer'] as const,
+  },
+  {
+    title: 'Characters',
+    url: '/characters',
+    icon: UserCircle,
+    roles: ['admin', 'dev', 'developer'] as const,
+  },
+  {
+    title: 'Generate',
+    url: '/generate',
+    icon: Sparkles,
     roles: ['admin', 'dev', 'developer'] as const,
   },
 ]
