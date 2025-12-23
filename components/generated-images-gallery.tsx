@@ -259,39 +259,6 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
           {/* Blurred Background */}
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
           
-          {/* Close Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
-            onClick={() => setSelectedIndex(null)}
-          >
-            <X className="h-6 w-6" />
-          </Button>
-
-          {/* Navigation Arrows */}
-          {selectedIndex > 0 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute left-2 sm:left-6 z-10 text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
-              onClick={handlePrevious}
-            >
-              <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
-            </Button>
-          )}
-          
-          {selectedIndex < images.length - 1 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-2 sm:right-6 lg:right-[632px] z-10 text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
-              onClick={handleNext}
-            >
-              <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
-            </Button>
-          )}
-
           {/* Content Container */}
           <div
             className="relative z-10 w-full h-full flex flex-col lg:flex-row items-center justify-center gap-4 sm:gap-6 px-4 sm:px-6"
@@ -375,6 +342,48 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
               </div>
             </div>
           </div>
+
+          {/* Close Button - Outside content container to ensure it's clickable */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="fixed top-4 right-4 z-[60] text-white hover:bg-white/20"
+            onClick={(e) => {
+              e.stopPropagation()
+              setSelectedIndex(null)
+            }}
+          >
+            <X className="h-6 w-6" />
+          </Button>
+
+          {/* Navigation Arrows - Outside content container to ensure they're clickable */}
+          {selectedIndex > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="fixed left-2 sm:left-6 z-[60] text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
+              onClick={(e) => {
+                e.stopPropagation()
+                handlePrevious(e)
+              }}
+            >
+              <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
+            </Button>
+          )}
+          
+          {selectedIndex < images.length - 1 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="fixed right-2 sm:right-6 lg:right-[632px] z-[60] text-white hover:bg-white/20 h-10 w-10 sm:h-12 sm:w-12"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleNext(e)
+              }}
+            >
+              <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
+            </Button>
+          )}
         </div>
       )}
     </>
