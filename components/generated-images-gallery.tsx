@@ -217,6 +217,7 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
                 alt={`Generated ${image.generation_number}`}
                 fill
                 className="object-cover"
+                unoptimized
               />
             </div>
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white p-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -273,6 +274,7 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
                   fill
                   className="object-contain rounded-lg"
                   priority
+                  unoptimized
                 />
               </div>
             </div>

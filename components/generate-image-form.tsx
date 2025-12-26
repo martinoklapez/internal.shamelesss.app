@@ -223,6 +223,7 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
                             alt="Reference"
                             fill
                             className="object-cover"
+                            unoptimized
                           />
                           {isSelected && (
                             <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
@@ -297,6 +298,7 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
                 alt="Generated"
                 fill
                 className="object-contain"
+                unoptimized
               />
               <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 <Button
