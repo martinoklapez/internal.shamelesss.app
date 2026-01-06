@@ -70,6 +70,7 @@ export default function AddPositionDialog({
           name,
           image_url: imageUrl,
           category_id: selectedCategoryId || null,
+          game_id: gameId,
         }),
       })
 

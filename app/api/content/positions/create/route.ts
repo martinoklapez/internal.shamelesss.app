@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, image_url, category_id } = body
+    const { name, image_url, category_id, game_id } = body
 
     if (!name || !image_url) {
       return NextResponse.json(
@@ -22,8 +22,17 @@ export async function POST(request: Request) {
       )
     }
 
+    if (!game_id) {
+      return NextResponse.json(
+        { error: 'Game ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const tableName = game_id === 'date-roulette' ? 'date_roulette_positions' : 'positions'
+
     const { data: position, error } = await supabase
-      .from('positions')
+      .from(tableName)
       .insert({
         name,
         image_url,

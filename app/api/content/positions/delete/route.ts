@@ -14,6 +14,7 @@ export async function DELETE(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const gameId = searchParams.get('game_id')
 
     if (!id) {
       return NextResponse.json(
@@ -22,8 +23,17 @@ export async function DELETE(request: Request) {
       )
     }
 
+    if (!gameId) {
+      return NextResponse.json(
+        { error: 'Game ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const tableName = gameId === 'date-roulette' ? 'date_roulette_positions' : 'positions'
+
     const { error } = await supabase
-      .from('positions')
+      .from(tableName)
       .delete()
       .eq('id', id)
 

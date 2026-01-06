@@ -63,7 +63,7 @@ export default async function CategoryContentPage({ params }: CategoryContentPag
   } else if (game.id === 'most-likely-to') {
     mostLikelyToQuestions = await getMostLikelyToQuestionsByCategoryId(params.categoryId)
   } else if (game.id === 'scratch-dates' || game.id === 'date-roulette') {
-    positions = await getPositionsByCategoryId(params.categoryId)
+    positions = await getPositionsByCategoryId(params.categoryId, params.gameId)
   }
 
   return (

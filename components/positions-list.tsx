@@ -55,7 +55,7 @@ export default function PositionsList({
 
     setDeleting(true)
     try {
-      const response = await fetch(`/api/content/positions/delete?id=${itemToDelete}`, {
+      const response = await fetch(`/api/content/positions/delete?id=${itemToDelete}&game_id=${gameId}`, {
         method: 'DELETE',
       })
 
