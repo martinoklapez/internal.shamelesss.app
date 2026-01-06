@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Category } from '@/types/database'
+import { Upload } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,9 @@ export default function AddPositionDialog({
   const [imageUrl, setImageUrl] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categoryId || '')
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
@@ -52,12 +55,57 @@ export default function AddPositionDialog({
       setName('')
       setImageUrl('')
       setError(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }, [open, categoryId])
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file')
+      return
+    }
+
+    setUploading(true)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('game_id', gameId)
+
+      const response = await fetch('/api/content/positions/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to upload image')
+      }
+
+      const { imageUrl: uploadedUrl } = await response.json()
+      setImageUrl(uploadedUrl)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload image')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    
+    if (!imageUrl) {
+      setError('Please upload an image or provide an image URL')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -112,15 +160,39 @@ export default function AddPositionDialog({
               />
             </div>
             <div>
-              <Label htmlFor="imageUrl">Image URL</Label>
-              <Input
-                id="imageUrl"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                required
-                className="mt-1"
-              />
+              <Label htmlFor="imageUrl">Image</Label>
+              <div className="mt-1 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || loading}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  {uploading ? 'Uploading...' : 'Upload Image'}
+                </Button>
+                <div className="text-center text-xs text-gray-500">or</div>
+                <Input
+                  id="imageUrl"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="Enter image URL"
+                  className="mt-1"
+                />
+              </div>
+              {imageUrl && (
+                <div className="mt-2 text-xs text-gray-600">
+                  Image URL: <span className="font-mono text-xs break-all">{imageUrl}</span>
+                </div>
+              )}
             </div>
             {categories.length > 0 && (
               <div>
