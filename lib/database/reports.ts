@@ -107,6 +107,8 @@ export async function getReports(
     reporter_profile: profileMap.get(report.reporter_user_id) || null,
     reported_profile: profileMap.get(report.reported_user_id) || null,
     reviewer_profile: report.reviewed_by ? (profileMap.get(report.reviewed_by) || null) : null,
+    connection: null,
+    friend_requests: [],
   }))
 
   return {
