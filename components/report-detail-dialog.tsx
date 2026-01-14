@@ -296,39 +296,39 @@ export function ReportDetailDialog({
             </div>
           </div>
 
-          {/* User Relationship and Report Information */}
-          <div className={`grid grid-cols-1 gap-4 ${!loadingRelationships && connection ? 'md:grid-cols-2' : ''}`}>
-            {/* User Relationship Section */}
-            {!loadingRelationships && connection && (
-              <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Users className="h-4 w-4 text-gray-600" />
-                  <h3 className="text-sm font-semibold text-gray-900">User Relationship</h3>
-                </div>
+          {/* User Relationship Section */}
+          {!loadingRelationships && connection && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="h-4 w-4 text-gray-600" />
+                <h3 className="text-sm font-semibold text-gray-900">User Relationship</h3>
+              </div>
 
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-gray-900">Chat Connection</span>
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        {connection.status || 'active'}
-                      </Badge>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDeleteConnection}
-                      disabled={deletingConnection}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      {deletingConnection ? 'Deleting...' : 'Delete Connection'}
-                    </Button>
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-900">Chat Connection</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      {connection.status || 'active'}
+                    </Badge>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeleteConnection}
+                    disabled={deletingConnection}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {deletingConnection ? 'Deleting...' : 'Delete Connection'}
+                  </Button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
+          {/* Report Information and Additional Details - Side by Side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Report Details */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-4">Report Information</h3>
@@ -358,15 +358,20 @@ export function ReportDetailDialog({
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Details Text */}
-          {report.details && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Additional Details</h3>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{report.details}</p>
-            </div>
-          )}
+            {/* Details Text */}
+            {report.details ? (
+              <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Additional Details</h3>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{report.details}</p>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Additional Details</h3>
+                <p className="text-sm text-gray-500 italic">No additional details provided</p>
+              </div>
+            )}
+          </div>
 
           {/* Context Based on Type */}
           {report.type === 'message' && (report.message_id || report.connection_id) && (

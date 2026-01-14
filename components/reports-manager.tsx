@@ -37,6 +37,7 @@ const REASON_LABELS: Record<string, string> = {
 export default function ReportsManager() {
   const [reports, setReports] = useState<ReportWithProfiles[]>([])
   const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
   const [stats, setStats] = useState<any>(null)
   const [filters, setFilters] = useState({
     status: 'open' as string,
@@ -74,6 +75,7 @@ export default function ReportsManager() {
   }
 
   const fetchStats = async () => {
+    setStatsLoading(true)
     try {
       const response = await fetch('/api/reports/stats')
       if (!response.ok) {
@@ -83,6 +85,8 @@ export default function ReportsManager() {
       setStats(data)
     } catch (error) {
       console.error('Error fetching stats:', error)
+    } finally {
+      setStatsLoading(false)
     }
   }
 
@@ -119,13 +123,32 @@ export default function ReportsManager() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    const date = new Date(dateString)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const reportDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+    if (reportDate.getTime() === today.getTime()) {
+      return `Today, ${date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })}`
+    } else if (reportDate.getTime() === yesterday.getTime()) {
+      return `Yesterday, ${date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })}`
+    } else {
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    }
   }
 
   return (
@@ -146,11 +169,13 @@ export default function ReportsManager() {
             }`}
           >
             Open
-            {stats && stats.open > 0 && (
+            {statsLoading ? (
+              <span className="ml-2 inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-200 animate-pulse" />
+            ) : stats && stats.open > 0 ? (
               <span className="ml-2 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
                 {stats.open}
               </span>
-            )}
+            ) : null}
           </Button>
           <Button
             type="button"
@@ -164,11 +189,13 @@ export default function ReportsManager() {
             }`}
           >
             Closed
-            {stats && stats.closed > 0 && (
+            {statsLoading ? (
+              <span className="ml-2 inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-200 animate-pulse" />
+            ) : stats && stats.closed > 0 ? (
               <span className="ml-2 inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">
                 {stats.closed}
               </span>
-            )}
+            ) : null}
           </Button>
           <Button
             type="button"
@@ -227,22 +254,43 @@ export default function ReportsManager() {
       </div>
 
       <Card className="overflow-hidden">
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading reports...</div>
-        ) : reports.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">No reports found.</div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <div className="min-w-full divide-y divide-gray-100">
-                {/* Header */}
-                <div className="hidden sm:grid sm:grid-cols-3 gap-4 py-3 bg-gray-50/50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  <div className="px-6">Status</div>
-                  <div className="px-6">Reason</div>
-                  <div className="px-6">Created</div>
-                </div>
+        <div className="overflow-x-auto">
+          <div className="min-w-full divide-y divide-gray-100">
+            {/* Header - Always visible */}
+            <div className="hidden sm:grid sm:grid-cols-3 gap-4 py-3 bg-gray-50/50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <div className="px-6">Status</div>
+              <div className="px-6">Reason</div>
+              <div className="px-6">Created</div>
+            </div>
 
-                {/* Rows */}
+            {/* Loading Skeleton Rows */}
+            {loading ? (
+              <>
+                {[...Array(5)].map((_, i) => (
+                  <div
+                    key={`skeleton-${i}`}
+                    className="sm:grid sm:grid-cols-3 gap-4 py-4"
+                  >
+                    <div className="col-span-1 mb-2 sm:mb-0 px-6">
+                      <div className="text-xs text-gray-500 sm:hidden">Status</div>
+                      <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                    <div className="col-span-1 mb-2 sm:mb-0 px-6">
+                      <div className="text-xs text-gray-500 sm:hidden">Reason</div>
+                      <div className="h-5 w-32 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                    <div className="col-span-1 mb-2 sm:mb-0 px-6">
+                      <div className="text-xs text-gray-500 sm:hidden">Created</div>
+                      <div className="h-5 w-40 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : reports.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">No reports found.</div>
+            ) : (
+              <>
+                {/* Report Rows */}
                 {reports.map((report) => (
                   <div
                     key={report.id}
@@ -265,39 +313,39 @@ export default function ReportsManager() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 mt-0">
-                <div className="text-sm text-gray-700">
-                  Showing {(page - 1) * 20 + 1} to {Math.min(page * 20, total)} of {total} reports
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 mt-0">
+                    <div className="text-sm text-gray-700">
+                      Showing {(page - 1) * 20 + 1} to {Math.min(page * 20, total)} of {total} reports
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </Card>
 
       {selectedReport && (
