@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles, FlagTriangleRight } from 'lucide-react'
 import { Button } from './ui/button'
 import SignOutButton from './sign-out-button'
 
@@ -83,6 +83,20 @@ const promoterMenuItems = [
   },
 ]
 
+const supportModerationMenuItems: Array<{
+  title: string
+  url: string
+  icon: any
+  roles: readonly ('admin' | 'dev' | 'developer' | 'promoter')[]
+}> = [
+  {
+    title: 'Reports',
+    url: '/reports',
+    icon: FlagTriangleRight,
+    roles: ['admin', 'dev', 'developer'] as const,
+  },
+]
+
 interface AppSidebarProps {
   userRole: 'admin' | 'dev' | 'developer' | 'promoter' | null
 }
@@ -107,10 +121,15 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
     !userRole || (item.roles as readonly string[]).includes(userRole)
   )
   
+  const supportModerationItems = supportModerationMenuItems.filter(item => 
+    !userRole || (item.roles as readonly string[]).includes(userRole)
+  )
+  
   // Show groups: Admins see all groups, others see only their group
   const showGeneralGroup = generalItems.length > 0
   const showDeveloperGroup = developerItems.length > 0 // Show if user has access to any developer items
   const showPromoterGroup = (userRole === 'promoter' || userRole === 'admin') && promoterItems.length > 0
+  const showSupportModerationGroup = isAdmin // Show for admins and developers only
 
   return (
     <Sidebar collapsible="icon">
@@ -210,6 +229,35 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
             <SidebarGroupContent>
               <SidebarMenu>
                 {promoterItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = pathname === item.url || (item.url !== '/home' && pathname?.startsWith(item.url))
+                  
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.title}
+                      >
+                        <Link href={item.url} className={`flex items-center w-full ${isCollapsed ? 'justify-center' : 'gap-2'}`}>
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {!isCollapsed && <span className="truncate flex-1">{item.title}</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        
+        {showSupportModerationGroup && (
+          <SidebarGroup className="px-2 py-2">
+            <SidebarGroupLabel className="px-2 mb-1">Support & Moderation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {supportModerationItems.map((item) => {
                   const Icon = item.icon
                   const isActive = pathname === item.url || (item.url !== '/home' && pathname?.startsWith(item.url))
                   

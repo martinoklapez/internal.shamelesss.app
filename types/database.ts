@@ -113,3 +113,65 @@ export type CharacterWithImages = AICharacter & {
   reference_images: CharacterReferenceImage[]
   generated_images: CharacterGeneratedImage[]
 }
+
+export type Report = {
+  id: string
+  reported_user_id: string
+  reporter_user_id: string
+  type: 'user' | 'message' | 'image'
+  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed'
+  reason: 'spam' | 'harassment' | 'inappropriate_content' | 'impersonation' | 'other'
+  details: string | null
+  message_id: string | null
+  connection_id: string | null
+  image_url: string | null
+  evidence_image_url: string | null
+  evidence_image_storage_path: string | null
+  evidence_image_storage_bucket: string | null
+  created_at: string
+  updated_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+}
+
+export type Connection = {
+  id: string
+  user_id_1: string | null
+  user_id_2: string | null
+  status: string | null
+  created_at: string | null
+}
+
+export type FriendRequest = {
+  id: string
+  from_user_id: string
+  to_user_id: string
+  status: string
+  message: string | null
+  created_at: string | null
+  updated_at: string | null
+  source: string | null
+}
+
+export type ReportWithProfiles = Report & {
+  reporter_profile: {
+    user_id: string
+    name: string | null
+    username: string | null
+    profile_picture_url: string | null
+  } | null
+  reported_profile: {
+    user_id: string
+    name: string | null
+    username: string | null
+    profile_picture_url: string | null
+  } | null
+  reviewer_profile: {
+    user_id: string
+    name: string | null
+    username: string | null
+    profile_picture_url: string | null
+  } | null
+  connection: Connection | null
+  friend_requests: FriendRequest[]
+}
