@@ -176,3 +176,61 @@ export type ReportWithProfiles = Report & {
   connection: Connection | null
   friend_requests: FriendRequest[]
 }
+
+export type SupportTicket = {
+  id: string
+  user_id: string
+  subject: string
+  message: string
+  status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  admin_response: string | null
+  created_at: string
+  updated_at: string
+  resolved_at: string | null
+  resolved_by: string | null
+}
+
+export type SupportTicketWithProfile = SupportTicket & {
+  user_profile: {
+    user_id: string
+    name: string | null
+    username: string | null
+    profile_picture_url: string | null
+  } | null
+  resolver_profile: {
+    user_id: string
+    name: string | null
+    username: string | null
+    profile_picture_url: string | null
+  } | null
+}
+
+export type RefundRequest = {
+  id: string
+  user_id: string
+  reason: string
+  amount: number | null
+  currency: string
+  transaction_id: string | null
+  status: 'pending' | 'approved' | 'rejected' | 'processed'
+  admin_response: string | null
+  created_at: string
+  updated_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+}
+
+export type RefundRequestWithProfile = RefundRequest & {
+  user_profile: {
+    user_id: string
+    name: string | null
+    username: string | null
+    profile_picture_url: string | null
+  } | null
+  reviewer_profile: {
+    user_id: string
+    name: string | null
+    username: string | null
+    profile_picture_url: string | null
+  } | null
+}
