@@ -249,83 +249,93 @@ export function ReportDetailDialog({
             </Select>
           </div>
 
-          {/* Users Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <User className="h-4 w-4 text-gray-600" />
-                <h3 className="text-sm font-semibold text-gray-900">Reporter</h3>
-              </div>
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  {report.reporter_profile?.profile_picture_url ? (
-                    <AvatarImage src={report.reporter_profile.profile_picture_url} alt={reporterName} />
-                  ) : (
-                    <AvatarFallback>{reporterName.charAt(0).toUpperCase()}</AvatarFallback>
-                  )}
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">{reporterName}</div>
-                  {report.reporter_profile?.username && (
-                    <div className="text-xs text-gray-500 truncate">@{report.reporter_profile.username}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <User className="h-4 w-4 text-gray-600" />
-                <h3 className="text-sm font-semibold text-gray-900">Reported User</h3>
-              </div>
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  {report.reported_profile?.profile_picture_url ? (
-                    <AvatarImage src={report.reported_profile.profile_picture_url} alt={reportedName} />
-                  ) : (
-                    <AvatarFallback>{reportedName.charAt(0).toUpperCase()}</AvatarFallback>
-                  )}
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">{reportedName}</div>
-                  {report.reported_profile?.username && (
-                    <div className="text-xs text-gray-500 truncate">@{report.reported_profile.username}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* User Relationship Section */}
-          {!loadingRelationships && connection && (
+          {/* Users Information and User Relationship */}
+          <div className={`grid grid-cols-1 gap-4 ${!loadingRelationships && connection ? 'md:grid-cols-2' : ''}`}>
+            {/* Users Card - Combined Reporter and Reported User */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="h-4 w-4 text-gray-600" />
-                <h3 className="text-sm font-semibold text-gray-900">User Relationship</h3>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-900">Chat Connection</span>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      {connection.status || 'active'}
-                    </Badge>
+              <div className="space-y-4">
+                {/* Reporter */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <User className="h-4 w-4 text-gray-600" />
+                    <h3 className="text-sm font-semibold text-gray-900">Reporter</h3>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDeleteConnection}
-                    disabled={deletingConnection}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {deletingConnection ? 'Deleting...' : 'Delete Connection'}
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      {report.reporter_profile?.profile_picture_url ? (
+                        <AvatarImage src={report.reporter_profile.profile_picture_url} alt={reporterName} />
+                      ) : (
+                        <AvatarFallback>{reporterName.charAt(0).toUpperCase()}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">{reporterName}</div>
+                      {report.reporter_profile?.username && (
+                        <div className="text-xs text-gray-500 truncate">@{report.reporter_profile.username}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Separator */}
+                <div className="border-t border-gray-200" />
+
+                {/* Reported User */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <User className="h-4 w-4 text-gray-600" />
+                    <h3 className="text-sm font-semibold text-gray-900">Reported User</h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      {report.reported_profile?.profile_picture_url ? (
+                        <AvatarImage src={report.reported_profile.profile_picture_url} alt={reportedName} />
+                      ) : (
+                        <AvatarFallback>{reportedName.charAt(0).toUpperCase()}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">{reportedName}</div>
+                      {report.reported_profile?.username && (
+                        <div className="text-xs text-gray-500 truncate">@{report.reported_profile.username}</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+
+            {/* User Relationship Section */}
+            {!loadingRelationships && connection && (
+              <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="h-4 w-4 text-gray-600" />
+                  <h3 className="text-sm font-semibold text-gray-900">User Relationship</h3>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-900">Chat Connection</span>
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        {connection.status || 'active'}
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeleteConnection}
+                      disabled={deletingConnection}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {deletingConnection ? 'Deleting...' : 'Delete Connection'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Report Information and Additional Details - Side by Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
