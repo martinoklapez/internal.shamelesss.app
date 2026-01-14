@@ -284,6 +284,29 @@ export async function updateReportStatus(
   return data as Report
 }
 
+export async function updateReportAdminResponse(
+  id: string,
+  adminResponse: string
+): Promise<Report> {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('reports')
+    .update({
+      admin_response: adminResponse,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to update admin response: ${error.message}`)
+  }
+
+  return data as Report
+}
+
 export interface ReportStats {
   total: number
   open: number

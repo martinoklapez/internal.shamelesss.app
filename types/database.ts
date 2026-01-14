@@ -128,6 +128,7 @@ export type Report = {
   evidence_image_url: string | null
   evidence_image_storage_path: string | null
   evidence_image_storage_bucket: string | null
+  admin_response: string | null
   created_at: string
   updated_at: string
   reviewed_at: string | null

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/user-roles'
-import { getReportById, updateReportStatus, generateEvidenceImageSignedUrl } from '@/lib/database/reports'
+import { getReportById, updateReportStatus, updateReportAdminResponse, generateEvidenceImageSignedUrl } from '@/lib/database/reports'
 
 export async function GET(
   request: Request,
@@ -81,18 +81,30 @@ export async function PATCH(
 
     const resolvedParams = await Promise.resolve(params)
     const body = await request.json()
-    const { status } = body
+    const { status, admin_response } = body
 
-    if (!status || !['pending', 'reviewed', 'resolved', 'dismissed'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status. Must be one of: pending, reviewed, resolved, dismissed' },
-        { status: 400 }
-      )
+    // Handle status update
+    if (status) {
+      if (!['pending', 'reviewed', 'resolved', 'dismissed'].includes(status)) {
+        return NextResponse.json(
+          { error: 'Invalid status. Must be one of: pending, reviewed, resolved, dismissed' },
+          { status: 400 }
+        )
+      }
+      const updatedReport = await updateReportStatus(resolvedParams.id, status, user.id)
+      return NextResponse.json(updatedReport, { status: 200 })
     }
 
-    const updatedReport = await updateReportStatus(resolvedParams.id, status, user.id)
+    // Handle admin_response update
+    if (admin_response !== undefined) {
+      const updatedReport = await updateReportAdminResponse(resolvedParams.id, admin_response)
+      return NextResponse.json(updatedReport, { status: 200 })
+    }
 
-    return NextResponse.json(updatedReport, { status: 200 })
+    return NextResponse.json(
+      { error: 'Either status or admin_response must be provided' },
+      { status: 400 }
+    )
   } catch (error: any) {
     console.error('Error in update report route:', error)
     return NextResponse.json(

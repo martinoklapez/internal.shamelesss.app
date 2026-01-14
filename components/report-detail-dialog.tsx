@@ -13,9 +13,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import Image from 'next/image'
-import { ExternalLink, Download, User, MessageSquare, Image as ImageIcon, Trash2, Users } from 'lucide-react'
+import { ExternalLink, Download, User, MessageSquare, Image as ImageIcon, Trash2, Users, Save } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface ReportDetailDialogProps {
@@ -61,6 +62,8 @@ export function ReportDetailDialog({
 }: ReportDetailDialogProps) {
   const [status, setStatus] = useState(report.status)
   const [updating, setUpdating] = useState(false)
+  const [adminResponse, setAdminResponse] = useState<string>(report.admin_response || '')
+  const [savingResponse, setSavingResponse] = useState(false)
   const [evidenceImageUrl, setEvidenceImageUrl] = useState<string | null>(report.evidence_image_url || null)
   const [connection, setConnection] = useState(report.connection)
   const [friendRequests, setFriendRequests] = useState(report.friend_requests || [])
@@ -83,6 +86,7 @@ export function ReportDetailDialog({
         const data = await response.json()
         
         setStatus(data.status || report.status)
+        setAdminResponse(data.admin_response || '')
         setEvidenceImageUrl(data.evidence_image_url || report.evidence_image_url || null)
         setConnection(data.connection || null)
         setFriendRequests(data.friend_requests || [])
@@ -90,6 +94,7 @@ export function ReportDetailDialog({
         console.error('Error fetching report details:', error)
         // Fallback to prop values
         setStatus(report.status)
+        setAdminResponse(report.admin_response || '')
         setEvidenceImageUrl(report.evidence_image_url || null)
         setConnection(report.connection || null)
         setFriendRequests(report.friend_requests || [])
@@ -124,6 +129,30 @@ export function ReportDetailDialog({
       alert('Failed to update status. Please try again.')
     } finally {
       setUpdating(false)
+    }
+  }
+
+  const handleSaveAdminResponse = async () => {
+    setSavingResponse(true)
+    try {
+      const response = await fetch(`/api/reports/${report.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_response: adminResponse }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save admin response')
+      }
+
+      const updatedReport = await response.json()
+      setAdminResponse(updatedReport.admin_response || '')
+      onStatusUpdate()
+    } catch (error) {
+      console.error('Error saving admin response:', error)
+      alert('Failed to save admin response. Please try again.')
+    } finally {
+      setSavingResponse(false)
     }
   }
 
@@ -380,6 +409,33 @@ export function ReportDetailDialog({
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Additional Details</h3>
                 <p className="text-sm text-gray-500 italic">No additional details provided</p>
               </div>
+            )}
+          </div>
+
+          {/* Admin Response Section */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">Admin Response</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveAdminResponse}
+                disabled={savingResponse}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {savingResponse ? 'Saving...' : 'Save Response'}
+              </Button>
+            </div>
+            <Textarea
+              value={adminResponse}
+              onChange={(e) => setAdminResponse(e.target.value)}
+              placeholder="Enter your response to this report..."
+              className="min-h-[120px] resize-none"
+            />
+            {adminResponse && (
+              <p className="text-xs text-gray-500 mt-2">
+                {adminResponse.length} characters
+              </p>
             )}
           </div>
 
