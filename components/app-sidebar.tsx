@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles, FlagTriangleRight } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles, FlagTriangleRight, Ticket, Receipt } from 'lucide-react'
 import { Button } from './ui/button'
 import SignOutButton from './sign-out-button'
 
@@ -93,6 +93,18 @@ const supportModerationMenuItems: Array<{
     title: 'Reports',
     url: '/reports',
     icon: FlagTriangleRight,
+    roles: ['admin', 'dev', 'developer'] as const,
+  },
+  {
+    title: 'Support Tickets',
+    url: '/support-tickets',
+    icon: Ticket,
+    roles: ['admin', 'dev', 'developer'] as const,
+  },
+  {
+    title: 'Refund Requests',
+    url: '/refund-requests',
+    icon: Receipt,
     roles: ['admin', 'dev', 'developer'] as const,
   },
 ]
