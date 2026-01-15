@@ -286,11 +286,11 @@ export default function SupportTicketsManager() {
                 ))}
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 mt-0">
-                    <div className="text-sm text-gray-700">
-                      Showing {(page - 1) * 20 + 1} to {Math.min(page * 20, total)} of {total} tickets
-                    </div>
+                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 mt-0">
+                  <div className="text-sm text-gray-700">
+                    Showing {(page - 1) * 20 + 1} to {Math.min(page * 20, total)} of {total} tickets
+                  </div>
+                  {totalPages > 1 && (
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -301,6 +301,31 @@ export default function SupportTicketsManager() {
                         <ChevronLeft className="h-4 w-4" />
                         Previous
                       </Button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                          let pageNum: number
+                          if (totalPages <= 5) {
+                            pageNum = i + 1
+                          } else if (page <= 3) {
+                            pageNum = i + 1
+                          } else if (page >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i
+                          } else {
+                            pageNum = page - 2 + i
+                          }
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={page === pageNum ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setPage(pageNum)}
+                              className="min-w-[2rem]"
+                            >
+                              {pageNum}
+                            </Button>
+                          )
+                        })}
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
@@ -311,8 +336,8 @@ export default function SupportTicketsManager() {
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </>
             )}
           </div>

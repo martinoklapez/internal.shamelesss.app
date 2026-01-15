@@ -184,6 +184,7 @@ export function SupportTicketDetailDialog({
                 {ticket.user_profile?.username && (
                   <div className="text-xs text-gray-500 truncate">@{ticket.user_profile.username}</div>
                 )}
+                <div className="text-xs text-gray-500 truncate mt-1">ID: <span className="font-mono">{ticket.user_id}</span></div>
               </div>
             </div>
           </div>
@@ -197,12 +198,6 @@ export function SupportTicketDetailDialog({
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Subject:</span>
                   <span className="font-medium text-gray-900">{ticket.subject}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Status:</span>
-                  <Badge className={STATUS_COLORS[ticket.status] || ''}>
-                    {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1).replace('_', ' ')}
-                  </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Created:</span>
