@@ -242,6 +242,46 @@ export async function getReportById(id: string): Promise<ReportWithProfiles | nu
     return dateB - dateA
   })
 
+  // Fetch message content if message_id exists
+  let messageContent: string | null = null
+  if (report.message_id) {
+    console.log('🔍 Fetching message content for message_id:', report.message_id)
+    
+    // Try fetching all columns first to see what's available
+    const { data: message, error: messageError } = await connectionsClient
+      .from('messages')
+      .select('*')
+      .eq('id', report.message_id)
+      .single()
+    
+    if (messageError) {
+      console.error('❌ Error fetching message from "messages" table:', messageError)
+      
+      // Try alternative table name (sometimes it's 'chat_messages' or 'user_messages')
+      const { data: altMessage, error: altError } = await connectionsClient
+        .from('chat_messages')
+        .select('*')
+        .eq('id', report.message_id)
+        .single()
+      
+      if (altError) {
+        console.error('❌ Error fetching from "chat_messages" table:', altError)
+      } else if (altMessage) {
+        // Try common field names
+        messageContent = altMessage.content || altMessage.text || altMessage.body || altMessage.message || null
+        console.log('✅ Found message in chat_messages table, available fields:', Object.keys(altMessage))
+        console.log('✅ Message content:', messageContent ? `${messageContent.substring(0, 50)}...` : 'empty')
+      }
+    } else if (message) {
+      // Try common field names
+      messageContent = message.content || message.text || message.body || message.message || null
+      console.log('✅ Found message in messages table, available fields:', Object.keys(message))
+      console.log('✅ Message content:', messageContent ? `${messageContent.substring(0, 50)}...` : 'empty')
+    } else {
+      console.log('⚠️ No message found with message_id:', report.message_id)
+    }
+  }
+
   return {
     ...report,
     reporter_profile: profileMap.get(report.reporter_user_id) || null,
@@ -249,6 +289,7 @@ export async function getReportById(id: string): Promise<ReportWithProfiles | nu
     reviewer_profile: report.reviewed_by ? (profileMap.get(report.reviewed_by) || null) : null,
     connection: connection || null,
     friend_requests: allFriendRequests || [],
+    message_content: messageContent,
   } as ReportWithProfiles
 }
 

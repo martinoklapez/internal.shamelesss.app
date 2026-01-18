@@ -175,6 +175,7 @@ export type ReportWithProfiles = Report & {
   } | null
   connection: Connection | null
   friend_requests: FriendRequest[]
+  message_content?: string | null
 }
 
 export type SupportTicket = {

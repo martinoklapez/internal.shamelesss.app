@@ -67,6 +67,7 @@ export function ReportDetailDialog({
   const [evidenceImageUrl, setEvidenceImageUrl] = useState<string | null>(report.evidence_image_url || null)
   const [connection, setConnection] = useState(report.connection)
   const [friendRequests, setFriendRequests] = useState(report.friend_requests || [])
+  const [messageContent, setMessageContent] = useState<string | null>(report.message_content || null)
   const [deletingConnection, setDeletingConnection] = useState(false)
   const [deletingFriendRequest, setDeletingFriendRequest] = useState<string | null>(null)
   const [loadingRelationships, setLoadingRelationships] = useState(true)
@@ -90,6 +91,7 @@ export function ReportDetailDialog({
         setEvidenceImageUrl(data.evidence_image_url || report.evidence_image_url || null)
         setConnection(data.connection || null)
         setFriendRequests(data.friend_requests || [])
+        setMessageContent(data.message_content || null)
       } catch (error) {
         console.error('Error fetching report details:', error)
         // Fallback to prop values
@@ -98,6 +100,7 @@ export function ReportDetailDialog({
         setEvidenceImageUrl(report.evidence_image_url || null)
         setConnection(report.connection || null)
         setFriendRequests(report.friend_requests || [])
+        setMessageContent(report.message_content || null)
       } finally {
         setLoadingRelationships(false)
       }
@@ -446,20 +449,47 @@ export function ReportDetailDialog({
                 <MessageSquare className="h-4 w-4 text-gray-600" />
                 <h3 className="text-sm font-semibold text-gray-900">Message Context</h3>
               </div>
-              <div className="space-y-2 text-sm">
-                {report.message_id && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Message ID:</span>
-                    <span className="font-mono text-xs text-gray-900">{report.message_id}</span>
+              {messageContent ? (
+                <div className="space-y-3">
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{messageContent}</p>
                   </div>
-                )}
-                {report.connection_id && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Connection ID:</span>
-                    <span className="font-mono text-xs text-gray-900">{report.connection_id}</span>
-                  </div>
-                )}
-              </div>
+                  {(report.message_id || report.connection_id) && (
+                    <div className="space-y-2 text-sm pt-2 border-t border-gray-200">
+                      {report.message_id && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Message ID:</span>
+                          <span className="font-mono text-xs text-gray-900">{report.message_id}</span>
+                        </div>
+                      )}
+                      {report.connection_id && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Connection ID:</span>
+                          <span className="font-mono text-xs text-gray-900">{report.connection_id}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2 text-sm">
+                  {report.message_id && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Message ID:</span>
+                      <span className="font-mono text-xs text-gray-900">{report.message_id}</span>
+                    </div>
+                  )}
+                  {report.connection_id && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Connection ID:</span>
+                      <span className="font-mono text-xs text-gray-900">{report.connection_id}</span>
+                    </div>
+                  )}
+                  {report.message_id && (
+                    <p className="text-sm text-gray-500 italic mt-2">Message content not available</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

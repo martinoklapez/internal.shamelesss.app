@@ -32,6 +32,8 @@ export async function GET(
     // Debug logging
     console.log('Report connection:', report.connection)
     console.log('Report friend_requests:', report.friend_requests)
+    console.log('Report message_content:', report.message_content)
+    console.log('Report message_id:', report.message_id)
 
     // Generate signed URL for evidence image if it exists
     let evidenceImageUrl = report.evidence_image_url
