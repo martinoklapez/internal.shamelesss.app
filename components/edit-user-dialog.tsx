@@ -204,6 +204,7 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
     e.preventDefault()
     if (!email?.trim() || !role) return
     setIsSaving(true)
+    const ageNum = age.trim() === '' ? null : parseInt(age.trim(), 10)
     try {
       const response = await fetch('/api/users/create', {
         method: 'POST',
@@ -213,12 +214,19 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
           name: name.trim() || null,
           role,
           password: password.trim() || null,
+          username: username.trim() || null,
+          age: ageNum !== null && !Number.isNaN(ageNum) ? ageNum : null,
+          country_code: countryCode && countryCode !== COUNTRY_NONE ? countryCode : null,
+          gender: gender && gender !== '' ? gender : null,
+          instagram_handle: instagramHandle.trim() || null,
+          snapchat_handle: snapchatHandle.trim() || null,
         }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to create user')
       const newUserId = data.id as string
 
+      let profilePictureUrlToSave: string | null = null
       if (pendingImageFile && newUserId) {
         setIsUploadingImage(true)
         try {
@@ -231,6 +239,7 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
           })
           const uploadData = await uploadRes.json()
           if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
+          profilePictureUrlToSave = uploadData.profile_picture_url || null
         } catch (uploadErr: unknown) {
           toast({
             title: 'User created, image upload failed',
@@ -239,6 +248,29 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
           })
         } finally {
           setIsUploadingImage(false)
+        }
+      }
+
+      if (profilePictureUrlToSave && newUserId) {
+        try {
+          const updateRes = await fetch('/api/users/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: newUserId,
+              profile_picture_url: profilePictureUrlToSave,
+            }),
+          })
+          if (!updateRes.ok) {
+            const updateData = await updateRes.json()
+            throw new Error(updateData.error || 'Failed to save profile picture')
+          }
+        } catch (updateErr: unknown) {
+          toast({
+            title: 'User created, profile picture not saved',
+            description: updateErr instanceof Error ? updateErr.message : 'Profile picture could not be saved to profile.',
+            variant: 'destructive',
+          })
         }
       }
 

@@ -20,11 +20,28 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, name, role, password } = body as {
+    const {
+      email,
+      name,
+      role,
+      password,
+      username,
+      age,
+      country_code,
+      gender,
+      instagram_handle,
+      snapchat_handle,
+    } = body as {
       email?: string
       name?: string
       role?: string
       password?: string | null
+      username?: string | null
+      age?: number | null
+      country_code?: string | null
+      gender?: string | null
+      instagram_handle?: string | null
+      snapchat_handle?: string | null
     }
 
     if (!email || !role) {
@@ -86,10 +103,23 @@ export async function POST(request: Request) {
       )
     }
 
-    // Ensure a profile row exists for this user (via service client to avoid RLS issues)
+    // Ensure a profile row exists with all provided fields (via service client to avoid RLS issues)
+    const ageNum = age != null && !Number.isNaN(Number(age)) ? Number(age) : null
     const { error: profileError } = await adminSupabase
       .from('profiles')
-      .upsert({ user_id: newUserId, name: name || null }, { onConflict: 'user_id' })
+      .upsert(
+        {
+          user_id: newUserId,
+          name: name || null,
+          username: username || null,
+          age: ageNum,
+          country_code: country_code || null,
+          gender: gender || null,
+          instagram_handle: instagram_handle || null,
+          snapchat_handle: snapchat_handle || null,
+        },
+        { onConflict: 'user_id' }
+      )
 
     if (profileError) {
       console.error('Error upserting profile:', profileError)
