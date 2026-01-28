@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { Plus, MoreHorizontal } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -9,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { EditUserDialog } from '@/components/edit-user-dialog'
+import { UserDialog } from '@/components/edit-user-dialog'
 
 type ManagedUser = {
   id: string
@@ -54,6 +56,8 @@ const ROLE_FILTER_OPTIONS: { value: string; label: string }[] = [
 export default function UsersManager({ initialUsers }: UsersManagerProps) {
   const [users, setUsers] = useState<ManagedUser[]>(initialUsers)
   const [roleFilter, setRoleFilter] = useState<string>(ALL_ROLES_VALUE)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogUser, setDialogUser] = useState<ManagedUser | null>(null)
 
   // Refresh users list when component receives new props
   useEffect(() => {
@@ -83,12 +87,34 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
             </SelectContent>
           </Select>
         </div>
-        <span className="text-xs text-gray-500 shrink-0">
-          {filteredUsers.length === users.length
-            ? `${users.length} total`
-            : `${filteredUsers.length} of ${users.length}`}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-gray-500">
+            {filteredUsers.length === users.length
+              ? `${users.length} total`
+              : `${filteredUsers.length} of ${users.length}`}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => {
+              setDialogUser(null)
+              setDialogOpen(true)
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="sr-only">Add user</span>
+          </Button>
+        </div>
       </div>
+      <UserDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setDialogUser(null)
+        }}
+        user={dialogUser}
+      />
       <div className="divide-y divide-gray-100">
         {filteredUsers.length === 0 ? (
           <div className="px-6 py-6 text-sm text-gray-500">
@@ -133,22 +159,18 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                   <div className="text-xs font-medium text-gray-700 px-2 py-1 rounded-full bg-gray-100">
                     {ROLE_LABELS[user.role] || user.role}
                   </div>
-                  <EditUserDialog
-                    userId={user.id}
-                    initialName={user.name}
-                    initialUsername={user.username}
-                    initialEmail={user.email}
-                    initialProfilePictureUrl={user.profile_picture_url}
-                    initialAge={user.age}
-                    initialCountryCode={user.country_code}
-                    initialGender={user.gender}
-                    initialInstagramHandle={user.instagram_handle}
-                    initialSnapchatHandle={user.snapchat_handle}
-                    initialConnectionCount={user.connection_count}
-                    initialCreatedAt={user.created_at}
-                    initialUpdatedAt={user.updated_at}
-                    initialRole={user.role}
-                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 p-0 text-gray-500 hover:text-gray-900"
+                    onClick={() => {
+                      setDialogUser(user)
+                      setDialogOpen(true)
+                    }}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Edit user</span>
+                  </Button>
                 </div>
               </div>
             )

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, ChevronsUpDown } from 'lucide-react'
+import { ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -38,56 +37,45 @@ const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'demo', label: 'Demo' },
 ]
 
-interface EditUserDialogProps {
-  userId: string
-  initialName: string | null
-  initialUsername: string | null
-  initialEmail: string | null
-  initialProfilePictureUrl: string | null
-  initialAge: number | null
-  initialCountryCode: string | null
-  initialGender: string | null
-  initialInstagramHandle: string | null
-  initialSnapchatHandle: string | null
-  initialConnectionCount: number
-  initialCreatedAt: string | null
-  initialUpdatedAt: string | null
-  initialRole: string
+/** Same shape as ManagedUser in users-manager - used to avoid circular dependency */
+export interface UserDialogUser {
+  id: string
+  name: string | null
+  username: string | null
+  role: string
+  profile_picture_url: string | null
+  age: number | null
+  country_code: string | null
+  gender: string | null
+  instagram_handle: string | null
+  snapchat_handle: string | null
+  connection_count: number
+  created_at: string | null
+  updated_at: string | null
+  email: string | null
 }
 
-export function EditUserDialog({
-  userId,
-  initialName,
-  initialUsername,
-  initialEmail,
-  initialProfilePictureUrl,
-  initialAge,
-  initialCountryCode,
-  initialGender,
-  initialInstagramHandle,
-  initialSnapchatHandle,
-  initialConnectionCount,
-  initialCreatedAt,
-  initialUpdatedAt,
-  initialRole,
-}: EditUserDialogProps) {
+interface UserDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** null = create mode; set = edit mode */
+  user: UserDialogUser | null
+}
+
+export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
+  const isCreate = user === null
   const router = useRouter()
   const { toast } = useToast()
-  const [open, setOpen] = useState(false)
-  const [email, setEmail] = useState(initialEmail || '')
-  const [name, setName] = useState(initialName || '')
-  const [username, setUsername] = useState(initialUsername || '')
-  const [profilePictureUrl, setProfilePictureUrl] = useState(initialProfilePictureUrl || '')
-  const [age, setAge] = useState(initialAge != null ? String(initialAge) : '')
-  const [countryCode, setCountryCode] = useState(initialCountryCode || COUNTRY_NONE)
-  const [role, setRole] = useState(ROLE_OPTIONS.some((o) => o.value === initialRole) ? initialRole : ROLE_OPTIONS[0].value)
-  const [gender, setGender] = useState(
-    initialGender && ['male', 'female'].includes(initialGender.toLowerCase())
-      ? initialGender.toLowerCase()
-      : ''
-  )
-  const [instagramHandle, setInstagramHandle] = useState(initialInstagramHandle || '')
-  const [snapchatHandle, setSnapchatHandle] = useState(initialSnapchatHandle || '')
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
+  const [profilePictureUrl, setProfilePictureUrl] = useState('')
+  const [age, setAge] = useState('')
+  const [countryCode, setCountryCode] = useState(COUNTRY_NONE)
+  const [role, setRole] = useState('tester')
+  const [gender, setGender] = useState('')
+  const [instagramHandle, setInstagramHandle] = useState('')
+  const [snapchatHandle, setSnapchatHandle] = useState('')
   const [password, setPassword] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
@@ -104,7 +92,6 @@ export function EditUserDialog({
       )
     : COUNTRIES
 
-  // Close country dropdown when clicking outside
   useEffect(() => {
     if (!countryOpen) return
     const handleClickOutside = (e: MouseEvent) => {
@@ -116,40 +103,41 @@ export function EditUserDialog({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [countryOpen])
 
-  // Sync form state when dialog opens with latest props
   useEffect(() => {
-    if (open) {
-      setEmail(initialEmail || '')
-      setName(initialName || '')
-      setUsername(initialUsername || '')
-      setProfilePictureUrl(initialProfilePictureUrl || '')
-      setAge(initialAge != null ? String(initialAge) : '')
-      setCountryCode(initialCountryCode || COUNTRY_NONE)
+    if (!open) return
+    if (isCreate) {
+      setEmail('')
+      setName('')
+      setUsername('')
+      setProfilePictureUrl('')
+      setAge('')
+      setCountryCode(COUNTRY_NONE)
+      setRole('tester')
+      setGender('')
+      setInstagramHandle('')
+      setSnapchatHandle('')
+      setPassword('')
+    } else {
+      setEmail(user!.email || '')
+      setName(user!.name || '')
+      setUsername(user!.username || '')
+      setProfilePictureUrl(user!.profile_picture_url || '')
+      setAge(user!.age != null ? String(user!.age) : '')
+      setCountryCode(user!.country_code || COUNTRY_NONE)
+      setRole(ROLE_OPTIONS.some((o) => o.value === user!.role) ? user!.role : ROLE_OPTIONS[0].value)
       setGender(
-        initialGender && ['male', 'female'].includes(initialGender.toLowerCase())
-          ? initialGender.toLowerCase()
+        user!.gender && ['male', 'female'].includes(user!.gender.toLowerCase())
+          ? user!.gender.toLowerCase()
           : ''
       )
-      setInstagramHandle(initialInstagramHandle || '')
-      setSnapchatHandle(initialSnapchatHandle || '')
+      setInstagramHandle(user!.instagram_handle || '')
+      setSnapchatHandle(user!.snapchat_handle || '')
       setPassword('')
-      setRole(ROLE_OPTIONS.some((o) => o.value === initialRole) ? initialRole : ROLE_OPTIONS[0].value)
     }
-  }, [
-    open,
-    initialRole,
-    initialEmail,
-    initialName,
-    initialUsername,
-    initialProfilePictureUrl,
-    initialAge,
-    initialCountryCode,
-    initialGender,
-    initialInstagramHandle,
-    initialSnapchatHandle,
-  ])
+  }, [open, isCreate, user])
 
   const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isCreate || !user) return
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
@@ -164,7 +152,7 @@ export function EditUserDialog({
     try {
       const formData = new FormData()
       formData.set('file', file)
-      formData.set('userId', userId)
+      formData.set('userId', user.id)
       const response = await fetch('/api/users/upload-profile-image', {
         method: 'POST',
         body: formData,
@@ -186,20 +174,52 @@ export function EditUserDialog({
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!email?.trim() || !role) return
     setIsSaving(true)
+    try {
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          name: name.trim() || null,
+          role,
+          password: password.trim() || null,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to create user')
+      toast({
+        title: 'User created',
+        description: `User ${data.email} created with role ${ROLE_OPTIONS.find((o) => o.value === data.role)?.label ?? data.role}.`,
+      })
+      onOpenChange(false)
+      setPassword('')
+      router.refresh()
+    } catch (err: unknown) {
+      toast({
+        title: 'Creation failed',
+        description: err instanceof Error ? err.message : 'An error occurred while creating the user.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    setIsSaving(true)
     const ageNum = age.trim() === '' ? null : parseInt(age.trim(), 10)
-
     try {
       const response = await fetch('/api/users/update', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
+          userId: user.id,
           email: email.trim() || null,
           name: name.trim() || null,
           username: username.trim() || null,
@@ -213,26 +233,16 @@ export function EditUserDialog({
           role: role || null,
         }),
       })
-
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update user')
-      }
-
-      toast({
-        title: 'User updated',
-        description: 'The user details have been updated successfully.',
-      })
-
-      setOpen(false)
+      if (!response.ok) throw new Error(data.error || 'Failed to update user')
+      toast({ title: 'User updated', description: 'The user details have been updated successfully.' })
+      onOpenChange(false)
       setPassword('')
       router.refresh()
-    } catch (error: any) {
-      console.error('Error updating user:', error)
+    } catch (err: unknown) {
       toast({
         title: 'Update failed',
-        description: error.message || 'An error occurred while updating the user.',
+        description: err instanceof Error ? err.message : 'An error occurred while updating the user.',
         variant: 'destructive',
       })
     } finally {
@@ -240,28 +250,20 @@ export function EditUserDialog({
     }
   }
 
+  const formId = `user-dialog-${isCreate ? 'create' : user!.id}`
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 p-0 text-gray-500 hover:text-gray-900"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Edit user</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg gap-0 p-4 sm:p-5">
         <DialogHeader className="space-y-1 pb-3">
-          <DialogTitle className="text-base">Edit User</DialogTitle>
+          <DialogTitle className="text-base">{isCreate ? 'Add user' : 'Edit user'}</DialogTitle>
           <DialogDescription className="text-xs">
-            Profile and auth details.
+            {isCreate ? 'Create a new user.' : 'Profile and auth details.'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={isCreate ? handleCreate : handleUpdate}>
           <div className="grid gap-3 py-2 max-h-[60vh] overflow-y-auto">
-            {/* Row: Avatar + (Name, Username stacked) | (Gender, Age stacked) */}
+            {/* Row: Avatar + Name/Username | Gender/Age — same for add and edit; avatar upload disabled in create */}
             <div className="flex gap-3">
               <input
                 ref={fileInputRef}
@@ -269,14 +271,14 @@ export function EditUserDialog({
                 accept="image/*"
                 className="hidden"
                 onChange={handleProfileImageUpload}
-                disabled={isUploadingImage}
+                disabled={isUploadingImage || isCreate}
               />
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingImage}
+                onClick={() => !isCreate && fileInputRef.current?.click()}
+                disabled={isUploadingImage || isCreate}
                 className="relative h-[62px] w-[62px] shrink-0 rounded-full ring-offset-2 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Upload photo"
+                title={isCreate ? undefined : 'Upload photo'}
               >
                 <Avatar className="h-full w-full cursor-pointer border-2 border-transparent hover:border-gray-300 transition-colors">
                   {profilePictureUrl ? (
@@ -295,7 +297,7 @@ export function EditUserDialog({
               <div className="grid flex-1 grid-cols-2 gap-2 min-w-0">
                 <div className="space-y-1.5">
                   <Input
-                    id={`name-${userId}`}
+                    id={`name-${formId}`}
                     type="text"
                     placeholder="Full name"
                     value={name}
@@ -303,7 +305,7 @@ export function EditUserDialog({
                     className="h-7 text-sm"
                   />
                   <Input
-                    id={`username-${userId}`}
+                    id={`username-${formId}`}
                     type="text"
                     placeholder="Username"
                     value={username}
@@ -316,7 +318,7 @@ export function EditUserDialog({
                     value={gender === '' ? GENDER_EMPTY : gender}
                     onValueChange={(v) => setGender(v === GENDER_EMPTY ? '' : v)}
                   >
-                    <SelectTrigger id={`gender-${userId}`} className="h-7 text-sm">
+                    <SelectTrigger id={`gender-${formId}`} className="h-7 text-sm">
                       <SelectValue placeholder="Gender" />
                     </SelectTrigger>
                     <SelectContent>
@@ -326,7 +328,7 @@ export function EditUserDialog({
                     </SelectContent>
                   </Select>
                   <Input
-                    id={`age-${userId}`}
+                    id={`age-${formId}`}
                     type="number"
                     min={1}
                     max={120}
@@ -339,77 +341,75 @@ export function EditUserDialog({
               </div>
             </div>
 
-            {/* Row: Country */}
             <div className="space-y-1 relative" ref={countryDropdownRef}>
-                <Label htmlFor={`country-code-${userId}`} className="text-xs">Country</Label>
-                <Button
-                  id={`country-code-${userId}`}
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={countryOpen}
-                  className="h-8 w-full justify-between font-normal text-sm border-gray-300 px-2"
-                  onClick={() => {
-                    setCountryOpen((prev) => !prev)
-                    if (!countryOpen) setCountrySearch('')
-                  }}
-                >
-                  <span className="flex items-center gap-1.5 truncate">
-                    {countryCode && countryCode !== COUNTRY_NONE ? (
-                      <>
-                        <span>{getFlagEmoji(countryCode)}</span>
-                        <span className="truncate">{getCountryName(countryCode)}</span>
-                      </>
-                    ) : (
-                      '—'
-                    )}
-                  </span>
-                  <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                </Button>
-                {countryOpen && (
-                  <div className="absolute left-0 right-0 top-full z-[100] mt-1 rounded border border-gray-200 bg-white shadow-lg">
-                    <div className="border-b border-gray-100 p-1.5">
-                      <Input
-                        placeholder="Search..."
-                        value={countrySearch}
-                        onChange={(e) => setCountrySearch(e.target.value)}
-                        className="h-8 text-sm"
-                        autoFocus
-                      />
-                    </div>
-                    <div className="max-h-[260px] overflow-y-auto p-1">
+              <Label htmlFor={`country-code-${formId}`} className="text-xs">Country</Label>
+              <Button
+                id={`country-code-${formId}`}
+                type="button"
+                variant="outline"
+                role="combobox"
+                aria-expanded={countryOpen}
+                className="h-8 w-full justify-between font-normal text-sm border-gray-300 px-2"
+                onClick={() => {
+                  setCountryOpen((prev) => !prev)
+                  if (!countryOpen) setCountrySearch('')
+                }}
+              >
+                <span className="flex items-center gap-1.5 truncate">
+                  {countryCode && countryCode !== COUNTRY_NONE ? (
+                    <>
+                      <span>{getFlagEmoji(countryCode)}</span>
+                      <span className="truncate">{getCountryName(countryCode)}</span>
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </span>
+                <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+              </Button>
+              {countryOpen && (
+                <div className="absolute left-0 right-0 top-full z-[100] mt-1 rounded border border-gray-200 bg-white shadow-lg">
+                  <div className="border-b border-gray-100 p-1.5">
+                    <Input
+                      placeholder="Search..."
+                      value={countrySearch}
+                      onChange={(e) => setCountrySearch(e.target.value)}
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-[260px] overflow-y-auto p-1">
+                    <button
+                      type="button"
+                      className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-gray-100"
+                      onClick={() => { setCountryCode(COUNTRY_NONE); setCountryOpen(false) }}
+                    >
+                      — No country
+                    </button>
+                    {filteredCountries.map((c) => (
                       <button
+                        key={c.code}
                         type="button"
                         className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-gray-100"
-                        onClick={() => { setCountryCode(COUNTRY_NONE); setCountryOpen(false) }}
+                        onClick={() => { setCountryCode(c.code); setCountryOpen(false) }}
                       >
-                        — No country
+                        <span>{getFlagEmoji(c.code)}</span>
+                        <span className="truncate">{c.name}</span>
                       </button>
-                      {filteredCountries.map((c) => (
-                        <button
-                          key={c.code}
-                          type="button"
-                          className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-gray-100"
-                          onClick={() => { setCountryCode(c.code); setCountryOpen(false) }}
-                        >
-                          <span>{getFlagEmoji(c.code)}</span>
-                          <span className="truncate">{c.name}</span>
-                        </button>
-                      ))}
-                      {filteredCountries.length === 0 && (
-                        <div className="py-4 text-center text-xs text-gray-500">No country found.</div>
-                      )}
-                    </div>
+                    ))}
+                    {filteredCountries.length === 0 && (
+                      <div className="py-4 text-center text-xs text-gray-500">No country found.</div>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
             </div>
 
-            {/* Row: Instagram, Snapchat */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label htmlFor={`instagram-${userId}`} className="text-xs">Instagram</Label>
+                <Label htmlFor={`instagram-${formId}`} className="text-xs">Instagram</Label>
                 <Input
-                  id={`instagram-${userId}`}
+                  id={`instagram-${formId}`}
                   type="text"
                   placeholder="@username"
                   value={instagramHandle}
@@ -418,9 +418,9 @@ export function EditUserDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor={`snapchat-${userId}`} className="text-xs">Snapchat</Label>
+                <Label htmlFor={`snapchat-${formId}`} className="text-xs">Snapchat</Label>
                 <Input
-                  id={`snapchat-${userId}`}
+                  id={`snapchat-${formId}`}
                   type="text"
                   placeholder="Username"
                   value={snapchatHandle}
@@ -430,11 +430,10 @@ export function EditUserDialog({
               </div>
             </div>
 
-            {/* Row: Role */}
             <div className="space-y-1">
-              <Label htmlFor={`role-${userId}`} className="text-xs">Role</Label>
+              <Label htmlFor={`role-${formId}`} className="text-xs">Role</Label>
               <Select value={role} onValueChange={setRole}>
-                <SelectTrigger id={`role-${userId}`} className="h-8 text-sm">
+                <SelectTrigger id={`role-${formId}`} className="h-8 text-sm">
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -447,25 +446,25 @@ export function EditUserDialog({
               </Select>
             </div>
 
-            {/* Row: Email, Password */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label htmlFor={`email-${userId}`} className="text-xs">Email</Label>
+                <Label htmlFor={`email-${formId}`} className="text-xs">Email</Label>
                 <Input
-                  id={`email-${userId}`}
+                  id={`email-${formId}`}
                   type="email"
-                  placeholder="Keep current"
+                  required={isCreate}
+                  placeholder={isCreate ? 'user@example.com' : 'Keep current'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-8 text-sm"
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor={`password-${userId}`} className="text-xs">Password</Label>
+                <Label htmlFor={`password-${formId}`} className="text-xs">Password</Label>
                 <Input
-                  id={`password-${userId}`}
+                  id={`password-${formId}`}
                   type="text"
-                  placeholder="Keep current"
+                  placeholder={isCreate ? 'Leave empty to auto-generate' : 'Keep current'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-8 text-sm"
@@ -473,28 +472,29 @@ export function EditUserDialog({
               </div>
             </div>
 
-            {/* Footer: connection count + timestamps inline */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-xs text-gray-500">
-              <span>Connections: <span className="font-medium text-gray-700">{initialConnectionCount}</span></span>
-              {initialCreatedAt && (
-                <span>Created: {formatDate(initialCreatedAt)}{initialCreatedAt.includes('T') && ` ${new Date(initialCreatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`}</span>
-              )}
-              {initialUpdatedAt && (
-                <span>Updated: {formatDate(initialUpdatedAt)}{initialUpdatedAt.includes('T') && ` ${new Date(initialUpdatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`}</span>
-              )}
-            </div>
+            {!isCreate && user && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-xs text-gray-500">
+                <span>Connections: <span className="font-medium text-gray-700">{user.connection_count}</span></span>
+                {user.created_at && (
+                  <span>Created: {formatDate(user.created_at)}{user.created_at.includes('T') && ` ${new Date(user.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`}</span>
+                )}
+                {user.updated_at && (
+                  <span>Updated: {formatDate(user.updated_at)}{user.updated_at.includes('T') && ` ${new Date(user.updated_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`}</span>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter className="gap-2 pt-3 sm:pt-3">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
               disabled={isSaving}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save changes'}
+              {isSaving ? (isCreate ? 'Creating...' : 'Saving...') : isCreate ? 'Create user' : 'Save changes'}
             </Button>
           </DialogFooter>
         </form>
@@ -502,5 +502,3 @@ export function EditUserDialog({
     </Dialog>
   )
 }
-
-

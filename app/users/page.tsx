@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/user-roles'
 import UsersManager from '@/components/users-manager'
-import { AddUserDialog } from '@/components/add-user-dialog'
 
 export default async function UsersPage() {
   const supabase = await createClient()
@@ -122,16 +121,13 @@ export default async function UsersPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-              Users
-            </h1>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 break-words">
-              Manage tester, demo, promoter, developer and admin accounts.
-            </p>
-          </div>
-          <AddUserDialog />
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            Users
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 break-words">
+            Manage tester, demo, promoter, developer and admin accounts.
+          </p>
         </div>
 
         <UsersManager initialUsers={users} />
