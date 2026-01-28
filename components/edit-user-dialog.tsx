@@ -27,7 +27,6 @@ import { COUNTRIES, getCountryName, getFlagEmoji } from '@/lib/countries'
 import { formatDate } from '@/lib/utils/date'
 
 const COUNTRY_NONE = '__none__'
-const GENDER_EMPTY = '__'
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'admin', label: 'Admin' },
@@ -83,6 +82,8 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
   const [countrySearch, setCountrySearch] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const countryDropdownRef = useRef<HTMLDivElement>(null)
+  const createPreviewUrlRef = useRef<string | null>(null)
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null)
 
   const filteredCountries = countrySearch.trim()
     ? COUNTRIES.filter(
@@ -106,6 +107,11 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
   useEffect(() => {
     if (!open) return
     if (isCreate) {
+      if (createPreviewUrlRef.current) {
+        URL.revokeObjectURL(createPreviewUrlRef.current)
+        createPreviewUrlRef.current = null
+      }
+      setPendingImageFile(null)
       setEmail('')
       setName('')
       setUsername('')
@@ -136,8 +142,14 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
     }
   }, [open, isCreate, user])
 
-  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isCreate || !user) return
+  useEffect(() => {
+    if (!open && createPreviewUrlRef.current) {
+      URL.revokeObjectURL(createPreviewUrlRef.current)
+      createPreviewUrlRef.current = null
+    }
+  }, [open])
+
+  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
@@ -148,30 +160,44 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
       })
       return
     }
-    setIsUploadingImage(true)
-    try {
-      const formData = new FormData()
-      formData.set('file', file)
-      formData.set('userId', user.id)
-      const response = await fetch('/api/users/upload-profile-image', {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Upload failed')
-      setProfilePictureUrl(data.profile_picture_url)
-      toast({ title: 'Image uploaded', description: 'Profile picture uploaded successfully.' })
-    } catch (err: unknown) {
-      toast({
-        title: 'Upload failed',
-        description: err instanceof Error ? err.message : 'Failed to upload image.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsUploadingImage(false)
-      e.target.value = ''
-      if (fileInputRef.current) fileInputRef.current.value = ''
+    e.target.value = ''
+    if (fileInputRef.current) fileInputRef.current.value = ''
+
+    if (isCreate) {
+      if (createPreviewUrlRef.current) {
+        URL.revokeObjectURL(createPreviewUrlRef.current)
+      }
+      createPreviewUrlRef.current = URL.createObjectURL(file)
+      setProfilePictureUrl(createPreviewUrlRef.current)
+      setPendingImageFile(file)
+      return
     }
+
+    if (!user) return
+    setIsUploadingImage(true)
+    const formData = new FormData()
+    formData.set('file', file)
+    formData.set('userId', user.id)
+    fetch('/api/users/upload-profile-image', { method: 'POST', body: formData })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.error) {
+          setProfilePictureUrl(data.profile_picture_url)
+          toast({ title: 'Image uploaded', description: 'Profile picture uploaded successfully.' })
+        } else {
+          throw new Error(data.error)
+        }
+      })
+      .catch((err: unknown) => {
+        toast({
+          title: 'Upload failed',
+          description: err instanceof Error ? err.message : 'Failed to upload image.',
+          variant: 'destructive',
+        })
+      })
+      .finally(() => {
+        setIsUploadingImage(false)
+      })
   }
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -191,6 +217,36 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to create user')
+      const newUserId = data.id as string
+
+      if (pendingImageFile && newUserId) {
+        setIsUploadingImage(true)
+        try {
+          const formData = new FormData()
+          formData.set('file', pendingImageFile)
+          formData.set('userId', newUserId)
+          const uploadRes = await fetch('/api/users/upload-profile-image', {
+            method: 'POST',
+            body: formData,
+          })
+          const uploadData = await uploadRes.json()
+          if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
+        } catch (uploadErr: unknown) {
+          toast({
+            title: 'User created, image upload failed',
+            description: uploadErr instanceof Error ? uploadErr.message : 'Profile picture could not be uploaded.',
+            variant: 'destructive',
+          })
+        } finally {
+          setIsUploadingImage(false)
+        }
+      }
+
+      if (createPreviewUrlRef.current) {
+        URL.revokeObjectURL(createPreviewUrlRef.current)
+        createPreviewUrlRef.current = null
+      }
+      setPendingImageFile(null)
       toast({
         title: 'User created',
         description: `User ${data.email} created with role ${ROLE_OPTIONS.find((o) => o.value === data.role)?.label ?? data.role}.`,
@@ -270,15 +326,15 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={handleProfileImageUpload}
-                disabled={isUploadingImage || isCreate}
+                onChange={handleProfileImageChange}
+                disabled={isUploadingImage}
               />
               <button
                 type="button"
-                onClick={() => !isCreate && fileInputRef.current?.click()}
-                disabled={isUploadingImage || isCreate}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingImage}
                 className="relative h-[62px] w-[62px] shrink-0 rounded-full ring-offset-2 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                title={isCreate ? undefined : 'Upload photo'}
+                title="Upload photo"
               >
                 <Avatar className="h-full w-full cursor-pointer border-2 border-transparent hover:border-gray-300 transition-colors">
                   {profilePictureUrl ? (
@@ -315,14 +371,13 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
                 </div>
                 <div className="space-y-1.5">
                   <Select
-                    value={gender === '' ? GENDER_EMPTY : gender}
-                    onValueChange={(v) => setGender(v === GENDER_EMPTY ? '' : v)}
+                    value={gender || undefined}
+                    onValueChange={(v) => setGender(v)}
                   >
                     <SelectTrigger id={`gender-${formId}`} className="h-7 text-sm">
                       <SelectValue placeholder="Gender" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={GENDER_EMPTY}>—</SelectItem>
                       <SelectItem value="male">Male</SelectItem>
                       <SelectItem value="female">Female</SelectItem>
                     </SelectContent>
