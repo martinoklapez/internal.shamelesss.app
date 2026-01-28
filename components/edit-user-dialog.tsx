@@ -30,6 +30,14 @@ import { formatDate } from '@/lib/utils/date'
 const COUNTRY_NONE = '__none__'
 const GENDER_EMPTY = '__'
 
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'developer', label: 'Developer' },
+  { value: 'promoter', label: 'Promoter' },
+  { value: 'tester', label: 'Tester' },
+  { value: 'demo', label: 'Demo' },
+]
+
 interface EditUserDialogProps {
   userId: string
   initialName: string | null
@@ -44,6 +52,7 @@ interface EditUserDialogProps {
   initialConnectionCount: number
   initialCreatedAt: string | null
   initialUpdatedAt: string | null
+  initialRole: string
 }
 
 export function EditUserDialog({
@@ -60,6 +69,7 @@ export function EditUserDialog({
   initialConnectionCount,
   initialCreatedAt,
   initialUpdatedAt,
+  initialRole,
 }: EditUserDialogProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -70,6 +80,7 @@ export function EditUserDialog({
   const [profilePictureUrl, setProfilePictureUrl] = useState(initialProfilePictureUrl || '')
   const [age, setAge] = useState(initialAge != null ? String(initialAge) : '')
   const [countryCode, setCountryCode] = useState(initialCountryCode || COUNTRY_NONE)
+  const [role, setRole] = useState(ROLE_OPTIONS.some((o) => o.value === initialRole) ? initialRole : ROLE_OPTIONS[0].value)
   const [gender, setGender] = useState(
     initialGender && ['male', 'female'].includes(initialGender.toLowerCase())
       ? initialGender.toLowerCase()
@@ -122,9 +133,11 @@ export function EditUserDialog({
       setInstagramHandle(initialInstagramHandle || '')
       setSnapchatHandle(initialSnapchatHandle || '')
       setPassword('')
+      setRole(ROLE_OPTIONS.some((o) => o.value === initialRole) ? initialRole : ROLE_OPTIONS[0].value)
     }
   }, [
     open,
+    initialRole,
     initialEmail,
     initialName,
     initialUsername,
@@ -197,6 +210,7 @@ export function EditUserDialog({
           instagram_handle: instagramHandle.trim() || null,
           snapchat_handle: snapchatHandle.trim() || null,
           password: password.trim() || null,
+          role: role || null,
         }),
       })
 
@@ -414,6 +428,23 @@ export function EditUserDialog({
                   className="h-8 text-sm"
                 />
               </div>
+            </div>
+
+            {/* Row: Role */}
+            <div className="space-y-1">
+              <Label htmlFor={`role-${userId}`} className="text-xs">Role</Label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger id={`role-${userId}`} className="h-8 text-sm">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Row: Email, Password */}

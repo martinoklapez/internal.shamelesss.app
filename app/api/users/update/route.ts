@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       instagram_handle,
       snapchat_handle,
       password,
+      role,
     } = body as {
       userId?: string
       email?: string | null
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
       instagram_handle?: string | null
       snapchat_handle?: string | null
       password?: string | null
+      role?: string | null
     }
 
     if (!userId) {
@@ -132,6 +134,24 @@ export async function POST(request: Request) {
         console.error('Error updating profile:', profileError)
         return NextResponse.json(
           { error: `Failed to update profile: ${profileError.message}` },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Update role in user_roles if provided
+    const allowedRoles = ['tester', 'demo', 'promoter', 'developer', 'admin']
+    if (role !== undefined && role !== null && role !== '') {
+      if (!allowedRoles.includes(role)) {
+        return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+      }
+      const { error: roleError } = await adminSupabase
+        .from('user_roles')
+        .upsert({ user_id: userId, role }, { onConflict: 'user_id' })
+      if (roleError) {
+        console.error('Error updating user role:', roleError)
+        return NextResponse.json(
+          { error: `Failed to update role: ${roleError.message}` },
           { status: 500 }
         )
       }

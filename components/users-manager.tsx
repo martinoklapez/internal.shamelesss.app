@@ -147,6 +147,7 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                     initialConnectionCount={user.connection_count}
                     initialCreatedAt={user.created_at}
                     initialUpdatedAt={user.updated_at}
+                    initialRole={user.role}
                   />
                 </div>
               </div>
