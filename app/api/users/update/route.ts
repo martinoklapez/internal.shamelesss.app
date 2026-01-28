@@ -20,10 +20,29 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { userId, email, name, password } = body as {
+    const {
+      userId,
+      email,
+      name,
+      username,
+      profile_picture_url,
+      age,
+      country_code,
+      gender,
+      instagram_handle,
+      snapchat_handle,
+      password,
+    } = body as {
       userId?: string
       email?: string | null
       name?: string | null
+      username?: string | null
+      profile_picture_url?: string | null
+      age?: number | null
+      country_code?: string | null
+      gender?: string | null
+      instagram_handle?: string | null
+      snapchat_handle?: string | null
       password?: string | null
     }
 
@@ -74,11 +93,40 @@ export async function POST(request: Request) {
       }
     }
 
-    // Update profile name if provided
-    if (name !== undefined) {
+    // Update profile: all editable columns from profiles table
+    const hasProfileUpdate =
+      name !== undefined ||
+      username !== undefined ||
+      profile_picture_url !== undefined ||
+      age !== undefined ||
+      country_code !== undefined ||
+      gender !== undefined ||
+      instagram_handle !== undefined ||
+      snapchat_handle !== undefined
+    if (hasProfileUpdate) {
+      const profileData: {
+        user_id: string
+        name?: string | null
+        username?: string | null
+        profile_picture_url?: string | null
+        age?: number | null
+        country_code?: string | null
+        gender?: string | null
+        instagram_handle?: string | null
+        snapchat_handle?: string | null
+      } = { user_id: userId }
+      if (name !== undefined) profileData.name = name
+      if (username !== undefined) profileData.username = username
+      if (profile_picture_url !== undefined) profileData.profile_picture_url = profile_picture_url
+      if (age !== undefined) profileData.age = age
+      if (country_code !== undefined) profileData.country_code = country_code
+      if (gender !== undefined) profileData.gender = gender
+      if (instagram_handle !== undefined) profileData.instagram_handle = instagram_handle
+      if (snapchat_handle !== undefined) profileData.snapchat_handle = snapchat_handle
+
       const { error: profileError } = await adminSupabase
         .from('profiles')
-        .upsert({ user_id: userId, name }, { onConflict: 'user_id' })
+        .upsert(profileData, { onConflict: 'user_id' })
 
       if (profileError) {
         console.error('Error updating profile:', profileError)

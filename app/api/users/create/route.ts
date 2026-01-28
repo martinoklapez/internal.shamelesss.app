@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and role are required' }, { status: 400 })
     }
 
-    const allowedRoles = ['tester', 'promoter', 'developer', 'admin']
+    const allowedRoles = ['tester', 'demo', 'promoter', 'developer', 'admin']
     if (!allowedRoles.includes(role)) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
     }
@@ -59,9 +59,15 @@ export async function POST(request: Request) {
 
     if (createError || !created?.user) {
       console.error('Error creating auth user:', createError)
+      const message = createError?.message || 'Failed to create auth user'
+      // Duplicate email is a client error, not a server error
+      const isDuplicateEmail =
+        message.toLowerCase().includes('already been registered') ||
+        message.toLowerCase().includes('already exists') ||
+        createError?.status === 422
       return NextResponse.json(
-        { error: createError?.message || 'Failed to create auth user' },
-        { status: 500 }
+        { error: message },
+        { status: isDuplicateEmail ? 409 : 500 }
       )
     }
 

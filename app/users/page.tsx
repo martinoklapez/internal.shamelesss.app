@@ -23,7 +23,7 @@ export default async function UsersPage() {
   const { data: userRoles, error } = await supabase
     .from('user_roles')
     .select('user_id, role')
-    .in('role', ['admin', 'developer', 'promoter', 'tester'])
+    .in('role', ['admin', 'developer', 'promoter', 'tester', 'demo'])
 
   if (error) {
     console.error('Error fetching user roles for users page:', error)
@@ -33,7 +33,9 @@ export default async function UsersPage() {
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('user_id, name, profile_picture_url')
+    .select(
+      'user_id, name, username, profile_picture_url, age, country_code, gender, instagram_handle, snapchat_handle, connection_count, created_at, updated_at'
+    )
     .in('user_id', ids)
 
   const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]))
@@ -71,11 +73,34 @@ export default async function UsersPage() {
     .map((u) => {
       const profile = profileMap.get(u.user_id)
       const email = emailMap.get(u.user_id) || null
+      const p = profile as {
+        user_id: string
+        name?: string | null
+        username?: string | null
+        profile_picture_url?: string | null
+        age?: number | null
+        country_code?: string | null
+        gender?: string | null
+        instagram_handle?: string | null
+        snapchat_handle?: string | null
+        connection_count?: number
+        created_at?: string | null
+        updated_at?: string | null
+      } | undefined
       return {
         id: u.user_id,
         role: u.role as string,
-        name: profile?.name || null,
-        profile_picture_url: profile?.profile_picture_url || null,
+        name: p?.name ?? null,
+        username: p?.username ?? null,
+        profile_picture_url: p?.profile_picture_url ?? null,
+        age: p?.age ?? null,
+        country_code: p?.country_code ?? null,
+        gender: p?.gender ?? null,
+        instagram_handle: p?.instagram_handle ?? null,
+        snapchat_handle: p?.snapchat_handle ?? null,
+        connection_count: p?.connection_count ?? 0,
+        created_at: p?.created_at ?? null,
+        updated_at: p?.updated_at ?? null,
         email,
       }
     })
@@ -86,6 +111,7 @@ export default async function UsersPage() {
         developer: 1,
         promoter: 2,
         tester: 3,
+        demo: 4,
       }
       const aRank = order[a.role] ?? 99
       const bRank = order[b.role] ?? 99
@@ -102,7 +128,7 @@ export default async function UsersPage() {
               Users
             </h1>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 break-words">
-              Manage tester, promoter, developer and admin accounts.
+              Manage tester, demo, promoter, developer and admin accounts.
             </p>
           </div>
           <AddUserDialog />

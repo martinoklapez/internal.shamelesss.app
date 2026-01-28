@@ -18,7 +18,7 @@ export async function GET() {
     const { data: usersWithRoles, error } = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .in('role', ['admin', 'developer', 'promoter', 'tester'])
+      .in('role', ['admin', 'developer', 'promoter', 'tester', 'demo'])
 
     if (error) {
       console.error('Error fetching users from user_roles:', error)

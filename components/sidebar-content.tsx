@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AppSidebar } from './app-sidebar'
 
 export function SidebarContent() {
-  const [userRole, setUserRole] = useState<'admin' | 'dev' | 'developer' | 'promoter' | null>(null)
+  const [userRole, setUserRole] = useState<'admin' | 'dev' | 'developer' | 'promoter' | 'user' | 'demo' | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export function SidebarContent() {
           .single()
         
         if (roleData) {
-          setUserRole(roleData.role as 'admin' | 'dev' | 'developer' | 'promoter')
+          setUserRole(roleData.role as 'admin' | 'dev' | 'developer' | 'promoter' | 'user' | 'demo')
         }
       }
     }

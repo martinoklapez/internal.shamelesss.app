@@ -29,6 +29,7 @@ const ROLE_LABELS: Record<string, string> = {
   developer: 'Developer',
   promoter: 'Promoter',
   tester: 'Tester',
+  demo: 'Demo',
 }
 
 export function AddUserDialog() {
@@ -148,6 +149,7 @@ export function AddUserDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="tester">Tester</SelectItem>
+                  <SelectItem value="demo">Demo</SelectItem>
                   <SelectItem value="promoter">Promoter</SelectItem>
                   <SelectItem value="developer">Developer</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>

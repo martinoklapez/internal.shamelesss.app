@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 
-export type UserRole = 'admin' | 'dev' | 'developer' | 'promoter' | 'user'
+/** 'demo' has same rights as 'user' (no panel access); for internal identification only. */
+export type UserRole = 'admin' | 'dev' | 'developer' | 'promoter' | 'user' | 'demo'
 
 export interface UserRoleData {
   user_id: string

@@ -110,7 +110,7 @@ const supportModerationMenuItems: Array<{
 ]
 
 interface AppSidebarProps {
-  userRole: 'admin' | 'dev' | 'developer' | 'promoter' | null
+  userRole: 'admin' | 'dev' | 'developer' | 'promoter' | 'user' | 'demo' | null
 }
 
 export function AppSidebar({ userRole }: AppSidebarProps) {
