@@ -45,7 +45,7 @@ interface Device {
 interface DevicesManagerProps {
   devices: Device[]
   currentUserId: string
-  userRole: 'admin' | 'dev' | 'developer' | 'promoter' | 'user' | null
+  userRole: 'admin' | 'dev' | 'developer' | 'promoter' | 'user' | 'demo' | null
 }
 
 const platformIcons: Record<string, string> = {
