@@ -37,6 +37,8 @@ interface OnboardingScreenDialogProps {
   onScreenTypeChange?: (type: 'quiz' | 'conversion' | null) => void
   existingQuizScreens?: QuizScreen[]
   existingConversionScreens?: ConversionScreen[]
+  /** When set, open in edit step with this component pre-selected (e.g. from gallery) */
+  initialComponentId?: string | null
 }
 
 export function OnboardingScreenDialog({
@@ -49,6 +51,7 @@ export function OnboardingScreenDialog({
   onScreenTypeChange,
   existingQuizScreens = [],
   existingConversionScreens = [],
+  initialComponentId = null,
 }: OnboardingScreenDialogProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -148,14 +151,27 @@ export function OnboardingScreenDialog({
         .then((data) => {
           if (data.components) {
             setAvailableComponents(data.components)
-            // Auto-select "options" component and set default options when creating a new screen
             if (!screen && data.components.length > 0) {
-              const optionsComponent = data.components.find((c: OnboardingComponent) => c.component_key === 'options')
-              if (optionsComponent) {
-                setComponentId('options')
-                if (optionsComponent.default_options) {
-                  setOptions(JSON.stringify(optionsComponent.default_options, null, 2))
-                  setShowJsonView(false)
+              if (initialComponentId) {
+                const comp = data.components.find((c: OnboardingComponent) => c.component_key === initialComponentId)
+                setComponentId(initialComponentId)
+                setCurrentStep('edit')
+                if (comp) {
+                  setTitle(comp.component_name || '')
+                  setDescription(comp.description || '')
+                  if (comp.default_options) {
+                    setOptions(JSON.stringify(comp.default_options, null, 2))
+                    setShowJsonView(false)
+                  }
+                }
+              } else {
+                const optionsComponent = data.components.find((c: OnboardingComponent) => c.component_key === 'options')
+                if (optionsComponent) {
+                  setComponentId('options')
+                  if (optionsComponent.default_options) {
+                    setOptions(JSON.stringify(optionsComponent.default_options, null, 2))
+                    setShowJsonView(false)
+                  }
                 }
               }
             }
@@ -170,7 +186,7 @@ export function OnboardingScreenDialog({
     } else {
       setAvailableComponents([])
     }
-  }, [open, screenType, screen])
+  }, [open, screenType, screen, initialComponentId])
 
   // Calculate next available order position when creating a new screen
   const calculateNextOrderPosition = useCallback((type: 'quiz' | 'conversion' | null): number => {

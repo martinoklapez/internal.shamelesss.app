@@ -26,6 +26,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category') as 'quiz' | 'conversion' | null
+    const fallback = searchParams.get('fallback') !== 'false'
 
     const allowedIds =
       category === 'quiz'
@@ -57,20 +58,22 @@ export async function GET(request: Request) {
         allowedIds.includes(row.component_key)
       )
 
-      const hasKey = new Set(data.map((r: any) => r.component_key))
-      for (const id of allowedIds) {
-        if (!hasKey.has(id) && COMPONENT_DISPLAY[id]) {
-          data.push({
-            id: `static-${id}`,
-            component_key: id,
-            component_name: COMPONENT_DISPLAY[id].component_name,
-            description: COMPONENT_DISPLAY[id].description,
-            categories: [category],
-            props_schema: null,
-            default_options: null,
-            created_at: null,
-            updated_at: null,
-          })
+      if (fallback) {
+        const hasKey = new Set(data.map((r: any) => r.component_key))
+        for (const id of allowedIds) {
+          if (!hasKey.has(id) && COMPONENT_DISPLAY[id]) {
+            data.push({
+              id: `static-${id}`,
+              component_key: id,
+              component_name: COMPONENT_DISPLAY[id].component_name,
+              description: COMPONENT_DISPLAY[id].description,
+              categories: [category],
+              props_schema: null,
+              default_options: null,
+              created_at: null,
+              updated_at: null,
+            })
+          }
         }
       }
       data.sort((a: any, b: any) =>

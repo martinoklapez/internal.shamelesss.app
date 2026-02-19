@@ -38,6 +38,8 @@ import {
 interface OnboardingManagerProps {
   initialQuizScreens: QuizScreen[]
   initialConversionScreens: ConversionScreen[]
+  /** Called when "Add Screen" is clicked (e.g. to open the Screen Components sidebar) */
+  onAddScreenClick?: () => void
 }
 
 const ANIMATED_PREVIEW_COMPONENTS = ['loading', 'rate_app_blurred', 'testimonial_loader']
@@ -283,6 +285,7 @@ const nodeTypes: NodeTypes = {
 export default function OnboardingManager({
   initialQuizScreens,
   initialConversionScreens,
+  onAddScreenClick,
 }: OnboardingManagerProps) {
   const router = useRouter()
   const [quizScreens, setQuizScreens] = useState<QuizScreen[]>(initialQuizScreens)
@@ -290,6 +293,7 @@ export default function OnboardingManager({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingScreen, setEditingScreen] = useState<QuizScreen | ConversionScreen | null>(null)
   const [screenType, setScreenType] = useState<'quiz' | 'conversion' | null>(null)
+  const [initialComponentId, setInitialComponentId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [screenToDelete, setScreenToDelete] = useState<{ id: string; type: 'quiz' | 'conversion' } | null>(null)
 
@@ -549,20 +553,32 @@ export default function OnboardingManager({
   )
 
   const handleAdd = useCallback(() => {
-    setScreenType('quiz') // Pre-select Quiz Screen
+    // Header "Add Screen" only opens the Screen Components sidebar; user adds via gallery + button
+    onAddScreenClick?.()
+  }, [onAddScreenClick])
+
+  const handleAddWithComponent = useCallback((componentId: string, type: 'quiz' | 'conversion') => {
+    setInitialComponentId(componentId)
+    setScreenType(type)
     setEditingScreen(null)
     setDialogOpen(true)
   }, [])
 
-  // Expose add handler to window for breadcrumb access
+  const handleDialogOpenChange = useCallback((open: boolean) => {
+    setDialogOpen(open)
+    if (!open) setInitialComponentId(null)
+  }, [])
+
+  // Expose add handlers for breadcrumb and gallery
   useEffect(() => {
     (window as any).onboardingAddHandlers = {
       addScreen: handleAdd,
+      addScreenWithComponent: handleAddWithComponent,
     }
     return () => {
       delete (window as any).onboardingAddHandlers
     }
-  }, [handleAdd])
+  }, [handleAdd, handleAddWithComponent])
 
   return (
     <div className="w-full h-full">
@@ -588,7 +604,7 @@ export default function OnboardingManager({
       {/* Dialog */}
       <OnboardingScreenDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleDialogOpenChange}
         screen={editingScreen}
         screenType={screenType}
         onSuccess={handleDialogSuccess}
@@ -596,6 +612,7 @@ export default function OnboardingManager({
         onScreenTypeChange={setScreenType}
         existingQuizScreens={quizScreens}
         existingConversionScreens={conversionScreens}
+        initialComponentId={initialComponentId}
       />
 
       {/* Delete Confirmation Dialog */}
