@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUserRole } from '@/lib/user-roles'
+import {
+  QUIZ_COMPONENT_IDS,
+  CONVERSION_COMPONENT_IDS,
+  COMPONENT_DISPLAY,
+} from '@/lib/onboarding-component-ids'
 
 export async function GET(request: Request) {
   try {
@@ -22,28 +27,64 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category') as 'quiz' | 'conversion' | null
 
-    let query = supabase
-      .from('onboarding_components')
-      .select('*')
-      .order('component_name', { ascending: true })
+    const allowedIds =
+      category === 'quiz'
+        ? QUIZ_COMPONENT_IDS
+        : category === 'conversion'
+          ? CONVERSION_COMPONENT_IDS
+          : null
+
+    let data: any[] = []
 
     if (category) {
-      // Filter by categories array containing the category
-      // Supabase .contains() method checks if array contains the value
-      query = query.contains('categories', [category])
-    }
+      const query = supabase
+        .from('onboarding_components')
+        .select('*')
+        .order('component_name', { ascending: true })
+        .contains('categories', [category])
 
-    const { data, error } = await query
+      const { data: dbData, error } = await query
 
-    if (error) {
-      console.error('Error fetching onboarding components:', error)
-      return NextResponse.json(
-        { error: `Failed to fetch components: ${error.message}` },
-        { status: 500 }
+      if (error) {
+        console.error('Error fetching onboarding components:', error)
+        return NextResponse.json(
+          { error: `Failed to fetch components: ${error.message}` },
+          { status: 500 }
+        )
+      }
+
+      data = (dbData || []).filter((row: any) =>
+        allowedIds.includes(row.component_key)
       )
+
+      const hasKey = new Set(data.map((r: any) => r.component_key))
+      for (const id of allowedIds) {
+        if (!hasKey.has(id) && COMPONENT_DISPLAY[id]) {
+          data.push({
+            id: `static-${id}`,
+            component_key: id,
+            component_name: COMPONENT_DISPLAY[id].component_name,
+            description: COMPONENT_DISPLAY[id].description,
+            categories: [category],
+            props_schema: null,
+            default_options: null,
+            created_at: null,
+            updated_at: null,
+          })
+        }
+      }
+      data.sort((a: any, b: any) =>
+        (a.component_name || '').localeCompare(b.component_name || '')
+      )
+    } else {
+      const { data: dbData, error } = await supabase
+        .from('onboarding_components')
+        .select('*')
+        .order('component_name', { ascending: true })
+      if (!error) data = dbData || []
     }
 
-    return NextResponse.json({ components: data || [] }, { status: 200 })
+    return NextResponse.json({ components: data }, { status: 200 })
   } catch (error: any) {
     console.error('Error in components route:', error)
     return NextResponse.json(

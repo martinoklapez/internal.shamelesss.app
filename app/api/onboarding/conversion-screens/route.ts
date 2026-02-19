@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/user-roles'
+import { isAllowedConversionComponent } from '@/lib/onboarding-component-ids'
+
+function getAdminClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Service role key is not configured')
+  }
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function GET() {
   try {
@@ -19,7 +31,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { data, error } = await supabase
+    const adminSupabase = getAdminClient()
+    const { data, error } = await adminSupabase
       .from('conversion_screens_staging')
       .select('*')
       .order('order_position', { ascending: true })
@@ -69,7 +82,17 @@ export async function POST(request: Request) {
       )
     }
 
-    const { data, error } = await supabase
+    if (component_id != null && component_id !== '' && !isAllowedConversionComponent(component_id)) {
+      return NextResponse.json(
+        {
+          error: `component_id "${component_id}" is not allowed for conversion screens. Use rate_app_blurred or rate_app_default instead of rate_app for conversion.`,
+        },
+        { status: 400 }
+      )
+    }
+
+    const adminSupabase = getAdminClient()
+    const { data, error } = await adminSupabase
       .from('conversion_screens_staging')
       .insert({
         title,
@@ -125,6 +148,16 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
+    if (component_id != null && component_id !== '' && !isAllowedConversionComponent(component_id)) {
+      return NextResponse.json(
+        {
+          error: `component_id "${component_id}" is not allowed for conversion screens. Use rate_app_blurred or rate_app_default instead of rate_app for conversion.`,
+        },
+        { status: 400 }
+      )
+    }
+
+    const adminSupabase = getAdminClient()
     const updateData: any = {}
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description
@@ -134,7 +167,7 @@ export async function PUT(request: Request) {
     if (should_show !== undefined) updateData.should_show = should_show
     if (component_id !== undefined) updateData.component_id = component_id
 
-    const { data, error } = await supabase
+    const { data, error } = await adminSupabase
       .from('conversion_screens_staging')
       .update(updateData)
       .eq('id', id)
@@ -183,7 +216,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
-    const { error } = await supabase
+    const adminSupabase = getAdminClient()
+    const { error } = await adminSupabase
       .from('conversion_screens_staging')
       .delete()
       .eq('id', id)

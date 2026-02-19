@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/user-roles'
+import { isAllowedQuizComponent } from '@/lib/onboarding-component-ids'
+
+function getAdminClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Service role key is not configured')
+  }
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function GET() {
   try {
@@ -19,7 +31,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { data, error } = await supabase
+    const adminSupabase = getAdminClient()
+    const { data, error } = await adminSupabase
       .from('quiz_screens_staging')
       .select('*')
       .order('order_position', { ascending: true, nullsFirst: false })
@@ -62,7 +75,17 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { title, description, options, order_position, event_name, should_show, component_id } = body
 
-    const { data, error } = await supabase
+    if (component_id != null && component_id !== '' && !isAllowedQuizComponent(component_id)) {
+      return NextResponse.json(
+        {
+          error: `component_id "${component_id}" is not allowed for quiz screens. Use options, instant_radio, loading, name_input, username_input, age_input, age_input_scroll, profile_image, frequency_slider, satisfaction_slider, testimonial_loader, rate_app, push_notification_permission, tracking_permission, or info.`,
+        },
+        { status: 400 }
+      )
+    }
+
+    const adminSupabase = getAdminClient()
+    const { data, error } = await adminSupabase
       .from('quiz_screens_staging')
       .insert({
         title: title || null,
@@ -118,7 +141,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
-    const { data, error } = await supabase
+    if (component_id != null && component_id !== '' && !isAllowedQuizComponent(component_id)) {
+      return NextResponse.json(
+        {
+          error: `component_id "${component_id}" is not allowed for quiz screens. Use options, instant_radio, loading, name_input, username_input, age_input, age_input_scroll, profile_image, frequency_slider, satisfaction_slider, testimonial_loader, rate_app, push_notification_permission, tracking_permission, or info.`,
+        },
+        { status: 400 }
+      )
+    }
+
+    const adminSupabase = getAdminClient()
+    const { data, error } = await adminSupabase
       .from('quiz_screens_staging')
       .update({
         title: title !== undefined ? title : null,
@@ -175,7 +208,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
-    const { error } = await supabase
+    const adminSupabase = getAdminClient()
+    const { error } = await adminSupabase
       .from('quiz_screens_staging')
       .delete()
       .eq('id', id)

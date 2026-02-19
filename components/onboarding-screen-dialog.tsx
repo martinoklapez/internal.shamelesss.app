@@ -24,7 +24,7 @@ import {
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 import type { OnboardingComponent } from '@/lib/database/onboarding-components'
 import { OnboardingScreenPreview } from './onboarding-screen-preview'
-import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X } from 'lucide-react'
+import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X, Play } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 interface OnboardingScreenDialogProps {
@@ -65,6 +65,7 @@ export function OnboardingScreenDialog({
   const [newOptionLabel, setNewOptionLabel] = useState('')
   const [newOptionValue, setNewOptionValue] = useState('')
   const [showJsonView, setShowJsonView] = useState(false)
+  const [previewKey, setPreviewKey] = useState(0)
   const { toast } = useToast()
 
   // Check if options is an array of objects with label/value structure
@@ -375,6 +376,13 @@ export function OnboardingScreenDialog({
 
   const selectedComponent = availableComponents.find(c => c.component_key === componentId)
 
+  const ANIMATED_PREVIEW_COMPONENTS = ['loading', 'rate_app_blurred', 'testimonial_loader']
+  const isAnimatedPreview = previewScreen && ANIMATED_PREVIEW_COMPONENTS.includes(previewScreen.component_id ?? '')
+
+  // Only show the Options field for components that use an options list (options, instant_radio)
+  const COMPONENT_IDS_WITH_OPTIONS = ['options', 'instant_radio']
+  const showOptionsField = componentId && COMPONENT_IDS_WITH_OPTIONS.includes(componentId)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -481,7 +489,21 @@ export function OnboardingScreenDialog({
             {/* Preview Section */}
             {screenType && componentId && (
               <div className="flex-shrink-0 flex flex-col items-center gap-3 pt-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Preview</h3>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <h3 className="text-sm font-semibold text-gray-700">Preview</h3>
+                  {isAnimatedPreview && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewKey((k) => k + 1)}
+                      className="h-7 w-7 p-0"
+                      title="Restart animation"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
                 <div className="relative">
                   {/* Phone Frame */}
                   <div className="bg-black rounded-[2.5rem] p-2 shadow-2xl">
@@ -506,7 +528,7 @@ export function OnboardingScreenDialog({
                       {/* Screen Content */}
                       <div className="w-full h-full overflow-hidden">
                         {previewScreen && (
-                          <OnboardingScreenPreview screen={previewScreen} totalScreens={totalScreens} />
+                          <OnboardingScreenPreview key={previewKey} screen={previewScreen} totalScreens={totalScreens} />
                         )}
                       </div>
 
@@ -632,6 +654,7 @@ export function OnboardingScreenDialog({
                 </div>
               </div>
 
+              {showOptionsField && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="options">Options</Label>
@@ -801,11 +824,12 @@ export function OnboardingScreenDialog({
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-gray-500">
-                      Enter valid JSON. For components with options array, use format: [{`{"label": "Label", "value": "value"}`}]
+                      Enter valid JSON. For options / instant_radio use array of objects with label, value, and id (e.g. {`[{"label": "Option A", "value": "option_a", "id": "option_a"}]`}). For instant_radio icons use id: instagram, tiktok, reddit, youtube, x, facebook, app_store, website, partner_ref, gf, bf.
                     </p>
                   </>
                 )}
               </div>
+              )}
 
               <div className="flex items-center space-x-2">
                 <Switch
@@ -857,7 +881,21 @@ export function OnboardingScreenDialog({
             {/* Preview Section */}
             {screenType && (
               <div className="flex-shrink-0 flex flex-col items-center gap-3 pt-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Preview</h3>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <h3 className="text-sm font-semibold text-gray-700">Preview</h3>
+                  {isAnimatedPreview && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewKey((k) => k + 1)}
+                      className="h-7 w-7 p-0"
+                      title="Restart animation"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
                 <div className="relative">
                   {/* Phone Frame */}
                   <div className="bg-black rounded-[2.5rem] p-2 shadow-2xl">
@@ -882,7 +920,7 @@ export function OnboardingScreenDialog({
                       {/* Screen Content */}
                       <div className="w-full h-full overflow-hidden">
                         {previewScreen && (
-                          <OnboardingScreenPreview screen={previewScreen} totalScreens={totalScreens} />
+                          <OnboardingScreenPreview key={previewKey} screen={previewScreen} totalScreens={totalScreens} />
                         )}
                       </div>
 

@@ -20,7 +20,7 @@ import 'reactflow/dist/style.css'
 import { Button } from './ui/button'
 import { Switch } from './ui/switch'
 import { Label } from './ui/label'
-import { Plus, Pencil, Lock } from 'lucide-react'
+import { Plus, Pencil, Lock, Play } from 'lucide-react'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 import { OnboardingScreenDialog } from './onboarding-screen-dialog'
 import { OnboardingScreenPreview } from './onboarding-screen-preview'
@@ -40,11 +40,15 @@ interface OnboardingManagerProps {
   initialConversionScreens: ConversionScreen[]
 }
 
+const ANIMATED_PREVIEW_COMPONENTS = ['loading', 'rate_app_blurred', 'testimonial_loader']
+
 // Custom node component for screens
 function ScreenNode({ data }: { data: any }) {
   const { screen, type, onEdit, onDelete, onToggleShow, totalScreens } = data
   const orderPosition = screen.order_position ?? 0
   const shouldShow = screen.should_show ?? true
+  const [previewKey, setPreviewKey] = useState(0)
+  const hasAnimation = ANIMATED_PREVIEW_COMPONENTS.includes(screen.component_id ?? '')
 
   return (
     <div className="flex flex-col items-center gap-3 relative">
@@ -80,14 +84,27 @@ function ScreenNode({ data }: { data: any }) {
               {shouldShow ? 'Show' : 'Hide'}
             </Label>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(screen, type)}
-            className="h-6 w-6 p-0"
-          >
-            <Pencil className="h-3 w-3" />
-          </Button>
+          <div className="flex items-center gap-0.5">
+            {hasAnimation && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewKey((k) => k + 1)}
+                className="h-6 w-6 p-0"
+                title="Restart animation"
+              >
+                <Play className="h-3 w-3" />
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(screen, type)}
+              className="h-6 w-6 p-0"
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -117,7 +134,7 @@ function ScreenNode({ data }: { data: any }) {
 
             {/* Screen Content */}
             <div className="w-full h-full overflow-hidden">
-              <OnboardingScreenPreview screen={screen} totalScreens={totalScreens} />
+              <OnboardingScreenPreview key={previewKey} screen={screen} totalScreens={totalScreens} />
             </div>
 
             {/* Home Indicator */}
@@ -184,15 +201,69 @@ function AuthNode() {
               </div>
             </div>
 
-            {/* Screen Content */}
-            <div className="w-full h-full pt-8 pb-6 px-4 flex flex-col items-center justify-center">
-              <Lock className="h-16 w-16 text-gray-300 mb-4" />
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                Authentication
-              </h3>
-              <p className="text-sm text-gray-600 text-center">
-                Login or Register to continue
-              </p>
+            {/* Screen Content — absolute box so React Flow parent doesn't affect layout */}
+            <div
+              className="bg-white overflow-auto"
+              style={{
+                position: 'absolute',
+                top: 40,
+                left: 0,
+                right: 0,
+                bottom: 24,
+                paddingLeft: 12,
+                paddingRight: 12,
+                display: 'block',
+              }}
+            >
+              {/* Title at top: two rows */}
+              <div
+                className="font-black text-black"
+                style={{
+                  fontSize: 22,
+                  letterSpacing: -1.1,
+                  lineHeight: 26,
+                  color: '#000000',
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ display: 'block' }}>Create</div>
+                <div style={{ display: 'block' }}>Account</div>
+              </div>
+              {/* Primary button */}
+              <div
+                className="w-full rounded-[30px] border-2 border-black flex items-center justify-center mb-3"
+                style={{
+                  backgroundColor: '#FF5252',
+                  padding: 8,
+                  boxShadow: '0 2px 0 0 #000000',
+                  minHeight: 36,
+                }}
+              >
+                <span className="font-black text-center" style={{ fontSize: 12, color: '#000000' }}>
+                  Continue with E-Mail
+                </span>
+              </div>
+              {/* Secondary button */}
+              <div
+                className="w-full rounded-[30px] border-2 border-black flex items-center justify-center mb-4"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  padding: 8,
+                  boxShadow: '0 2px 0 0 #000000',
+                  minHeight: 36,
+                }}
+              >
+                <span className="font-black text-center" style={{ fontSize: 12, color: '#000000' }}>
+                  Skip
+                </span>
+              </div>
+              {/* Link */}
+              <span
+                className="block text-center"
+                style={{ fontSize: 11, color: '#FF5252' }}
+              >
+                Already have an account? Sign in
+              </span>
             </div>
 
             {/* Home Indicator */}
