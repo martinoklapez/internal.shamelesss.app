@@ -28,16 +28,12 @@ export async function GET(request: Request) {
     const category = searchParams.get('category') as 'quiz' | 'conversion' | null
     const fallback = searchParams.get('fallback') !== 'false'
 
-    const allowedIds =
-      category === 'quiz'
-        ? QUIZ_COMPONENT_IDS
-        : category === 'conversion'
-          ? CONVERSION_COMPONENT_IDS
-          : null
-
     let data: any[] = []
 
-    if (category) {
+    if (category === 'quiz' || category === 'conversion') {
+      const allowedIds =
+        category === 'quiz' ? QUIZ_COMPONENT_IDS : CONVERSION_COMPONENT_IDS
+
       const query = supabase
         .from('onboarding_components')
         .select('*')
