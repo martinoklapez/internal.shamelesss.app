@@ -93,10 +93,10 @@ export default function DevicesOrgChart({ devices, currentUserId, userRole }: De
   }
 
   return (
-    <div className="flex flex-wrap justify-center gap-8">
+    <div className="flex h-full min-h-full flex-nowrap gap-8 pb-2">
       {/* Managers side by side */}
       {Array.from(tree.managers.entries()).map(([managerId, { name, picture, devices }]) => (
-        <div key={managerId} className="flex flex-col items-center">
+        <div key={managerId} className={`flex flex-col items-center shrink-0 ${devices.length >= 3 ? 'min-w-[632px]' : ''}`}>
           <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
             <div className="flex items-center gap-3">
               <Avatar className="h-9 w-9">
@@ -113,21 +113,37 @@ export default function DevicesOrgChart({ devices, currentUserId, userRole }: De
             </div>
           </div>
           <div className="mt-2 h-4 w-px bg-gray-200" />
-          <div className="mt-2 flex flex-col gap-3">
-            {devices.map((device) => (
-              <DeviceNode
-                key={device.id}
-                device={device}
-                canOpen={canOpenAllDevices || device.managerId === currentUserId}
-              />
-            ))}
+          <div className={`mt-2 ${devices.length >= 3 ? 'flex gap-4' : 'flex flex-wrap justify-center gap-4 [&>*]:w-[200px] [&>*]:max-w-[200px]'}`}>
+            {devices.length >= 3 ? (
+              [0, 1, 2].map((colIndex) => (
+                <div key={colIndex} className="flex flex-col gap-4 min-w-0 flex-1">
+                  {devices
+                    .filter((_, i) => i % 3 === colIndex)
+                    .map((device) => (
+                      <DeviceNode
+                        key={device.id}
+                        device={device}
+                        canOpen={canOpenAllDevices || device.managerId === currentUserId}
+                      />
+                    ))}
+                </div>
+              ))
+            ) : (
+              devices.map((device) => (
+                <DeviceNode
+                  key={device.id}
+                  device={device}
+                  canOpen={canOpenAllDevices || device.managerId === currentUserId}
+                />
+              ))
+            )}
           </div>
         </div>
       ))}
 
       {/* Unassigned (no manager) */}
       {tree.unassigned.length > 0 && (
-        <div className="flex flex-col items-center">
+        <div className={`flex flex-col items-center shrink-0 ${tree.unassigned.length >= 3 ? 'min-w-[632px]' : ''}`}>
           <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
             <div className="flex items-center gap-3">
               <User className="h-9 w-9 text-gray-400" />
@@ -138,14 +154,30 @@ export default function DevicesOrgChart({ devices, currentUserId, userRole }: De
             </div>
           </div>
           <div className="mt-2 h-4 w-px bg-gray-200" />
-          <div className="mt-2 flex flex-col gap-3">
-            {tree.unassigned.map((device) => (
-              <DeviceNode
-                key={device.id}
-                device={device}
-                canOpen={canOpenAllDevices || device.managerId === currentUserId}
-              />
-            ))}
+          <div className={`mt-2 ${tree.unassigned.length >= 3 ? 'flex gap-4' : 'flex flex-wrap justify-center gap-4 [&>*]:w-[200px] [&>*]:max-w-[200px]'}`}>
+            {tree.unassigned.length >= 3 ? (
+              [0, 1, 2].map((colIndex) => (
+                <div key={colIndex} className="flex flex-col gap-4 min-w-0 flex-1">
+                  {tree.unassigned
+                    .filter((_, i) => i % 3 === colIndex)
+                    .map((device) => (
+                      <DeviceNode
+                        key={device.id}
+                        device={device}
+                        canOpen={canOpenAllDevices || device.managerId === currentUserId}
+                      />
+                    ))}
+                </div>
+              ))
+            ) : (
+              tree.unassigned.map((device) => (
+                <DeviceNode
+                  key={device.id}
+                  device={device}
+                  canOpen={canOpenAllDevices || device.managerId === currentUserId}
+                />
+              ))
+            )}
           </div>
         </div>
       )}
@@ -164,25 +196,24 @@ function DeviceNode({
 
   const cardContent = (
     <>
-      <div className="flex items-center gap-3">
-        <Icon className="h-5 w-5 text-gray-600 shrink-0" />
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-gray-400 shrink-0" />
         <div className="min-w-0 flex-1 text-left">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Device {device.id}</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{device.name}</p>
-          {device.owner && (
-            <p className="text-sm text-gray-600 dark:text-gray-300 truncate">Owner: {device.owner}</p>
-          )}
+          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+            Device {device.id}
+            {device.owner && <span className="text-gray-400 font-normal"> · {device.owner}</span>}
+          </p>
           {device.iCloudProfile && (
-            <p className="flex items-center gap-1.5 mt-1 text-sm text-gray-600 dark:text-gray-300 truncate">
-              <Mail className="h-3.5 w-3.5 shrink-0" />
+            <p className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+              <Mail className="h-3 w-3 shrink-0" />
               {device.iCloudProfile.alias || device.iCloudProfile.email}
             </p>
           )}
         </div>
-        {canOpen && <ChevronRight className="h-5 w-5 text-gray-500 shrink-0" />}
+        {canOpen && <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />}
       </div>
       {device.socialAccounts.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+        <div className="mt-2 pt-2 border-t border-gray-100 flex flex-col gap-1.5 w-full">
           {device.socialAccounts.map((account) => (
             <SocialAccountCard key={account.id} account={account} />
           ))}
@@ -191,12 +222,12 @@ function DeviceNode({
     </>
   )
 
-  const cardClass = 'rounded-lg border border-gray-200 bg-white p-4 shadow-sm'
+  const cardClass = 'rounded-md border border-gray-200 bg-white p-2.5'
 
   if (canOpen) {
     return (
-      <div className="w-full min-w-[200px] max-w-[280px]">
-        <Link href={`/devices/${device.id}`} className={`block ${cardClass} transition-colors hover:bg-gray-50 cursor-pointer`}>
+      <div className="w-full min-w-0">
+        <Link href={`/devices/${device.id}`} className={`block w-full ${cardClass} transition-colors hover:bg-gray-50/80 cursor-pointer`}>
           {cardContent}
         </Link>
       </div>
@@ -204,7 +235,7 @@ function DeviceNode({
   }
 
   return (
-    <div className={`w-full min-w-[200px] max-w-[280px] ${cardClass}`}>
+    <div className={`w-full min-w-0 ${cardClass}`}>
       {cardContent}
     </div>
   )
@@ -212,20 +243,17 @@ function DeviceNode({
 
 function SocialAccountCard({ account }: { account: SocialAccount }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
-      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+    <div className="flex items-center gap-1.5 w-full min-w-0 rounded border border-gray-100 bg-gray-50/80 px-2 py-1.5">
+      <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded">
         <Image
           src={getSocialPlatformImage(account.platform)}
           alt={account.platform}
           fill
           className="object-contain"
-          sizes="32px"
+          sizes="20px"
         />
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{account.platform}</p>
-        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">@{account.username}</p>
-      </div>
+      <p className="text-xs text-gray-700 dark:text-gray-300 min-w-0 flex-1 break-all">@{account.username}</p>
     </div>
   )
 }

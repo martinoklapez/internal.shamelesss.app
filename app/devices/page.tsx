@@ -78,8 +78,8 @@ export default async function DevicesPage() {
   }) // Show all devices, even without iCloud profiles
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="flex min-h-screen w-full min-w-0 max-w-full flex-col overflow-hidden bg-white">
+      <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <DevicesPageContent devices={devices} currentUserId={user.id} userRole={userRole} />
       </div>
     </div>

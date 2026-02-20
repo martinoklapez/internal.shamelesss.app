@@ -53,8 +53,8 @@ export default function DevicesPageContent({ devices, currentUserId, userRole }:
   const [view, setView] = useState<'list' | 'org'>('list')
 
   return (
-    <>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col flex-1 min-h-0 min-w-0">
+      <div className="mb-8 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Devices & Accounts
@@ -99,8 +99,10 @@ export default function DevicesPageContent({ devices, currentUserId, userRole }:
       {view === 'list' ? (
         <DevicesManager devices={devices} currentUserId={currentUserId} userRole={userRole} />
       ) : (
-        <DevicesOrgChart devices={devices} currentUserId={currentUserId} userRole={userRole} />
+        <div className="flex flex-1 min-h-0 min-w-0 w-full max-w-full overflow-auto">
+          <DevicesOrgChart devices={devices} currentUserId={currentUserId} userRole={userRole} />
+        </div>
       )}
-    </>
+    </div>
   )
 }

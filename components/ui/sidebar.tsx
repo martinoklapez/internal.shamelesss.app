@@ -280,11 +280,10 @@ const SidebarInset = React.forwardRef<
     <main
       ref={ref}
       className={cn(
-        "relative flex min-h-svh flex-1 flex-col bg-white",
+        "relative flex min-h-svh min-w-0 flex-1 flex-col bg-white",
         // On desktop, leave space for the sidebar using CSS only (no JS),
         // so there is no layout flash on mobile during hydration.
         "md:ml-[var(--sidebar-width)] md:transition-[margin-left]",
-        "peer-data-[variant=inset]:min-w-0",
         className
       )}
       {...props}
