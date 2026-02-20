@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import DevicesManager from '@/components/devices-manager'
 import { getDevices } from '@/lib/database/devices'
-import { AddDeviceDialog } from '@/components/add-device-dialog'
 import { getUserRole } from '@/lib/user-roles'
+import DevicesPageContent from '@/components/devices-page-content'
 
 export default async function DevicesPage() {
   const supabase = await createClient()
@@ -81,19 +80,7 @@ export default async function DevicesPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Devices & Accounts
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Manage devices, iCloud profiles, and social media accounts
-            </p>
-          </div>
-          <AddDeviceDialog />
-        </div>
-
-        <DevicesManager devices={devices} currentUserId={user.id} userRole={userRole} />
+        <DevicesPageContent devices={devices} currentUserId={user.id} userRole={userRole} />
       </div>
     </div>
   )
