@@ -7,6 +7,8 @@ import {
   COMPONENT_DISPLAY,
 } from '@/lib/onboarding-component-ids'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient()

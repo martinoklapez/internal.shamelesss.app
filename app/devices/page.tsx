@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getDevices } from '@/lib/database/devices'
@@ -80,7 +81,9 @@ export default async function DevicesPage() {
   return (
     <div className="flex min-h-screen w-full min-w-0 max-w-full flex-col overflow-hidden bg-white">
       <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <DevicesPageContent devices={devices} currentUserId={user.id} userRole={userRole} />
+        <Suspense fallback={<div className="flex min-h-0 flex-1 items-center justify-center text-gray-500">Loading...</div>}>
+          <DevicesPageContent devices={devices} currentUserId={user.id} userRole={userRole} />
+        </Suspense>
       </div>
     </div>
   )

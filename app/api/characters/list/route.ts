@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getCharacters } from '@/lib/database/characters'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient()

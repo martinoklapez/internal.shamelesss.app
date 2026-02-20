@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/user-roles'
 import { getReports, getReportStats } from '@/lib/database/reports'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient()
