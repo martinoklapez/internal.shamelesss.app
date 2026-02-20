@@ -42,7 +42,7 @@ interface OnboardingManagerProps {
   onAddScreenClick?: () => void
 }
 
-const ANIMATED_PREVIEW_COMPONENTS = ['loading', 'rate_app_blurred', 'testimonial_loader']
+const ANIMATED_PREVIEW_COMPONENTS = ['loading', 'rate_app_blurred', 'rate_app_stars', 'testimonial_loader']
 
 // Custom node component for screens
 function ScreenNode({ data }: { data: any }) {
@@ -119,17 +119,21 @@ function ScreenNode({ data }: { data: any }) {
             {/* Dynamic Island / Notch - integrated into top border */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-[1.75rem] z-10"></div>
             
-            {/* Status Bar */}
-            <div className="absolute top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-3 pt-1 z-20">
+            {/* Status Bar – red for rate_app_stars to match screen, white otherwise */}
+            <div
+              className={`absolute top-0 left-0 right-0 h-8 flex items-center justify-between px-3 pt-1 z-20 ${screen.component_id === 'rate_app_stars' ? 'bg-[#FF5252]' : 'bg-white'}`}
+            >
               <span className="text-[10px] font-semibold text-black ml-2">9:41</span>
               <div className="flex items-center gap-1.5 mr-2">
-                {/* Left icon: black oval with white outline */}
-                <div className="w-5 h-2.5 bg-black rounded-full border border-white relative">
-                  <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-black rounded-full"></div>
+                {/* Signal: 4 bars */}
+                <div className="flex items-end gap-0.5 h-2.5">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="w-0.5 bg-black rounded-sm" style={{ height: `${2 + i * 2}px` }} />
+                  ))}
                 </div>
-                {/* Right icon: white oval with black outline */}
-                <div className="w-5 h-2.5 bg-white rounded-full border border-black relative">
-                  <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-white rounded-full"></div>
+                {/* Battery: outer outline with inner fill inside */}
+                <div className="relative w-4 h-2 border border-black rounded-[2px] flex items-center overflow-hidden">
+                  <div className="absolute left-0.5 top-0.5 bottom-0.5 w-[70%] bg-black rounded-[1px]" />
                 </div>
               </div>
             </div>
@@ -192,13 +196,15 @@ function AuthNode() {
             <div className="absolute top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-3 pt-1 z-20">
               <span className="text-[10px] font-semibold text-black ml-2">9:41</span>
               <div className="flex items-center gap-1.5 mr-2">
-                {/* Left icon: black oval with white outline */}
-                <div className="w-5 h-2.5 bg-black rounded-full border border-white relative">
-                  <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-black rounded-full"></div>
+                {/* Signal: 4 bars */}
+                <div className="flex items-end gap-0.5 h-2.5">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="w-0.5 bg-black rounded-sm" style={{ height: `${2 + i * 2}px` }} />
+                  ))}
                 </div>
-                {/* Right icon: white oval with black outline */}
-                <div className="w-5 h-2.5 bg-white rounded-full border border-black relative">
-                  <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-white rounded-full"></div>
+                {/* Battery: outer outline with inner fill inside */}
+                <div className="relative w-4 h-2 border border-black rounded-[2px] flex items-center overflow-hidden">
+                  <div className="absolute left-0.5 top-0.5 bottom-0.5 w-[70%] bg-black rounded-[1px]" />
                 </div>
               </div>
             </div>

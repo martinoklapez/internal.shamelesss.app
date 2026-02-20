@@ -22,6 +22,9 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   const [profileImageSelected, setProfileImageSelected] = useState<boolean>(false)
   const [rateAppCountdown, setRateAppCountdown] = useState<number | null>(null)
   const [loadingProgress, setLoadingProgress] = useState(0)
+  const [rateAppStarsSelected, setRateAppStarsSelected] = useState<number>(0)
+  const [rateAppStarsFeedbackOpen, setRateAppStarsFeedbackOpen] = useState(false)
+  const [rateAppStarsFeedbackText, setRateAppStarsFeedbackText] = useState('')
 
   // Testimonial loader hooks (always declared, conditionally used)
   const [testimonialProgress, setTestimonialProgress] = useState(0)
@@ -1564,6 +1567,134 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     return (
       <div className="w-full h-full flex flex-col bg-white overflow-hidden">
         {renderRateAppContent(true)}
+      </div>
+    )
+  }
+
+  // Rate App Stars – main screen + feedback modal (1–3 stars)
+  if (componentId === 'rate_app_stars') {
+    const starCount = 5
+    const handleStarClick = (value: number) => {
+      setRateAppStarsSelected(value)
+      if (value >= 1 && value <= 3) {
+        setRateAppStarsFeedbackOpen(true)
+      }
+    }
+    return (
+      <div className="w-full h-full relative flex flex-col overflow-hidden" style={{ backgroundColor: '#FF5252' }}>
+        {/* Content – title and subtitle above stars, block centered */}
+        <div className="flex-1 flex flex-col items-center justify-center px-3 min-h-0 gap-3">
+          <h3 className="text-lg font-black text-black text-center leading-5 tracking-tight flex-shrink-0">
+            {title || 'Like Shameless?'}
+          </h3>
+          <p className="text-xs text-black text-center opacity-90 leading-4 flex-shrink-0">
+            {description || 'Rate Us'}
+          </p>
+          <div
+            className="flex items-center justify-center border-2 border-black bg-white w-fit flex-shrink-0"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 28,
+              boxShadow: '0 4px 0 #000',
+              gap: 4,
+            }}
+          >
+            {Array.from({ length: starCount }, (_, i) => {
+              const value = i + 1
+              const filled = rateAppStarsSelected >= value
+              const size = 18
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  className="p-0.5 border-0 bg-transparent cursor-pointer touch-manipulation inline-flex items-center justify-center shrink-0"
+                  style={{ width: size, height: size }}
+                  onClick={() => handleStarClick(value)}
+                  aria-label={`${value} star${value > 1 ? 's' : ''}`}
+                >
+                  {filled ? (
+                    <span style={{ fontSize: size, lineHeight: 1 }}>⭐</span>
+                  ) : (
+                    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.5" strokeLinejoin="round" className="shrink-0">
+                      <path d="M12 2l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" />
+                    </svg>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {/* CTA – fixed at bottom, same as other screens */}
+        <div className="px-3 py-2 flex-shrink-0">
+          <button
+            type="button"
+            className="w-full h-8 bg-white border-[3px] border-black rounded-[30px] font-black text-black text-sm hover:opacity-90 transition-opacity"
+            style={{ boxShadow: '0 4px 0 #000' }}
+          >
+            Continue
+          </button>
+        </div>
+
+        {/* Feedback modal – overlay + sheet (1–3 stars) */}
+        {rateAppStarsFeedbackOpen && (
+          <div
+            className="absolute inset-0 flex items-end justify-center z-50"
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          >
+            <div
+              className="w-full bg-white rounded-t-[24px] flex flex-col max-h-[85%] overflow-hidden"
+              style={{ padding: '12px 24px 34px' }}
+            >
+              {/* Handle */}
+              <div
+                className="w-10 h-1 rounded-sm mx-auto mb-6 shrink-0"
+                style={{ backgroundColor: '#E5E7EB', width: 40, height: 4, borderRadius: 2 }}
+              />
+              {/* Title row – title left, Skip right; smaller so it fits one row */}
+              <div className="flex items-center justify-between gap-3 mb-4 shrink-0">
+                <span className="font-bold text-black shrink-0 whitespace-nowrap" style={{ fontSize: 10 }}>
+                  What could we do better?
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 rounded-full font-bold text-black hover:opacity-80 transition-opacity leading-tight"
+                  style={{
+                    background: '#E5E7EB',
+                    padding: '2px 8px',
+                    fontSize: 10,
+                  }}
+                  onClick={() => {
+                    setRateAppStarsFeedbackOpen(false)
+                    setRateAppStarsFeedbackText('')
+                  }}
+                >
+                  Skip
+                </button>
+              </div>
+              {/* Input – white, light gray border, faint shadow */}
+              <textarea
+                className="w-full rounded-xl resize-none bg-white text-black placeholder:text-gray-400 mb-5 min-h-[80px] border border-gray-200"
+                style={{ padding: 12, fontSize: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                placeholder="Share your feedback..."
+                value={rateAppStarsFeedbackText}
+                onChange={(e) => setRateAppStarsFeedbackText(e.target.value)}
+                rows={4}
+              />
+              {/* Send Feedback – red-orange, bold black text, raised shadow */}
+              <button
+                type="button"
+                className="w-full h-9 bg-[#FF5252] border-2 border-black rounded-[30px] font-black text-black text-sm hover:opacity-90 transition-opacity shrink-0"
+                style={{ boxShadow: '0 4px 0 #000' }}
+                onClick={() => {
+                  setRateAppStarsFeedbackOpen(false)
+                  setRateAppStarsFeedbackText('')
+                }}
+              >
+                Send Feedback
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

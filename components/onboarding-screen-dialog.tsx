@@ -532,11 +532,13 @@ export function OnboardingScreenDialog({
                       <div className="absolute top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-3 pt-1 z-20">
                         <span className="text-[10px] font-semibold text-black ml-2">9:41</span>
                         <div className="flex items-center gap-1.5 mr-2">
-                          <div className="w-5 h-2.5 bg-black rounded-full border border-white relative">
-                            <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-black rounded-full"></div>
+                          <div className="flex items-end gap-0.5 h-2.5">
+                            {[1, 2, 3, 4].map((i) => (
+                              <div key={i} className="w-0.5 bg-black rounded-sm" style={{ height: `${2 + i * 2}px` }} />
+                            ))}
                           </div>
-                          <div className="w-5 h-2.5 bg-white rounded-full border border-black relative">
-                            <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-white rounded-full"></div>
+                          <div className="relative w-4 h-2 border border-black rounded-[2px] overflow-hidden">
+                            <div className="absolute left-0.5 top-0.5 bottom-0.5 w-[70%] bg-black rounded-[1px]" />
                           </div>
                         </div>
                       </div>
@@ -924,11 +926,13 @@ export function OnboardingScreenDialog({
                       <div className="absolute top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-3 pt-1 z-20">
                         <span className="text-[10px] font-semibold text-black ml-2">9:41</span>
                         <div className="flex items-center gap-1.5 mr-2">
-                          <div className="w-5 h-2.5 bg-black rounded-full border border-white relative">
-                            <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-black rounded-full"></div>
+                          <div className="flex items-end gap-0.5 h-2.5">
+                            {[1, 2, 3, 4].map((i) => (
+                              <div key={i} className="w-0.5 bg-black rounded-sm" style={{ height: `${2 + i * 2}px` }} />
+                            ))}
                           </div>
-                          <div className="w-5 h-2.5 bg-white rounded-full border border-black relative">
-                            <div className="absolute left-0.5 top-0.5 w-3 h-1.5 bg-white rounded-full"></div>
+                          <div className="relative w-4 h-2 border border-black rounded-[2px] overflow-hidden">
+                            <div className="absolute left-0.5 top-0.5 bottom-0.5 w-[70%] bg-black rounded-[1px]" />
                           </div>
                         </div>
                       </div>
