@@ -227,7 +227,7 @@ function DeviceNode({
   if (canOpen) {
     return (
       <div className="w-full min-w-0">
-        <Link href={`/devices/${device.id}`} className={`block w-full ${cardClass} transition-colors hover:bg-gray-50/80 cursor-pointer`}>
+        <Link href={`/devices/${device.id}?from=org`} className={`block w-full ${cardClass} transition-colors hover:bg-gray-50/80 cursor-pointer`}>
           {cardContent}
         </Link>
       </div>

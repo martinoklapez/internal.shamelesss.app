@@ -11,9 +11,13 @@ interface DevicePageProps {
   params: {
     deviceId: string
   }
+  searchParams?: Promise<{ from?: string }> | { from?: string }
 }
 
-export default async function DevicePage({ params }: DevicePageProps) {
+export default async function DevicePage({ params, searchParams }: DevicePageProps) {
+  const resolvedParams = await Promise.resolve(params)
+  const resolvedSearchParams = searchParams ? await Promise.resolve(searchParams) : undefined
+  const backHref = resolvedSearchParams?.from === 'org' ? '/devices?view=org' : '/devices'
   const supabase = await createClient()
   const {
     data: { user },
@@ -23,7 +27,7 @@ export default async function DevicePage({ params }: DevicePageProps) {
     redirect('/')
   }
 
-  const deviceId = parseInt(params.deviceId, 10)
+  const deviceId = parseInt(resolvedParams.deviceId, 10)
   if (isNaN(deviceId)) {
     notFound()
   }
@@ -147,7 +151,7 @@ export default async function DevicePage({ params }: DevicePageProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/devices">
+            <Link href={backHref}>
               <Button variant="outline" size="icon">
                 <ArrowLeft className="h-4 w-4" />
               </Button>

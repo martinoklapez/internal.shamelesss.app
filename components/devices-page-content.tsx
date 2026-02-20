@@ -1,11 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { List, Network } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import DevicesManager from '@/components/devices-manager'
 import DevicesOrgChart from '@/components/devices-org-chart'
 import { AddDeviceDialog } from '@/components/add-device-dialog'
+
+const VIEW_PARAM = 'view'
+type ViewType = 'list' | 'org'
 
 interface SocialAccount {
   id: string
@@ -50,7 +53,21 @@ interface DevicesPageContentProps {
 }
 
 export default function DevicesPageContent({ devices, currentUserId, userRole }: DevicesPageContentProps) {
-  const [view, setView] = useState<'list' | 'org'>('list')
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const view = (searchParams.get(VIEW_PARAM) === 'org' ? 'org' : 'list') as ViewType
+
+  const setView = (next: ViewType) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === 'list') {
+      params.delete(VIEW_PARAM)
+    } else {
+      params.set(VIEW_PARAM, 'org')
+    }
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
 
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-0">

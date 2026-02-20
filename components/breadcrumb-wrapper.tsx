@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -22,6 +22,7 @@ import { User, Plus } from 'lucide-react'
 export function BreadcrumbWrapper() {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [userRole, setUserRole] = useState<'admin' | 'dev' | 'developer' | 'promoter' | null>(null)
   const [userProfile, setUserProfile] = useState<{ name: string | null; profile_picture_url: string | null } | null>(null)
   const [characterName, setCharacterName] = useState<string | null>(null)
@@ -171,12 +172,16 @@ export function BreadcrumbWrapper() {
             ) : (
               <>
                 {segments.map((segment, index) => {
-                  const href = '/' + segments.slice(0, index + 1).join('/')
+                  let href = '/' + segments.slice(0, index + 1).join('/')
+                  // When on device detail and we came from org chart, "Devices" crumb should return to org tab
+                  if (segment === 'devices' && index === 0 && segments.length >= 2 && searchParams.get('from') === 'org') {
+                    href = '/devices?view=org'
+                  }
                   const label = getSegmentLabel(segment, index)
                   const isLast = index === segments.length - 1
 
                   return (
-                    <React.Fragment key={href}>
+                    <React.Fragment key={href + (index === 0 ? searchParams.get('from') ?? '' : '')}>
                       <BreadcrumbItem>
                         {isLast ? (
                           <BreadcrumbPage>{label}</BreadcrumbPage>
