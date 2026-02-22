@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts'
+import { ChartContainer, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 
 interface StarRatingFeedbackItem {
   id: string
@@ -21,13 +23,26 @@ interface StarRatingFeedbackItem {
   } | null
 }
 
+interface RatingDistribution {
+  1: number
+  2: number
+  3: number
+  4: number
+  5: number
+}
+
 interface ListResponse {
   items: StarRatingFeedbackItem[]
   total: number
   page: number
   pageSize: number
   totalPages: number
+  ratingDistribution: RatingDistribution
 }
+
+const ratingChartConfig = {
+  count: { label: 'Responses', color: 'var(--chart-1)' },
+} satisfies ChartConfig
 
 export default function StarRatingFeedbackManager() {
   const [items, setItems] = useState<StarRatingFeedbackItem[]>([])
@@ -36,6 +51,7 @@ export default function StarRatingFeedbackManager() {
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [starFilter, setStarFilter] = useState<string>('all')
+  const [ratingDistribution, setRatingDistribution] = useState<RatingDistribution | null>(null)
 
   const fetchItems = async () => {
     setLoading(true)
@@ -55,6 +71,7 @@ export default function StarRatingFeedbackManager() {
       setItems(data.items)
       setTotal(data.total)
       setTotalPages(data.totalPages)
+      if (data.ratingDistribution) setRatingDistribution(data.ratingDistribution)
     } catch (error) {
       console.error('Error fetching star rating feedback:', error)
     } finally {
@@ -67,14 +84,33 @@ export default function StarRatingFeedbackManager() {
   }, [page, starFilter])
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    const date = new Date(dateString)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const feedbackDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+    const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+
+    if (feedbackDate.getTime() === today.getTime()) {
+      return `Today, ${timeStr}`
+    }
+    if (feedbackDate.getTime() === yesterday.getTime()) {
+      return `Yesterday, ${timeStr}`
+    }
+    const diffMs = today.getTime() - feedbackDate.getTime()
+    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
   }
+
+  const chartData = useMemo(() => {
+    if (!ratingDistribution) return []
+    return [1, 2, 3, 4, 5].map((r) => ({
+      rating: `${r} star${r === 1 ? '' : 's'}`,
+      count: ratingDistribution[r as keyof RatingDistribution],
+    }))
+  }, [ratingDistribution])
 
   const renderStars = (rating: number) => {
     return (
@@ -91,6 +127,31 @@ export default function StarRatingFeedbackManager() {
 
   return (
     <div className="space-y-6">
+      {chartData.length > 0 && (
+        <Card className="p-4 sm:p-6">
+          <h3 className="mb-4 text-sm font-medium text-gray-700">Ratings distribution</h3>
+          <ChartContainer config={ratingChartConfig} className="h-[220px] w-full">
+            <BarChart
+              data={chartData}
+              margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              accessibilityLayer
+            >
+              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-gray-200" />
+              <XAxis
+                dataKey="rating"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 12 }} />
+              <Tooltip content={<ChartTooltipContent />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+              <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        </Card>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <Select value={starFilter} onValueChange={(v) => { setStarFilter(v); setPage(1) }}>
           <SelectTrigger className="w-[180px]">

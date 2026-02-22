@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/user-roles'
-import { getStarRatingFeedback } from '@/lib/database/star-rating-feedback'
+import { getStarRatingFeedback, getStarRatingDistribution } from '@/lib/database/star-rating-feedback'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,17 +28,23 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1', 10)
     const pageSize = parseInt(searchParams.get('pageSize') || '20', 10)
 
-    const result = await getStarRatingFeedback(
-      {
-        starRating: starRating ? parseInt(starRating, 10) : undefined,
-        minRating: minRating ? parseInt(minRating, 10) : undefined,
-        maxRating: maxRating ? parseInt(maxRating, 10) : undefined,
-      },
-      page,
-      pageSize
-    )
+    const [listResult, ratingDistribution] = await Promise.all([
+      getStarRatingFeedback(
+        {
+          starRating: starRating ? parseInt(starRating, 10) : undefined,
+          minRating: minRating ? parseInt(minRating, 10) : undefined,
+          maxRating: maxRating ? parseInt(maxRating, 10) : undefined,
+        },
+        page,
+        pageSize
+      ),
+      getStarRatingDistribution(),
+    ])
 
-    return NextResponse.json(result, { status: 200 })
+    return NextResponse.json(
+      { ...listResult, ratingDistribution },
+      { status: 200 }
+    )
   } catch (error) {
     console.error('Error in star-rating-feedback route:', error)
     return NextResponse.json(

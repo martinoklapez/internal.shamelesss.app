@@ -98,3 +98,31 @@ export async function getStarRatingFeedback(
     totalPages,
   }
 }
+
+export interface StarRatingDistribution {
+  1: number
+  2: number
+  3: number
+  4: number
+  5: number
+}
+
+export async function getStarRatingDistribution(): Promise<StarRatingDistribution> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('star_rating_feedback')
+    .select('star_rating')
+
+  if (error) {
+    throw new Error(`Failed to fetch star rating distribution: ${error.message}`)
+  }
+
+  const rows = (data ?? []) as { star_rating: number }[]
+  const dist: StarRatingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  for (const row of rows) {
+    if (row.star_rating >= 1 && row.star_rating <= 5) {
+      dist[row.star_rating as keyof StarRatingDistribution]++
+    }
+  }
+  return dist
+}
