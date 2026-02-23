@@ -6,8 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts'
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 
 interface StarRatingFeedbackItem {
   id: string
@@ -39,10 +37,6 @@ interface ListResponse {
   totalPages: number
   ratingDistribution: RatingDistribution
 }
-
-const ratingChartConfig = {
-  count: { label: 'Responses', color: 'var(--chart-1)' },
-} satisfies ChartConfig
 
 export default function StarRatingFeedbackManager() {
   const [items, setItems] = useState<StarRatingFeedbackItem[]>([])
@@ -104,12 +98,32 @@ export default function StarRatingFeedbackManager() {
     return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
   }
 
-  const chartData = useMemo(() => {
+  const distributionRows = useMemo(() => {
     if (!ratingDistribution) return []
     return [1, 2, 3, 4, 5].map((r) => ({
-      rating: `${r} star${r === 1 ? '' : 's'}`,
+      stars: r,
       count: ratingDistribution[r as keyof RatingDistribution],
     }))
+  }, [ratingDistribution])
+
+  const { totalResponses, averageRating } = useMemo(() => {
+    if (!ratingDistribution) return { totalResponses: 0, averageRating: 0 }
+    const total =
+      ratingDistribution[1] +
+      ratingDistribution[2] +
+      ratingDistribution[3] +
+      ratingDistribution[4] +
+      ratingDistribution[5]
+    const sum =
+      ratingDistribution[1] * 1 +
+      ratingDistribution[2] * 2 +
+      ratingDistribution[3] * 3 +
+      ratingDistribution[4] * 4 +
+      ratingDistribution[5] * 5
+    return {
+      totalResponses: total,
+      averageRating: total > 0 ? Math.round((sum / total) * 10) / 10 : 0,
+    }
   }, [ratingDistribution])
 
   const renderStars = (rating: number) => {
@@ -127,28 +141,39 @@ export default function StarRatingFeedbackManager() {
 
   return (
     <div className="space-y-6">
-      {chartData.length > 0 && (
-        <Card className="p-4 sm:p-6">
-          <h3 className="mb-4 text-sm font-medium text-gray-700">Ratings distribution</h3>
-          <ChartContainer config={ratingChartConfig} className="h-[220px] w-full">
-            <BarChart
-              data={chartData}
-              margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
-              accessibilityLayer
-            >
-              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-gray-200" />
-              <XAxis
-                dataKey="rating"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 12 }} />
-              <Tooltip content={<ChartTooltipContent />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
-              <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ChartContainer>
+      {distributionRows.length > 0 && (
+        <Card className="w-full max-w-md p-4 sm:p-6">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-sm font-medium text-gray-700">Ratings distribution</h3>
+            <p className="text-sm text-gray-600">
+              Average: <span className="font-semibold text-gray-900">{averageRating.toFixed(1)}</span>
+              {totalResponses > 0 && (
+                <span className="ml-1 text-gray-500">
+                  ({totalResponses} response{totalResponses === 1 ? '' : 's'})
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {distributionRows.map(({ stars, count }) => (
+              <div
+                key={stars}
+                className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50/50 px-3 py-2"
+              >
+                <span className="inline-flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Star
+                      key={i}
+                      className={`h-4 w-4 ${i <= stars ? 'fill-amber-400 text-amber-500' : 'text-gray-200'}`}
+                    />
+                  ))}
+                </span>
+                <span className="text-sm font-medium tabular-nums text-gray-700">
+                  {count} {count === 1 ? 'time' : 'times'}
+                </span>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 
