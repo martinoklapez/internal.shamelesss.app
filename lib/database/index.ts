@@ -2,6 +2,7 @@
 export * from './batch-id'
 export * from './categories'
 export * from './characters'
+export * from './demo-reengagement-config'
 export * from './devices'
 export * from './feature-flags'
 export * from './games'
