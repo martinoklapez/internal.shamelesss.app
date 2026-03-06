@@ -296,6 +296,7 @@ export interface DemoUser {
   name: string | null
   username: string | null
   profile_picture_url: string | null
+  gender: string | null
 }
 
 export async function getDemoUsers(): Promise<DemoUser[]> {
@@ -312,7 +313,7 @@ export async function getDemoUsers(): Promise<DemoUser[]> {
   const userIds = roleRows.map((r) => r.user_id)
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('user_id, name, username, profile_picture_url')
+    .select('user_id, name, username, profile_picture_url, gender')
     .in('user_id', userIds)
 
   const profileByUserId = new Map(
@@ -322,6 +323,7 @@ export async function getDemoUsers(): Promise<DemoUser[]> {
         name: p.name ?? null,
         username: p.username ?? null,
         profile_picture_url: p.profile_picture_url ?? null,
+        gender: p.gender ?? null,
       },
     ])
   )
@@ -333,6 +335,7 @@ export async function getDemoUsers(): Promise<DemoUser[]> {
       name: p?.name ?? null,
       username: p?.username ?? null,
       profile_picture_url: p?.profile_picture_url ?? null,
+      gender: p?.gender ?? null,
     }
   })
 }

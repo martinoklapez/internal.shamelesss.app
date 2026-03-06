@@ -42,6 +42,7 @@ interface DemoUser {
   name: string | null
   username: string | null
   profile_picture_url: string | null
+  gender: string | null
 }
 
 interface DemoReengagementManagerProps {
@@ -229,8 +230,16 @@ function FlowSlotRow({
 }: FlowSlotRowProps) {
   const [maleOpen, setMaleOpen] = useState(false)
   const [femaleOpen, setFemaleOpen] = useState(false)
+  const [pickerGenderFilter, setPickerGenderFilter] = useState<'all' | 'male' | 'female'>('all')
   const maleId = slot.demo_user_id_male ?? slot.demo_user_id
   const femaleId = slot.demo_user_id_female ?? slot.demo_user_id
+
+  const usersByGender =
+    pickerGenderFilter === 'all'
+      ? demoUsers
+      : demoUsers.filter(
+          (u) => (u.gender || '').toLowerCase() === pickerGenderFilter
+        )
 
   const renderUserPicker = (
     label: string,
@@ -261,9 +270,9 @@ function FlowSlotRow({
                     {(u.name ?? u.username ?? u.user_id).slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="min-w-0 truncate">{u.name || '—'}</span>
+                <span className="min-w-0 truncate text-gray-900">{u.name || '—'}</span>
                 {u.username ? (
-                  <span className="shrink-0 text-gray-400">@{u.username}</span>
+                  <span className="shrink-0 text-gray-600">@{u.username}</span>
                 ) : null}
               </div>
             ) : (
@@ -275,7 +284,7 @@ function FlowSlotRow({
         <PopoverContent className="w-72 p-0" align="start">
           <Command
             filter={(value, search) => {
-              const user = demoUsers.find((x) => x.user_id === value)
+              const user = usersByGender.find((x) => x.user_id === value)
               if (!user) return 0
               const s = search.toLowerCase()
               const name = (user.name ?? '').toLowerCase()
@@ -285,10 +294,24 @@ function FlowSlotRow({
             }}
           >
             <CommandInput placeholder="Search by name or username…" className="h-9" />
+            <div className="flex border-b border-gray-100 px-2 py-1.5 gap-1">
+              {(['all', 'male', 'female'] as const).map((g) => (
+                <Button
+                  key={g}
+                  type="button"
+                  variant={pickerGenderFilter === g ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-6 px-2 text-[10px] capitalize"
+                  onClick={() => setPickerGenderFilter(g)}
+                >
+                  {g === 'all' ? 'All' : g}
+                </Button>
+              ))}
+            </div>
             <CommandList>
               <CommandEmpty>No user found.</CommandEmpty>
               <CommandGroup>
-                {demoUsers.map((u) => (
+                {usersByGender.map((u) => (
                   <CommandItem
                     key={u.user_id}
                     value={u.user_id}
@@ -296,19 +319,22 @@ function FlowSlotRow({
                       updateSlot(index, { [field]: u.user_id })
                       setOpen(false)
                     }}
+                    className="aria-selected:bg-gray-100 text-gray-900"
                   >
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6 shrink-0">
                         {u.profile_picture_url ? (
                           <AvatarImage src={u.profile_picture_url} alt={u.name ?? u.user_id} />
                         ) : null}
-                        <AvatarFallback className="text-[10px]">
+                        <AvatarFallback className="text-[10px] text-gray-700">
                           {(u.name ?? u.username ?? u.user_id).slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="min-w-0 truncate font-medium">{u.name || '—'}</span>
+                      <span className="min-w-0 truncate font-medium text-gray-900">
+                        {u.name || '—'}
+                      </span>
                       {u.username ? (
-                        <span className="shrink-0 text-gray-500">@{u.username}</span>
+                        <span className="shrink-0 text-gray-700">@{u.username}</span>
                       ) : null}
                     </div>
                   </CommandItem>
@@ -327,11 +353,17 @@ function FlowSlotRow({
         <span className="w-6 shrink-0 font-medium text-gray-500">{index + 1}.</span>
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2">
-            <Label className="w-14 shrink-0 text-[10px] text-gray-500">Male:</Label>
+            <span className="w-5 shrink-0 text-[10px] font-medium text-gray-500">If</span>
+            <span className="shrink-0" aria-hidden>👨</span>
+            <Label className="w-12 shrink-0 text-[10px] text-gray-600">Male</Label>
+            <span className="shrink-0 text-[10px] text-gray-500">then</span>
             {renderUserPicker('Male', maleId, maleOpen, setMaleOpen, 'demo_user_id_male')}
           </div>
           <div className="flex items-center gap-2">
-            <Label className="w-14 shrink-0 text-[10px] text-gray-500">Female:</Label>
+            <span className="w-5 shrink-0 text-[10px] font-medium text-gray-500">If</span>
+            <span className="shrink-0" aria-hidden>👩</span>
+            <Label className="w-12 shrink-0 text-[10px] text-gray-600">Female</Label>
+            <span className="shrink-0 text-[10px] text-gray-500">then</span>
             {renderUserPicker('Female', femaleId, femaleOpen, setFemaleOpen, 'demo_user_id_female')}
           </div>
         </div>
