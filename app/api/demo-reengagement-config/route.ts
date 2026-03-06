@@ -6,6 +6,7 @@ import {
   updateDemoReengagementConfig,
   createDefaultCampaign,
   type Campaign,
+  type FlowSlot,
   type GenderMode,
   type Trigger,
 } from '@/lib/database/demo-reengagement-config'
@@ -75,9 +76,11 @@ function parseFlowSlotBody(raw: unknown): {
   }
 }
 
-function parseFlowSlotsBody(value: unknown): Campaign['target_selection'] extends { mode: 'direct'; flow_slots: infer S } ? S : never {
-  if (!Array.isArray(value)) return [] as any
-  return value.map(parseFlowSlotBody).filter((s): s is NonNullable<typeof s> => s !== null) as any
+function parseFlowSlotsBody(value: unknown): FlowSlot[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map(parseFlowSlotBody)
+    .filter((s): s is NonNullable<typeof s> => s !== null) as FlowSlot[]
 }
 
 function migrateFlowUserIdsBody(value: unknown): { demo_user_id: string; message: string | null }[] {
