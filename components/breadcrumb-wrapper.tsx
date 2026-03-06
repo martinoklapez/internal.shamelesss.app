@@ -125,7 +125,7 @@ export function BreadcrumbWrapper() {
     if (segment === 'generate') return 'Generate Images'
     if (segment === 'characters') return 'Characters'
     if (segment === 'star-rating-feedback') return 'Star Rating Feedback'
-    if (segment === 'demo-reengagement') return 'Demo Re-engagement'
+    if (segment === 'reengagement') return 'Reengagement'
 
     // Nested routes
     if (segments[0] === 'devices' && index === 1) {

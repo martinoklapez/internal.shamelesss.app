@@ -67,8 +67,8 @@ const developerMenuItems = [
     roles: ['admin', 'dev', 'developer'] as const,
   },
   {
-    title: 'Demo Re-engagement',
-    url: '/demo-reengagement',
+    title: 'Reengagement',
+    url: '/reengagement',
     icon: Bell,
     roles: ['admin', 'dev', 'developer'] as const,
   },
