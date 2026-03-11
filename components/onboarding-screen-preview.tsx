@@ -1366,6 +1366,102 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     )
   }
 
+  // Tracking Permission (ATT mockup) – compact card to fit phone preview; no progress bar, no header, no Next button
+  if (componentId === 'tracking_permission') {
+    const displayTitle = title || 'Allow recommendations?'
+    const displaySubtitle = description || 'Tap Allow when the system dialog appears.'
+    return (
+      <div
+        className="w-full h-full flex flex-col items-center justify-center bg-white overflow-hidden px-2"
+        style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
+      >
+        {/* Compact card: same bg as screen, no shadow */}
+        <div
+          className="w-full max-w-[280px] flex flex-col items-center bg-white rounded-[12px] overflow-hidden flex-shrink-0"
+        >
+          {/* 1. App icon: 40×40 for compact layout, no shadow */}
+          <div
+            className="flex-shrink-0 rounded-[10px] bg-white border-2 border-black overflow-hidden flex items-center justify-center"
+            style={{
+              width: 40,
+              height: 40,
+              marginTop: 8,
+              marginBottom: 6,
+            }}
+          >
+            <img
+              src="/assets/app/app-icon.png"
+              alt=""
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+                const parent = e.currentTarget.parentElement
+                const fallback = parent?.querySelector('[data-fallback]') as HTMLElement
+                if (fallback) fallback.style.display = 'flex'
+              }}
+            />
+            <span data-fallback className="hidden font-black text-xs text-black" style={{ display: 'none' }}>S</span>
+          </div>
+
+          {/* 2. Title – same line spacing as other screens (leading-5, mb-2) */}
+          <p
+            className="text-center w-full text-black font-semibold px-4 pb-2"
+            style={{
+              fontSize: 14,
+              lineHeight: '1.25rem',
+            }}
+          >
+            {displayTitle}
+          </p>
+
+          {/* 3. Subtitle – same as other screens (leading-4, mb-3) */}
+          <p
+            className="text-center w-full text-[#8E8E93] px-4 mb-3"
+            style={{
+              fontSize: 11,
+              lineHeight: '1rem',
+            }}
+          >
+            {displaySubtitle}
+          </p>
+
+          {/* 4. Allow button – blue */}
+          <button
+            type="button"
+            className="w-full text-center border-0 bg-transparent cursor-default"
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#007AFF',
+              paddingTop: 6,
+              paddingBottom: 6,
+            }}
+          >
+            Allow
+          </button>
+
+          {/* 5. Divider */}
+          <div className="w-full" style={{ height: 0.5, backgroundColor: '#C6C6C8' }} />
+
+          {/* 6. Ask App Not to Track */}
+          <button
+            type="button"
+            className="w-full text-center border-0 bg-transparent cursor-default"
+            style={{
+              fontSize: 14,
+              fontWeight: 400,
+              color: '#8E8E93',
+              paddingTop: 6,
+              paddingBottom: 10,
+            }}
+          >
+            Ask App Not to Track
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // ScratchDates Preview – card with coral overlay; scratch to reveal image, 40% threshold, Next only after complete
   if (componentId === 'scratchdates_preview') {
     const SCRATCH_THRESHOLD = 0.4
