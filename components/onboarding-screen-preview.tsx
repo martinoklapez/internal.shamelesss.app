@@ -1481,7 +1481,6 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
             style={{
               width: cardSize,
               height: cardSize,
-              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.25), 0 2px 4px -2px rgba(0,0,0,0.25)',
             }}
           >
             {/* Image layer (contentFit cover) */}
