@@ -25,6 +25,11 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   const [rateAppStarsSelected, setRateAppStarsSelected] = useState<number>(0)
   const [rateAppStarsFeedbackOpen, setRateAppStarsFeedbackOpen] = useState(false)
   const [rateAppStarsFeedbackText, setRateAppStarsFeedbackText] = useState('')
+  const [scratchComplete, setScratchComplete] = useState(false)
+
+  const scratchCanvasRef = useRef<HTMLCanvasElement>(null)
+  const scratchTriggeredRef = useRef(false)
+  const scratchIsDrawingRef = useRef(false)
 
   // Testimonial loader hooks (always declared, conditionally used)
   const [testimonialProgress, setTestimonialProgress] = useState(0)
@@ -112,6 +117,29 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
       setRateAppCountdown((c) => (c === null ? null : c <= 0 ? null : c - 1))
     }, 1000)
     return () => clearInterval(t)
+  }, [componentId])
+
+  // ScratchDates: reset state when leaving and draw initial red overlay when entering
+  useEffect(() => {
+    if (componentId !== 'scratchdates_preview') {
+      setScratchComplete(false)
+      scratchTriggeredRef.current = false
+      return
+    }
+    scratchTriggeredRef.current = false
+    setScratchComplete(false)
+    const t = requestAnimationFrame(() => {
+      const canvas = scratchCanvasRef.current
+      if (!canvas) return
+      const d = 150
+      canvas.width = d
+      canvas.height = d
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.fillStyle = '#FF5252'
+      ctx.fillRect(0, 0, d, d)
+    })
+    return () => cancelAnimationFrame(t)
   }, [componentId])
 
   // Loading screen: progress bar 0→100% over 4.8s; active step derived from progress (0–25% step 0, 25–50% step 1, …)
@@ -1334,6 +1362,164 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
             Next
           </button>
         </div>
+      </div>
+    )
+  }
+
+  // ScratchDates Preview – card with coral overlay; scratch to reveal image, 40% threshold, Next only after complete
+  if (componentId === 'scratchdates_preview') {
+    const SCRATCH_THRESHOLD = 0.4
+    const SCRATCH_STROKE = 30
+    const cardSize = 150
+    const imageUrl = (options && typeof options === 'object' && 'image_url' in options && typeof (options as { image_url: string }).image_url === 'string')
+      ? (options as { image_url: string }).image_url
+      : ''
+    const positionTitle = (options && typeof options === 'object' && 'title' in options && typeof (options as { title: string }).title === 'string')
+      ? (options as { title: string }).title
+      : 'Position'
+    const defaultArcadeUrl = 'https://esdzfopaahvbokddexeh.supabase.co/storage/v1/object/public/positions-images/Arcade-1.png'
+    const imageSrc = imageUrl || defaultArcadeUrl
+
+    const getCanvasPoint = (e: React.PointerEvent) => {
+      const canvas = scratchCanvasRef.current
+      if (!canvas) return null
+      const rect = canvas.getBoundingClientRect()
+      const scaleX = canvas.width / rect.width
+      const scaleY = canvas.height / rect.height
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
+      }
+    }
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      e.currentTarget.setPointerCapture(e.pointerId)
+      const canvas = scratchCanvasRef.current
+      if (!canvas) return
+      const p = getCanvasPoint(e)
+      if (!p) return
+      scratchIsDrawingRef.current = true
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.lineWidth = SCRATCH_STROKE
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.globalCompositeOperation = 'destination-out'
+      ctx.strokeStyle = 'rgba(0,0,0,1)'
+      ctx.beginPath()
+      ctx.moveTo(p.x, p.y)
+    }
+
+    const handlePointerMove = (e: React.PointerEvent) => {
+      if (!scratchIsDrawingRef.current) return
+      e.preventDefault()
+      e.stopPropagation()
+      const canvas = scratchCanvasRef.current
+      if (!canvas) return
+      const p = getCanvasPoint(e)
+      if (!p) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.lineTo(p.x, p.y)
+      ctx.stroke()
+    }
+
+    const checkScratchComplete = () => {
+      const canvas = scratchCanvasRef.current
+      if (!canvas || scratchTriggeredRef.current) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      const w = canvas.width
+      const h = canvas.height
+      const data = ctx.getImageData(0, 0, w, h)
+      let scratched = 0
+      for (let i = 3; i < data.data.length; i += 4) {
+        if (data.data[i] < 128) scratched += 1
+      }
+      const total = w * h
+      if (total > 0 && scratched / total >= SCRATCH_THRESHOLD) {
+        scratchTriggeredRef.current = true
+        setScratchComplete(true)
+      }
+    }
+
+    const handlePointerUp = (e: React.PointerEvent) => {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+      if (scratchIsDrawingRef.current) {
+        scratchIsDrawingRef.current = false
+        checkScratchComplete()
+      }
+    }
+
+    return (
+      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+        {/* Progress bar – same as other screens */}
+        <div className="px-3 pt-8 pb-2 flex-shrink-0">
+          <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-black rounded-full" style={{ width: `${progressPercentage}%` }} />
+          </div>
+        </div>
+        {/* Header – same as other screens */}
+        <div className="px-3 pb-0 flex-shrink-0">
+          {title ? (
+            <h3 className="text-lg font-black text-black mb-2 leading-5 tracking-tight text-left">{title}</h3>
+          ) : (
+            <h3 className="text-lg font-black text-gray-400 mb-2 leading-5 tracking-tight text-left italic">No title</h3>
+          )}
+          {description ? (
+            <p className="text-xs text-black opacity-90 leading-4 mb-3 text-left">{description}</p>
+          ) : (
+            <p className="text-xs text-gray-400 opacity-60 leading-4 mb-3 text-left italic">No description</p>
+          )}
+        </div>
+        {/* Content – centered scratch card: image + coral overlay canvas */}
+        <div className="flex-1 px-3 pb-2 overflow-y-auto min-h-0 flex flex-col items-center justify-center">
+          <div
+            className="flex-shrink-0 relative overflow-hidden rounded-[20px] bg-white"
+            style={{
+              width: cardSize,
+              height: cardSize,
+              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.25), 0 2px 4px -2px rgba(0,0,0,0.25)',
+            }}
+          >
+            {/* Image layer (contentFit cover) */}
+            {imageSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageSrc}
+                alt={positionTitle}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">Image</div>
+            )}
+            {/* Coral overlay – scratched away with pointer; 30px stroke, 40% threshold */}
+            <canvas
+              ref={scratchCanvasRef}
+              className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+              style={{ borderRadius: 20 }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+            />
+          </div>
+        </div>
+        {/* Next button – shown only after scratch completion */}
+        {scratchComplete && (
+          <div className="px-3 py-2 flex-shrink-0">
+            <button
+              type="button"
+              className="w-full h-8 bg-[#FF5252] border-[3px] border-black rounded-[30px] font-black text-black text-sm hover:opacity-90 transition-opacity"
+              style={{ boxShadow: '0 4px 0 #000' }}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     )
   }

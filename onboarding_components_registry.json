@@ -286,6 +286,24 @@
       "showReviews": true,
       "showUserCount": true
     }
+  },
+  {
+    "component_key": "scratchdates_preview",
+    "component_name": "ScratchDates Preview",
+    "category": "quiz",
+    "description": "Scratch-off card to preview a position from ScratchDates. Options: image_url (required), title (optional).",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "image_url": { "type": "string", "required": true },
+        "title": { "type": "string", "required": false }
+      }
+    },
+    "default_options": {
+      "image_url": "",
+      "title": ""
+    }
   }
 ]
 

@@ -71,6 +71,14 @@ export function OnboardingScreenDialog({
   const [previewKey, setPreviewKey] = useState(0)
   const { toast } = useToast()
 
+  // ScratchDates Preview: positions list + image source (position picker or custom URL)
+  const [scratchDatesPositions, setScratchDatesPositions] = useState<Array<{ id: string; name: string; image_url: string }>>([])
+  const [scratchDatesPositionsLoading, setScratchDatesPositionsLoading] = useState(false)
+  const [scratchDatesImageSource, setScratchDatesImageSource] = useState<'position' | 'custom'>('position')
+  const [scratchDatesSelectedPositionId, setScratchDatesSelectedPositionId] = useState<string>('')
+  const [scratchDatesCustomUrl, setScratchDatesCustomUrl] = useState('')
+  const [scratchDatesTitle, setScratchDatesTitle] = useState('')
+
   // Check if options is an array of objects with label/value structure
   const isOptionsArray = (): boolean => {
     try {
@@ -141,6 +149,45 @@ export function OnboardingScreenDialog({
     const currentOptions = getOptionsArray()
     updateOptionsFromArray(currentOptions.filter((_, i) => i !== index))
   }
+
+  // Fetch ScratchDates positions when dialog is open and component is scratchdates_preview
+  useEffect(() => {
+    if (!open || componentId !== 'scratchdates_preview') return
+    setScratchDatesPositionsLoading(true)
+    fetch('/api/onboarding/scratch-dates-positions')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.positions) setScratchDatesPositions(data.positions)
+      })
+      .catch(() => toast({ title: 'Could not load ScratchDates positions', variant: 'destructive' }))
+      .finally(() => setScratchDatesPositionsLoading(false))
+  }, [open, componentId, toast])
+
+  // Sync options -> ScratchDates local state when component is scratchdates_preview (e.g. when editing or switching component)
+  useEffect(() => {
+    if (componentId !== 'scratchdates_preview') return
+    try {
+      const parsed = options.trim() ? JSON.parse(options) : {}
+      const imageUrl = typeof parsed.image_url === 'string' ? parsed.image_url : ''
+      const titleVal = typeof parsed.title === 'string' ? parsed.title : ''
+      setScratchDatesTitle(titleVal)
+      const match = scratchDatesPositions.find((p) => p.image_url === imageUrl)
+      if (match) {
+        setScratchDatesImageSource('position')
+        setScratchDatesSelectedPositionId(match.id)
+        setScratchDatesCustomUrl('')
+      } else {
+        setScratchDatesImageSource('custom')
+        setScratchDatesSelectedPositionId('')
+        setScratchDatesCustomUrl(imageUrl)
+      }
+    } catch {
+      setScratchDatesImageSource('custom')
+      setScratchDatesSelectedPositionId('')
+      setScratchDatesCustomUrl('')
+      setScratchDatesTitle('')
+    }
+  }, [componentId, options, scratchDatesPositions])
 
   // Fetch available components when dialog opens and screenType is selected
   useEffect(() => {
@@ -398,6 +445,16 @@ export function OnboardingScreenDialog({
   // Only show the Options field for components that use an options list (options, instant_radio)
   const COMPONENT_IDS_WITH_OPTIONS = ['options', 'instant_radio']
   const showOptionsField = componentId && COMPONENT_IDS_WITH_OPTIONS.includes(componentId)
+
+  const showScratchDatesOptionsField = componentId === 'scratchdates_preview'
+
+  const setScratchDatesOptionsFromState = useCallback(() => {
+    const imageUrl = scratchDatesImageSource === 'position' && scratchDatesSelectedPositionId
+      ? scratchDatesPositions.find((p) => p.id === scratchDatesSelectedPositionId)?.image_url ?? ''
+      : scratchDatesCustomUrl
+    const titleVal = scratchDatesTitle.trim() || ''
+    setOptions(JSON.stringify({ image_url: imageUrl, title: titleVal || undefined }, null, 2))
+  }, [scratchDatesImageSource, scratchDatesSelectedPositionId, scratchDatesPositions, scratchDatesCustomUrl, scratchDatesTitle])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -671,6 +728,102 @@ export function OnboardingScreenDialog({
                   )}
                 </div>
               </div>
+
+              {showScratchDatesOptionsField && (
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                  <Label>ScratchDates Preview – Image</Label>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Image source</Label>
+                      <Select
+                        value={scratchDatesImageSource}
+                        onValueChange={(v: 'position' | 'custom') => {
+                          setScratchDatesImageSource(v)
+                          if (v === 'custom') {
+                            setOptions(JSON.stringify({ image_url: scratchDatesCustomUrl, title: scratchDatesTitle || undefined }, null, 2))
+                          } else if (scratchDatesSelectedPositionId) {
+                            const p = scratchDatesPositions.find((x) => x.id === scratchDatesSelectedPositionId)
+                            if (p) setOptions(JSON.stringify({ image_url: p.image_url, title: scratchDatesTitle || p.name || undefined }, null, 2))
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="position">From ScratchDates positions</SelectItem>
+                          <SelectItem value="custom">Custom URL</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {scratchDatesImageSource === 'position' && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-500">Position</Label>
+                        <Select
+                          value={scratchDatesSelectedPositionId}
+                          onValueChange={(id) => {
+                            setScratchDatesSelectedPositionId(id)
+                            const p = scratchDatesPositions.find((x) => x.id === id)
+                            if (p) {
+                              setScratchDatesTitle(p.name)
+                              setOptions(JSON.stringify({ image_url: p.image_url, title: p.name }, null, 2))
+                            }
+                          }}
+                          disabled={scratchDatesPositionsLoading}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={scratchDatesPositionsLoading ? 'Loading…' : 'Select position'} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {scratchDatesPositions.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                <div className="flex items-center gap-2">
+                                  {p.image_url && (
+                                    <span className="h-6 w-6 shrink-0 overflow-hidden rounded bg-gray-200">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={p.image_url} alt="" className="h-full w-full object-cover" />
+                                    </span>
+                                  )}
+                                  {p.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {scratchDatesImageSource === 'custom' && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-500">Image URL</Label>
+                        <Input
+                          value={scratchDatesCustomUrl}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setScratchDatesCustomUrl(val)
+                            setOptions(JSON.stringify({ image_url: val, title: scratchDatesTitle || undefined }, null, 2))
+                          }}
+                          placeholder="https://…"
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Title (optional)</Label>
+                      <Input
+                        value={scratchDatesTitle}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setScratchDatesTitle(val)
+                          const imageUrl = scratchDatesImageSource === 'position' && scratchDatesSelectedPositionId
+                            ? scratchDatesPositions.find((p) => p.id === scratchDatesSelectedPositionId)?.image_url ?? ''
+                            : scratchDatesCustomUrl
+                          setOptions(JSON.stringify({ image_url: imageUrl, title: val || undefined }, null, 2))
+                        }}
+                        placeholder="e.g. Arcade"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {showOptionsField && (
               <div className="space-y-2">

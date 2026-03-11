@@ -33,6 +33,7 @@ export const SHARED = [
   'satisfaction_slider',
   'testimonial_loader',
   'info',
+  'scratchdates_preview',
 ] as const
 
 export const QUIZ_COMPONENT_IDS: readonly string[] = [...SHARED, ...QUIZ_ONLY]
@@ -74,4 +75,5 @@ export const COMPONENT_DISPLAY: Record<
   quiz_results: { component_name: 'Quiz Results', description: 'Two-bar chart. Conversion only.' },
   gender: { component_name: 'Gender', description: 'Gender selection. Conversion only.' },
   info: { component_name: 'Info', description: 'Fallback: title + description + Next.' },
+  scratchdates_preview: { component_name: 'ScratchDates Preview', description: 'Scratch-off card to preview a position from ScratchDates. Options: image_url (required), title (optional).' },
 }
