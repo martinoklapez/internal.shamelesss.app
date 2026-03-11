@@ -43,6 +43,7 @@ interface OnboardingManagerProps {
 }
 
 const ANIMATED_PREVIEW_COMPONENTS = ['loading', 'rate_app_blurred', 'rate_app_stars', 'testimonial_loader']
+const PREVIEW_RESET_COMPONENTS = [...ANIMATED_PREVIEW_COMPONENTS, 'scratchdates_preview']
 
 // Custom node component for screens
 function ScreenNode({ data }: { data: any }) {
@@ -50,7 +51,7 @@ function ScreenNode({ data }: { data: any }) {
   const orderPosition = screen.order_position ?? 0
   const shouldShow = screen.should_show ?? true
   const [previewKey, setPreviewKey] = useState(0)
-  const hasAnimation = ANIMATED_PREVIEW_COMPONENTS.includes(screen.component_id ?? '')
+  const hasPreviewReset = PREVIEW_RESET_COMPONENTS.includes(screen.component_id ?? '')
 
   return (
     <div className="flex flex-col items-center gap-3 relative">
@@ -87,13 +88,13 @@ function ScreenNode({ data }: { data: any }) {
             </Label>
           </div>
           <div className="flex items-center gap-0.5">
-            {hasAnimation && (
+            {hasPreviewReset && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setPreviewKey((k) => k + 1)}
                 className="h-6 w-6 p-0"
-                title="Restart animation"
+                title={screen.component_id === 'scratchdates_preview' ? 'Reset scratch card' : 'Restart animation'}
               >
                 <Play className="h-3 w-3" />
               </Button>

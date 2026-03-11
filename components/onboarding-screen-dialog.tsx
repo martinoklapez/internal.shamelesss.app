@@ -576,6 +576,18 @@ export function OnboardingScreenDialog({
                       <Play className="h-3.5 w-3.5" />
                     </Button>
                   )}
+                  {componentId === 'scratchdates_preview' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewKey((k) => k + 1)}
+                      className="h-7 w-7 p-0"
+                      title="Reset scratch card"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
                 <div className="relative">
                   {/* Phone Frame */}
@@ -758,38 +770,53 @@ export function OnboardingScreenDialog({
                     </div>
                     {scratchDatesImageSource === 'position' && (
                       <div className="space-y-2">
-                        <Label className="text-xs text-gray-500">Position</Label>
-                        <Select
-                          value={scratchDatesSelectedPositionId}
-                          onValueChange={(id) => {
-                            setScratchDatesSelectedPositionId(id)
-                            const p = scratchDatesPositions.find((x) => x.id === id)
-                            if (p) {
-                              setScratchDatesTitle(p.name)
-                              setOptions(JSON.stringify({ image_url: p.image_url, title: p.name }, null, 2))
-                            }
-                          }}
-                          disabled={scratchDatesPositionsLoading}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={scratchDatesPositionsLoading ? 'Loading…' : 'Select position'} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {scratchDatesPositions.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                <div className="flex items-center gap-2">
-                                  {p.image_url && (
-                                    <span className="h-6 w-6 shrink-0 overflow-hidden rounded bg-gray-200">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img src={p.image_url} alt="" className="h-full w-full object-cover" />
-                                    </span>
-                                  )}
-                                  {p.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label className="text-xs text-gray-500">Choose position</Label>
+                        {scratchDatesPositionsLoading ? (
+                          <p className="text-sm text-gray-500 py-4">Loading positions…</p>
+                        ) : scratchDatesPositions.length === 0 ? (
+                          <p className="text-sm text-gray-500 py-4">No ScratchDates positions found.</p>
+                        ) : (
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[280px] overflow-y-auto p-1">
+                            {scratchDatesPositions.map((p) => {
+                              const isSelected = scratchDatesSelectedPositionId === p.id
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setScratchDatesSelectedPositionId(p.id)
+                                    setScratchDatesTitle(p.name)
+                                    setOptions(JSON.stringify({ image_url: p.image_url, title: p.name }, null, 2))
+                                  }}
+                                  className={`
+                                    flex flex-col items-center rounded-xl overflow-hidden border-2 transition-all
+                                    focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-400
+                                    ${isSelected
+                                      ? 'border-[#FF5252] bg-[#FF5252]/5 ring-2 ring-[#FF5252]/30'
+                                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                                    }
+                                  `}
+                                >
+                                  <div className="w-full aspect-square bg-gray-100 relative">
+                                    {p.image_url ? (
+                                      /* eslint-disable-next-line @next/next/no-img-element */
+                                      <img
+                                        src={p.image_url}
+                                        alt={p.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <span className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">No image</span>
+                                    )}
+                                  </div>
+                                  <span className="w-full py-1.5 px-1.5 text-center text-xs font-medium text-gray-700 truncate">
+                                    {p.name}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                     {scratchDatesImageSource === 'custom' && (
@@ -1062,6 +1089,18 @@ export function OnboardingScreenDialog({
                       onClick={() => setPreviewKey((k) => k + 1)}
                       className="h-7 w-7 p-0"
                       title="Restart animation"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {componentId === 'scratchdates_preview' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewKey((k) => k + 1)}
+                      className="h-7 w-7 p-0"
+                      title="Reset scratch card"
                     >
                       <Play className="h-3.5 w-3.5" />
                     </Button>
