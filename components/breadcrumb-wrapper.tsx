@@ -154,7 +154,8 @@ export function BreadcrumbWrapper() {
   }
   
   const isOnboardingPage = pathname === '/onboarding'
-  const onboardingHandlers = typeof window !== 'undefined' ? (window as any).onboardingAddHandlers : null
+  // Only read window after mount to avoid server/client HTML mismatch (hydration error)
+  const onboardingHandlers = mounted && typeof window !== 'undefined' ? (window as any).onboardingAddHandlers : null
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-4 bg-white">

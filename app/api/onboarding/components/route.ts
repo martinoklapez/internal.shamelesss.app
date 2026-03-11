@@ -33,9 +33,7 @@ export async function GET(request: Request) {
     let data: any[] = []
 
     if (category === 'quiz' || category === 'conversion') {
-      const allowedIds =
-        category === 'quiz' ? QUIZ_COMPONENT_IDS : CONVERSION_COMPONENT_IDS
-
+      // Which flow (quiz vs conversion) is controlled only by the categories column in onboarding_components
       const query = supabase
         .from('onboarding_components')
         .select('*')
@@ -52,11 +50,12 @@ export async function GET(request: Request) {
         )
       }
 
-      data = (dbData || []).filter((row: any) =>
-        allowedIds.includes(row.component_key)
-      )
+      data = dbData || []
 
+      // Fallback: if DB is missing known components, add static entries so UI still works (with requested category)
       if (fallback) {
+        const allowedIds =
+          category === 'quiz' ? QUIZ_COMPONENT_IDS : CONVERSION_COMPONENT_IDS
         const hasKey = new Set(data.map((r: any) => r.component_key))
         for (const id of allowedIds) {
           if (!hasKey.has(id) && COMPONENT_DISPLAY[id]) {
