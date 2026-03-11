@@ -326,9 +326,9 @@ export function OnboardingComponentGallery({
               </p>
             </div>
             <GalleryPhoneFrame>
-              {/* Same auth content as onboarding-manager AuthNode (1:1) */}
+              {/* Same auth content as onboarding-manager AuthNode: title at top, buttons + link at bottom */}
               <div
-                className="bg-white overflow-auto"
+                className="bg-white overflow-hidden flex flex-col"
                 style={{
                   position: 'absolute',
                   top: 40,
@@ -337,54 +337,55 @@ export function OnboardingComponentGallery({
                   bottom: 24,
                   paddingLeft: 12,
                   paddingRight: 12,
-                  display: 'block',
                 }}
               >
                 <div
-                  className="font-black text-black"
+                  className="font-black text-black flex-shrink-0"
                   style={{
                     fontSize: 22,
                     letterSpacing: -1.1,
-                    lineHeight: 26,
+                    lineHeight: '1.25rem',
                     color: '#000000',
-                    marginBottom: 12,
                   }}
                 >
                   <div style={{ display: 'block' }}>Create</div>
                   <div style={{ display: 'block' }}>Account</div>
                 </div>
-                <div
-                  className="w-full rounded-[30px] border-2 border-black flex items-center justify-center mb-3"
-                  style={{
-                    backgroundColor: '#FF5252',
-                    padding: 8,
-                    boxShadow: '0 2px 0 0 #000000',
-                    minHeight: 36,
-                  }}
-                >
-                  <span className="font-black text-center" style={{ fontSize: 12, color: '#000000' }}>
-                    Continue with E-Mail
+                <div className="flex-1 min-h-0" />
+                <div className="flex-shrink-0 flex flex-col pt-2">
+                  <div
+                    className="w-full rounded-[30px] border-2 border-black flex items-center justify-center mb-2"
+                    style={{
+                      backgroundColor: '#FF5252',
+                      padding: 8,
+                      boxShadow: '0 2px 0 0 #000000',
+                      minHeight: 36,
+                    }}
+                  >
+                    <span className="font-black text-center" style={{ fontSize: 12, color: '#000000' }}>
+                      Continue with E-Mail
+                    </span>
+                  </div>
+                  <div
+                    className="w-full rounded-[30px] border-2 border-black flex items-center justify-center mb-3"
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      padding: 8,
+                      boxShadow: '0 2px 0 0 #000000',
+                      minHeight: 36,
+                    }}
+                  >
+                    <span className="font-black text-center" style={{ fontSize: 12, color: '#000000' }}>
+                      Skip
+                    </span>
+                  </div>
+                  <span
+                    className="block text-center"
+                    style={{ fontSize: 11, color: '#FF5252' }}
+                  >
+                    Already have an account? Sign in
                   </span>
                 </div>
-                <div
-                  className="w-full rounded-[30px] border-2 border-black flex items-center justify-center mb-4"
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: 8,
-                    boxShadow: '0 2px 0 0 #000000',
-                    minHeight: 36,
-                  }}
-                >
-                  <span className="font-black text-center" style={{ fontSize: 12, color: '#000000' }}>
-                    Skip
-                  </span>
-                </div>
-                <span
-                  className="block text-center"
-                  style={{ fontSize: 11, color: '#FF5252' }}
-                >
-                  Already have an account? Sign in
-                </span>
               </div>
             </GalleryPhoneFrame>
           </div>
