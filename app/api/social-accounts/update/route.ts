@@ -14,11 +14,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { accountId, platform, username, credentials } = body
+    const { accountId, platform, username, credentials, status } = body
 
     if (!accountId || !platform || !username || !credentials) {
       return NextResponse.json(
         { error: 'Account ID, platform, username, and credentials are required' },
+        { status: 400 }
+      )
+    }
+
+    const allowedStatuses = ['planned', 'warmup', 'active', 'paused']
+    if (status !== undefined && (typeof status !== 'string' || !allowedStatuses.includes(status))) {
+      return NextResponse.json(
+        { error: 'status must be one of: planned, warmup, active, paused' },
         { status: 400 }
       )
     }
@@ -45,14 +53,18 @@ export async function POST(request: Request) {
     }
 
     // Update social account in database
+    const updatePayload: Record<string, unknown> = {
+      platform,
+      username,
+      name: accountName,
+      credentials,
+    }
+    if (status !== undefined) {
+      updatePayload.status = status
+    }
     const { data: account, error } = await supabase
       .from('social_accounts')
-      .update({
-        platform,
-        username,
-        name: accountName,
-        credentials,
-      })
+      .update(updatePayload)
       .eq('id', accountId)
       .select()
       .single()

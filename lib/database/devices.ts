@@ -26,6 +26,8 @@ export interface ICloudProfile {
   updated_at: string
 }
 
+export type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'archived'
+
 export interface SocialAccount {
   id: string
   device_id: number
@@ -33,7 +35,7 @@ export interface SocialAccount {
   username: string
   name: string | null
   credentials: string
-  status: 'draft' | 'active' | 'archived'
+  status: SocialAccountStatus
   batch_id: string | null
   created_at: string
   updated_at: string
@@ -128,7 +130,7 @@ export async function getDevices(): Promise<DeviceWithRelations[]> {
     const archivedProfiles = deviceProfiles.filter((p) => p.status === 'archived')
     
     const deviceSocialAccounts = (socialAccounts?.filter((a) => a.device_id === device.id) as SocialAccount[]) || []
-    const activeSocialAccounts = deviceSocialAccounts.filter((a) => a.status === 'active' || a.status === 'draft')
+    const activeSocialAccounts = deviceSocialAccounts.filter((a) => a.status !== 'archived')
     const archivedSocialAccounts = deviceSocialAccounts.filter((a) => a.status === 'archived')
     
     const deviceProxies = (proxies?.filter((p) => p.device_id === device.id) as Proxy[]) || []
@@ -190,7 +192,7 @@ export async function getDeviceById(deviceId: number): Promise<DeviceWithRelatio
   const archivedProfiles = profiles.filter((p) => p.status === 'archived')
 
   const allSocialAccounts = (socialAccounts as SocialAccount[]) || []
-  const activeSocialAccounts = allSocialAccounts.filter((a) => a.status === 'active' || a.status === 'draft')
+  const activeSocialAccounts = allSocialAccounts.filter((a) => a.status !== 'archived')
   const archivedSocialAccounts = allSocialAccounts.filter((a) => a.status === 'archived')
 
   // Get the active and archived proxies

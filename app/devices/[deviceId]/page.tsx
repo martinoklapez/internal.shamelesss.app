@@ -95,6 +95,7 @@ export default async function DevicePage({ params, searchParams }: DevicePagePro
       username: acc.username,
       name: acc.name,
       credentials: acc.credentials,
+      status: acc.status,
     })),
     archivedSocialAccounts: deviceData.archived_social_accounts.map((acc) => ({
       id: acc.id,
@@ -103,6 +104,7 @@ export default async function DevicePage({ params, searchParams }: DevicePagePro
       name: acc.name,
       credentials: acc.credentials,
       batchId: acc.batch_id,
+      status: acc.status,
     })),
     proxy: deviceData.proxy
       ? {

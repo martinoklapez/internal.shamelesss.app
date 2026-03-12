@@ -38,12 +38,12 @@ export async function getOrCreateBatchId(deviceId: number): Promise<string> {
     return activeProxy.batch_id
   }
 
-  // Priority 3: Check if device has active/draft social accounts with a batch_id (most recent)
+  // Priority 3: Check if device has non-archived social accounts with a batch_id (most recent)
   const { data: socialAccount } = await supabase
     .from('social_accounts')
     .select('batch_id')
     .eq('device_id', deviceId)
-    .in('status', ['active', 'draft'])
+    .in('status', ['planned', 'warmup', 'active', 'paused'])
     .order('created_at', { ascending: false })
     .limit(1)
     .single()

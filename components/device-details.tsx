@@ -5,10 +5,28 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Mail, Lock, Eye, EyeOff, Smartphone, Tablet, Calendar, MapPin, Globe, Copy, Check, Network, Plus, Archive, ChevronDown, ChevronUp, FileText, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { getSocialPlatformImage } from '@/lib/social-platform-images'
 import { AddICloudProfileDialog } from './add-icloud-profile-dialog'
 import { AddSocialAccountDialog } from './add-social-account-dialog'
 import { AddProxyDialog } from './add-proxy-dialog'
+
+type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'archived'
+
+const SOCIAL_STATUS_CHIP_STYLES: Record<Exclude<SocialAccountStatus, 'archived'>, { bg: string; text: string }> = {
+  planned: { bg: '#F1F1EF', text: '#787774' },   // Gray
+  warmup:  { bg: '#FAF3DD', text: '#C29343' },  // Yellow
+  active:  { bg: '#EEF3ED', text: '#548164' },  // Green
+  paused:  { bg: '#F8ECDF', text: '#CC782F' },  // Orange
+}
+// Display style when no status is set (not a choosable value in the modal)
+const SOCIAL_STATUS_NONE_STYLE = { bg: '#F1F1EF', text: '#787774' } // Gray, same as planned
 
 interface SocialAccount {
   id: string
@@ -16,6 +34,7 @@ interface SocialAccount {
   username: string
   name: string | null
   credentials: string
+  status?: SocialAccountStatus
   batchId?: string | null
 }
 
@@ -185,6 +204,34 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
     } catch (error) {
       console.error('Error archiving social account:', error)
       alert(error instanceof Error ? error.message : 'Failed to archive social account')
+    }
+  }
+
+  const handleSocialAccountStatusChange = async (
+    account: SocialAccount,
+    newStatus: SocialAccountStatus
+  ) => {
+    if (newStatus === 'archived') return
+    try {
+      const response = await fetch('/api/social-accounts/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: account.id,
+          platform: account.platform,
+          username: account.username,
+          credentials: account.credentials,
+          status: newStatus,
+        }),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update status')
+      }
+      router.refresh()
+    } catch (error) {
+      console.error('Error updating social account status:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update status')
     }
   }
 
@@ -730,7 +777,7 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {account.name || account.username}
                       </span>
@@ -749,6 +796,48 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
                           unoptimized
                         />
                       </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" className="focus:outline-none focus:ring-0 rounded-md inline-flex items-center">
+                            <Badge
+                              className="h-5 shrink-0 pl-1.5 pr-1 gap-0.5 text-[10px] font-medium capitalize tabular-nums border-0 inline-flex items-center"
+                              style={
+                                account.status && account.status in SOCIAL_STATUS_CHIP_STYLES
+                                  ? {
+                                      backgroundColor: SOCIAL_STATUS_CHIP_STYLES[account.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES].bg,
+                                      color: SOCIAL_STATUS_CHIP_STYLES[account.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES].text,
+                                    }
+                                  : { backgroundColor: SOCIAL_STATUS_NONE_STYLE.bg, color: SOCIAL_STATUS_NONE_STYLE.text }
+                              }
+                            >
+                              <span>{account.status ?? 'None'}</span>
+                              <ChevronDown className="h-3 w-3 shrink-0 opacity-80" />
+                            </Badge>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="bg-white border border-gray-200 shadow-lg">
+                          {(['planned', 'warmup', 'active', 'paused'] as const).map((s) => (
+                            <DropdownMenuItem
+                              key={s}
+                              onClick={() => handleSocialAccountStatusChange(account, s)}
+                              className="flex items-center gap-2 focus:bg-gray-100"
+                            >
+                              <Badge
+                                className="h-4 w-14 shrink-0 justify-center px-1.5 text-[9px] font-medium capitalize border-0"
+                                style={{
+                                  backgroundColor: SOCIAL_STATUS_CHIP_STYLES[s].bg,
+                                  color: SOCIAL_STATUS_CHIP_STYLES[s].text,
+                                }}
+                              >
+                                {s}
+                              </Badge>
+                              <span className="text-sm min-w-[4.5rem]">
+                                {s.charAt(0).toUpperCase() + s.slice(1)}
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>

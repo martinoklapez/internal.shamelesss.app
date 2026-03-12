@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         username,
         name: accountName,
         credentials,
-        status: 'draft',
+        status: 'planned',
         batch_id: batchId,
       })
       .select()

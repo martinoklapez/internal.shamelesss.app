@@ -22,11 +22,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused'
+
 interface SocialAccount {
   id?: string
   platform: 'TikTok' | 'Instagram' | 'Snapchat'
   username: string
   credentials: string
+  status?: SocialAccountStatus
 }
 
 interface AddSocialAccountDialogProps {
@@ -43,6 +46,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
     platform: '' as 'TikTok' | 'Instagram' | 'Snapchat' | '',
     username: '',
     credentials: '',
+    status: 'planned' as SocialAccountStatus,
   })
   const router = useRouter()
 
@@ -53,6 +57,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
         platform: socialAccount.platform || '',
         username: socialAccount.username || '',
         credentials: socialAccount.credentials || '',
+        status: (socialAccount.status && socialAccount.status !== 'archived' ? socialAccount.status : 'planned') as SocialAccountStatus,
       })
     } else if (open && !socialAccount) {
       // Reset form when creating new
@@ -60,6 +65,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
         platform: '',
         username: '',
         credentials: '',
+        status: 'planned',
       })
     }
   }, [open, socialAccount])
@@ -81,6 +87,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
             platform: formData.platform,
             username: formData.username,
             credentials: formData.credentials,
+            status: formData.status,
           }
         : {
             device_id: parseInt(deviceId, 10),
@@ -170,6 +177,25 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
                 required
               />
             </div>
+            {isEditing && (
+              <div className="grid gap-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value as SocialAccountStatus })}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planned">Planned</SelectItem>
+                    <SelectItem value="warmup">Warmup</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
