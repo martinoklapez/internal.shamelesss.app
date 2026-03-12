@@ -2,9 +2,27 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Smartphone, Tablet, User, Mail, ChevronRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Smartphone, Tablet, User, Mail, ChevronRight, ChevronDown } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { getSocialPlatformImage } from '@/lib/social-platform-images'
+
+type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'archived'
+
+const SOCIAL_STATUS_CHIP_STYLES: Record<Exclude<SocialAccountStatus, 'archived'>, { bg: string; text: string }> = {
+  planned: { bg: '#F1F1EF', text: '#787774' },
+  warmup: { bg: '#FAF3DD', text: '#C29343' },
+  active: { bg: '#EEF3ED', text: '#548164' },
+  paused: { bg: '#F8ECDF', text: '#CC782F' },
+}
+const SOCIAL_STATUS_NONE_STYLE = { bg: '#F1F1EF', text: '#787774' }
 
 interface SocialAccount {
   id: string
@@ -12,6 +30,7 @@ interface SocialAccount {
   username: string
   name: string | null
   credentials: string
+  status?: SocialAccountStatus
 }
 
 interface iCloudProfile {
@@ -242,14 +261,92 @@ function DeviceNode({
 }
 
 function SocialAccountCard({ account }: { account: SocialAccount }) {
+  const router = useRouter()
+  const statusStyle =
+    account.status && account.status in SOCIAL_STATUS_CHIP_STYLES
+      ? SOCIAL_STATUS_CHIP_STYLES[account.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES]
+      : SOCIAL_STATUS_NONE_STYLE
+
+  const handleStatusChange = async (newStatus: SocialAccountStatus) => {
+    if (newStatus === 'archived') return
+    try {
+      const res = await fetch('/api/social-accounts/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: account.id,
+          platform: account.platform,
+          username: account.username,
+          credentials: account.credentials,
+          status: newStatus,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to update status')
+      }
+      router.refresh()
+    } catch (e) {
+      console.error('Error updating social account status:', e)
+      alert(e instanceof Error ? e.message : 'Failed to update status')
+    }
+  }
+
   return (
     <div className="flex items-center gap-1.5 w-full min-w-0 rounded border border-gray-100 bg-gray-50/80 px-2 py-1.5">
-      <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="focus:outline-none focus:ring-0 rounded shrink-0 inline-flex items-center"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Change status"
+          >
+            <Badge
+              className="h-4 shrink-0 pl-1 pr-0.5 gap-0.5 text-[9px] font-medium capitalize border-0 inline-flex items-center"
+              style={{ backgroundColor: statusStyle.bg, color: statusStyle.text }}
+            >
+              <span>{account.status ?? 'None'}</span>
+              <ChevronDown className="h-2.5 w-2.5 opacity-80" />
+            </Badge>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="bg-white border border-gray-200 shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {(['planned', 'warmup', 'active', 'paused'] as const).map((s) => (
+            <DropdownMenuItem
+              key={s}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleStatusChange(s)
+              }}
+              className="flex items-center gap-2 focus:bg-gray-100"
+            >
+              <Badge
+                className="h-4 w-14 shrink-0 justify-center px-1.5 text-[9px] font-medium capitalize border-0"
+                style={{
+                  backgroundColor: SOCIAL_STATUS_CHIP_STYLES[s].bg,
+                  color: SOCIAL_STATUS_CHIP_STYLES[s].text,
+                }}
+              >
+                {s}
+              </Badge>
+              <span className="text-sm min-w-[4.5rem]">
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-[22%]">
         <Image
           src={getSocialPlatformImage(account.platform)}
           alt={account.platform}
           fill
-          className="object-contain"
+          className="object-contain rounded-[22%]"
           sizes="20px"
         />
       </div>

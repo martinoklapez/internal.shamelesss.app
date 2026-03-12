@@ -69,6 +69,7 @@ export default async function DevicesPage() {
         username: acc.username,
         name: acc.name,
         credentials: acc.credentials,
+        status: acc.status,
       })),
       proxy: item.proxy
         ? {
