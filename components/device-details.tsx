@@ -778,27 +778,9 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {account.name || account.username}
-                      </span>
-                      {account.name && account.name !== account.username && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          (@{account.username})
-                        </span>
-                      )}
-                      <div className="relative h-5 w-5 shrink-0">
-                        <Image
-                          src={getSocialPlatformImage(account.platform)}
-                          alt={account.platform}
-                          width={20}
-                          height={20}
-                          className="object-contain rounded-[22%]"
-                          unoptimized
-                        />
-                      </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button type="button" className="focus:outline-none focus:ring-0 rounded-md inline-flex items-center">
+                          <button type="button" className="focus:outline-none focus:ring-0 rounded-md inline-flex items-center shrink-0">
                             <Badge
                               className="h-5 shrink-0 pl-1.5 pr-1 gap-0.5 text-[10px] font-medium capitalize tabular-nums border-0 inline-flex items-center"
                               style={
@@ -838,6 +820,24 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
                           ))}
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {account.name || account.username}
+                      </span>
+                      {account.name && account.name !== account.username && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          (@{account.username})
+                        </span>
+                      )}
+                      <div className="relative h-5 w-5 shrink-0">
+                        <Image
+                          src={getSocialPlatformImage(account.platform)}
+                          alt={account.platform}
+                          width={20}
+                          height={20}
+                          className="object-contain rounded-[22%]"
+                          unoptimized
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

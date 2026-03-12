@@ -57,7 +57,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
         platform: socialAccount.platform || '',
         username: socialAccount.username || '',
         credentials: socialAccount.credentials || '',
-        status: (socialAccount.status && socialAccount.status !== 'archived' ? socialAccount.status : 'planned') as SocialAccountStatus,
+        status: (socialAccount.status ?? 'planned') as SocialAccountStatus,
       })
     } else if (open && !socialAccount) {
       // Reset form when creating new
