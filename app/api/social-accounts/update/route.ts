@@ -31,9 +31,9 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!['TikTok', 'Instagram', 'Snapchat'].includes(platform)) {
+    if (!['TikTok', 'Instagram', 'Snapchat', 'Pinterest'].includes(platform)) {
       return NextResponse.json(
-        { error: 'Invalid platform. Must be TikTok, Instagram, or Snapchat' },
+        { error: 'Invalid platform. Must be TikTok, Instagram, Snapchat, or Pinterest' },
         { status: 400 }
       )
     }

@@ -14,6 +14,7 @@ export function getSocialPlatformImage(platform: string): string {
     TikTok: '/assets/social/TikTok.webp',
     Instagram: '/assets/social/Instagram.webp',
     Snapchat: '/assets/social/Snapchat.png',
+    Pinterest: '/assets/social/Pinterest.png',
   }
 
   return platformMap[platform] || '/assets/social/default.png'

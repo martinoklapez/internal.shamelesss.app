@@ -8,7 +8,7 @@ import { getSocialPlatformImage } from '@/lib/social-platform-images'
 
 interface SocialAccount {
   id: string
-  platform: 'TikTok' | 'Instagram' | 'Snapchat'
+  platform: 'TikTok' | 'Instagram' | 'Snapchat' | 'Pinterest'
   username: string
   name: string | null
   credentials: string

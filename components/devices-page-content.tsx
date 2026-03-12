@@ -12,7 +12,7 @@ type ViewType = 'list' | 'org'
 
 interface SocialAccount {
   id: string
-  platform: 'TikTok' | 'Instagram' | 'Snapchat'
+  platform: 'TikTok' | 'Instagram' | 'Snapchat' | 'Pinterest'
   username: string
   name: string | null
   credentials: string

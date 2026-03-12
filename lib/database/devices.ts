@@ -31,7 +31,7 @@ export type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | '
 export interface SocialAccount {
   id: string
   device_id: number
-  platform: 'TikTok' | 'Instagram' | 'Snapchat'
+  platform: 'TikTok' | 'Instagram' | 'Snapchat' | 'Pinterest'
   username: string
   name: string | null
   credentials: string

@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 interface SocialAccount {
   id: string
-  platform: 'TikTok' | 'Instagram' | 'Snapchat'
+  platform: 'TikTok' | 'Instagram' | 'Snapchat' | 'Pinterest'
   username: string
   name: string | null
   credentials: string

@@ -30,7 +30,7 @@ const SOCIAL_STATUS_NONE_STYLE = { bg: '#F1F1EF', text: '#787774' } // Gray, sam
 
 interface SocialAccount {
   id: string
-  platform: 'TikTok' | 'Instagram' | 'Snapchat'
+  platform: 'TikTok' | 'Instagram' | 'Snapchat' | 'Pinterest'
   username: string
   name: string | null
   credentials: string

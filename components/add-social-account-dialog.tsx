@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,12 +22,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Eye, EyeOff } from 'lucide-react'
+import { getSocialPlatformImage } from '@/lib/social-platform-images'
+
+const PLATFORMS = ['TikTok', 'Instagram', 'Snapchat', 'Pinterest'] as const
+type Platform = (typeof PLATFORMS)[number]
 
 type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused'
 
 interface SocialAccount {
   id?: string
-  platform: 'TikTok' | 'Instagram' | 'Snapchat'
+  platform: 'TikTok' | 'Instagram' | 'Snapchat' | 'Pinterest'
   username: string
   credentials: string
   status?: SocialAccountStatus
@@ -41,9 +47,10 @@ interface AddSocialAccountDialogProps {
 export function AddSocialAccountDialog({ deviceId, socialAccount, children }: AddSocialAccountDialogProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(true)
   const isEditing = !!socialAccount
   const [formData, setFormData] = useState({
-    platform: '' as 'TikTok' | 'Instagram' | 'Snapchat' | '',
+    platform: '' as 'TikTok' | 'Instagram' | 'Snapchat' | 'Pinterest' | '',
     username: '',
     credentials: '',
     status: 'planned' as SocialAccountStatus,
@@ -68,6 +75,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
         status: 'planned',
       })
     }
+    if (open) setShowPassword(true)
   }, [open, socialAccount])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,21 +148,38 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="platform">Platform *</Label>
-              <Select
-                value={formData.platform}
-                onValueChange={(value) => setFormData({ ...formData, platform: value as 'TikTok' | 'Instagram' | 'Snapchat' })}
-                required
-              >
-                <SelectTrigger id="platform">
-                  <SelectValue placeholder="Select platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TikTok">TikTok</SelectItem>
-                  <SelectItem value="Instagram">Instagram</SelectItem>
-                  <SelectItem value="Snapchat">Snapchat</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Platform *</Label>
+              <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Choose platform">
+                {PLATFORMS.map((platform) => {
+                  const isSelected = formData.platform === platform
+                  return (
+                    <button
+                      key={platform}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, platform })}
+                      className={`flex flex-col items-center gap-1 rounded-md border-2 p-2 transition-colors hover:bg-gray-50 ${
+                        isSelected
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                      aria-pressed={isSelected}
+                      aria-label={`${platform}`}
+                    >
+                      <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-[22%]">
+                        <Image
+                          src={getSocialPlatformImage(platform)}
+                          alt=""
+                          fill
+                          className="object-contain rounded-[22%]"
+                          sizes="28px"
+                          unoptimized
+                        />
+                      </div>
+                      <span className="text-[10px] font-medium text-gray-700 leading-tight">{platform}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="username">Username *</Label>
@@ -168,14 +193,31 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
             </div>
             <div className="grid gap-2">
               <Label htmlFor="credentials">Password *</Label>
-              <Input
-                id="credentials"
-                type="password"
-                placeholder="••••••••"
-                value={formData.credentials}
-                onChange={(e) => setFormData({ ...formData, credentials: e.target.value })}
-                required
-              />
+              <div className="relative flex items-center">
+                <Input
+                  id="credentials"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={formData.credentials}
+                  onChange={(e) => setFormData({ ...formData, credentials: e.target.value })}
+                  className="pr-9"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 h-8 w-8 p-0"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-3.5 w-3.5 text-gray-500" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5 text-gray-500" />
+                  )}
+                </Button>
+              </div>
             </div>
             {isEditing && (
               <div className="grid gap-2">
