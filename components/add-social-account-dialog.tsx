@@ -123,6 +123,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
         platform: '',
         username: '',
         credentials: '',
+        status: 'planned',
       })
       router.refresh()
     } catch (error) {

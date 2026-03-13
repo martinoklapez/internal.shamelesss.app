@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Eye, EyeOff } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -45,6 +46,7 @@ interface AddProxyDialogProps {
 export function AddProxyDialog({ deviceId, proxy, children }: AddProxyDialogProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(true)
   const isEditing = !!proxy
   const [formData, setFormData] = useState({
     type: '' as 'HTTP' | 'SOCKS5' | 'SOCKS4' | '',
@@ -90,6 +92,7 @@ export function AddProxyDialog({ deviceId, proxy, children }: AddProxyDialogProp
         asn: '',
       })
     }
+    if (open) setShowPassword(true)
   }, [open, proxy])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -242,13 +245,30 @@ export function AddProxyDialog({ deviceId, proxy, children }: AddProxyDialogProp
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Optional"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
+                <div className="relative flex items-center">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Optional"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="pr-9"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 h-8 w-8 p-0"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-3.5 w-3.5 text-gray-500" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5 text-gray-500" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
