@@ -35,7 +35,7 @@ interface SocialAccount {
   platform: 'TikTok' | 'Instagram' | 'Snapchat' | 'Pinterest'
   username: string
   credentials: string
-  status?: SocialAccountStatus
+  status?: SocialAccountStatus | 'archived'
 }
 
 interface AddSocialAccountDialogProps {
@@ -64,7 +64,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
         platform: socialAccount.platform || '',
         username: socialAccount.username || '',
         credentials: socialAccount.credentials || '',
-        status: (socialAccount.status ?? 'planned') as SocialAccountStatus,
+        status: (socialAccount.status === 'archived' ? 'planned' : (socialAccount.status ?? 'planned')) as SocialAccountStatus,
       })
     } else if (open && !socialAccount) {
       // Reset form when creating new
