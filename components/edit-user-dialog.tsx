@@ -84,6 +84,8 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
   const countryDropdownRef = useRef<HTMLDivElement>(null)
   const createPreviewUrlRef = useRef<string | null>(null)
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null)
+  /** Editable only for Demo role (server-enforced) */
+  const [connectionCount, setConnectionCount] = useState('0')
 
   const filteredCountries = countrySearch.trim()
     ? COUNTRIES.filter(
@@ -123,6 +125,7 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
       setInstagramHandle('')
       setSnapchatHandle('')
       setPassword('')
+      setConnectionCount('0')
     } else {
       setEmail(user!.email || '')
       setName(user!.name || '')
@@ -139,6 +142,7 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
       setInstagramHandle(user!.instagram_handle || '')
       setSnapchatHandle(user!.snapchat_handle || '')
       setPassword('')
+      setConnectionCount(String(user!.connection_count ?? 0))
     }
   }, [open, isCreate, user])
 
@@ -220,6 +224,14 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
           gender: gender && gender !== '' ? gender : null,
           instagram_handle: instagramHandle.trim() || null,
           snapchat_handle: snapchatHandle.trim() || null,
+          ...(role === 'demo'
+            ? {
+                connection_count: Math.min(
+                  1_000_000,
+                  Math.max(0, Math.floor(Number(connectionCount)) || 0)
+                ),
+              }
+            : {}),
         }),
       })
       const data = await response.json()
@@ -319,6 +331,14 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
           snapchat_handle: snapchatHandle.trim() || null,
           password: password.trim() || null,
           role: role || null,
+          ...(role === 'demo'
+            ? {
+                connection_count: Math.min(
+                  1_000_000,
+                  Math.max(0, Math.floor(Number(connectionCount)) || 0)
+                ),
+              }
+            : {}),
         }),
       })
       const data = await response.json()
@@ -533,6 +553,27 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
               </Select>
             </div>
 
+            {role === 'demo' && (
+              <div className="space-y-1 rounded-md border border-violet-200 bg-violet-50/50 p-2.5">
+                <Label htmlFor={`connection-count-${formId}`} className="text-xs font-medium text-violet-900">
+                  Connection count (demo only)
+                </Label>
+                <Input
+                  id={`connection-count-${formId}`}
+                  type="number"
+                  min={0}
+                  max={1_000_000}
+                  inputMode="numeric"
+                  value={connectionCount}
+                  onChange={(e) => setConnectionCount(e.target.value)}
+                  className="h-8 text-sm max-w-[140px]"
+                />
+                <p className="text-[11px] text-violet-800/80 leading-snug">
+                  Shown as this user&apos;s connection count in the app. Only editable for Demo accounts.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label htmlFor={`email-${formId}`} className="text-xs">Email</Label>
@@ -561,7 +602,12 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
 
             {!isCreate && user && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-xs text-gray-500">
-                <span>Connections: <span className="font-medium text-gray-700">{user.connection_count}</span></span>
+                {user.role !== 'demo' && (
+                  <span>
+                    Connections:{' '}
+                    <span className="font-medium text-gray-700">{user.connection_count}</span>
+                  </span>
+                )}
                 {user.created_at && (
                   <span>Created: {formatDate(user.created_at)}{user.created_at.includes('T') && ` ${new Date(user.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`}</span>
                 )}

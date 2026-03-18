@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       snapchat_handle,
       password,
       role,
+      connection_count,
     } = body as {
       userId?: string
       email?: string | null
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       snapchat_handle?: string | null
       password?: string | null
       role?: string | null
+      connection_count?: number | null
     }
 
     if (!userId) {
@@ -152,6 +154,50 @@ export async function POST(request: Request) {
         console.error('Error updating user role:', roleError)
         return NextResponse.json(
           { error: `Failed to update role: ${roleError.message}` },
+          { status: 500 }
+        )
+      }
+    }
+
+    if (connection_count !== undefined && connection_count !== null) {
+      const { data: roleRow, error: roleFetchError } = await adminSupabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (roleFetchError) {
+        console.error('Error fetching role for connection_count:', roleFetchError)
+        return NextResponse.json(
+          { error: `Failed to verify user role: ${roleFetchError.message}` },
+          { status: 500 }
+        )
+      }
+
+      if (roleRow?.role !== 'demo') {
+        return NextResponse.json(
+          { error: 'Connection count can only be changed for users with the Demo role.' },
+          { status: 403 }
+        )
+      }
+
+      const n = Number(connection_count)
+      if (!Number.isFinite(n) || n < 0 || n > 1_000_000 || !Number.isInteger(n)) {
+        return NextResponse.json(
+          { error: 'connection_count must be an integer from 0 to 1000000' },
+          { status: 400 }
+        )
+      }
+
+      const { error: ccError } = await adminSupabase
+        .from('profiles')
+        .update({ connection_count: n })
+        .eq('user_id', userId)
+
+      if (ccError) {
+        console.error('Error updating connection_count:', ccError)
+        return NextResponse.json(
+          { error: `Failed to update connection count: ${ccError.message}` },
           { status: 500 }
         )
       }

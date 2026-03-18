@@ -31,6 +31,7 @@ export async function POST(request: Request) {
       gender,
       instagram_handle,
       snapchat_handle,
+      connection_count,
     } = body as {
       email?: string
       name?: string
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       gender?: string | null
       instagram_handle?: string | null
       snapchat_handle?: string | null
+      connection_count?: number | null
     }
 
     if (!email || !role) {
@@ -105,6 +107,13 @@ export async function POST(request: Request) {
 
     // Ensure a profile row exists with all provided fields (via service client to avoid RLS issues)
     const ageNum = age != null && !Number.isNaN(Number(age)) ? Number(age) : null
+    let initialConnections: number | undefined
+    if (role === 'demo' && connection_count !== undefined && connection_count !== null) {
+      const n = Number(connection_count)
+      if (Number.isFinite(n) && Number.isInteger(n) && n >= 0 && n <= 1_000_000) {
+        initialConnections = n
+      }
+    }
     const { error: profileError } = await adminSupabase
       .from('profiles')
       .upsert(
@@ -117,6 +126,7 @@ export async function POST(request: Request) {
           gender: gender || null,
           instagram_handle: instagram_handle || null,
           snapchat_handle: snapchat_handle || null,
+          ...(initialConnections !== undefined ? { connection_count: initialConnections } : {}),
         },
         { onConflict: 'user_id' }
       )
