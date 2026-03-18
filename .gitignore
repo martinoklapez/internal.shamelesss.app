@@ -28,6 +28,10 @@ yarn-error.log*
 .env*.local
 .env
 
+# backup extracts (may contain credentials)
+supabase/backup_social_accounts_copy.txt
+supabase/backup_*.txt
+
 # vercel
 .vercel
 
