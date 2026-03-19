@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -47,7 +48,6 @@ function TestUserCombobox({
   users,
   value,
   onChange,
-  portalContainer,
   open,
   onOpenChange,
   emptyLabel = 'Search or select user…',
@@ -57,7 +57,6 @@ function TestUserCombobox({
   users: TestPushUser[]
   value: string
   onChange: (id: string) => void
-  portalContainer: HTMLDivElement | null
   open: boolean
   onOpenChange: (open: boolean) => void
   emptyLabel?: string
@@ -71,7 +70,7 @@ function TestUserCombobox({
           <p className="text-[11px] text-gray-500 leading-snug">{labelHint}</p>
         ) : null}
       </div>
-      <Popover open={open} onOpenChange={onOpenChange}>
+      <Popover modal={false} open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -99,7 +98,6 @@ function TestUserCombobox({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          container={portalContainer}
           className="z-[200] w-[min(100vw-2rem,var(--radix-popover-trigger-width,100%))] border border-gray-200 bg-white p-0 shadow-lg"
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
@@ -168,121 +166,9 @@ function UserRow({ u, size = 'md' }: { u: TestPushUser; size?: 'sm' | 'md' }) {
   )
 }
 
-const PREVIEW_VALUES: Record<string, string> = {
-  sender_name: 'John',
-  recipient_name: 'Jane',
-  message_preview: 'Hey there!',
-}
-
 const KNOWN_PLACEHOLDERS = new Set(Object.keys(NOTIFICATION_PLACEHOLDERS))
 
-function previewText(text: string): string {
-  return text.replace(/\{(\w+)\}/g, (_, key) => PREVIEW_VALUES[key] ?? `{${key}}`)
-}
-
-/** Serialize contenteditable content back to plain template string */
-function serializeTemplateEl(el: HTMLElement): string {
-  let out = ''
-  const walk = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      out += node.textContent ?? ''
-      return
-    }
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const span = node as HTMLElement
-      if (span.getAttribute?.('data-ignore') !== null) return
-      const key = span.getAttribute?.('data-placeholder')
-      if (key != null) {
-        out += `{${key}}`
-        return
-      }
-    }
-    node.childNodes.forEach(walk)
-  }
-  el.childNodes.forEach(walk)
-  return out
-}
-
-/** Editable field: template string with placeholders rendered as inline badges */
-function TemplateInput({
-  value,
-  onChange,
-  placeholder,
-  className,
-  id,
-}: {
-  value: string
-  onChange: (s: string) => void
-  placeholder?: string
-  className?: string
-  id?: string
-}) {
-  const [internal, setInternal] = useState(value)
-  const elRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    setInternal(value)
-  }, [value])
-
-  const parts: React.ReactNode[] = []
-  const re = /\{(\w+)\}/g
-  let lastIndex = 0
-  let m: RegExpExecArray | null
-  while ((m = re.exec(internal)) !== null) {
-    if (m.index > lastIndex) {
-      parts.push(internal.slice(lastIndex, m.index))
-    }
-    const key = m[1]
-    parts.push(
-      <span
-        key={`${m.index}-${key}`}
-        contentEditable={false}
-        data-placeholder={key}
-        className={
-          KNOWN_PLACEHOLDERS.has(key)
-            ? 'inline-flex items-center rounded bg-emerald-600 text-white text-[10px] px-1.5 py-0 font-mono align-baseline'
-            : 'inline-flex items-center rounded bg-gray-200 text-gray-600 text-[10px] px-1.5 py-0 font-mono align-baseline'
-        }
-      >
-        {`{${key}}`}
-      </span>
-    )
-    lastIndex = m.index + m[0].length
-  }
-  if (lastIndex < internal.length) {
-    parts.push(internal.slice(lastIndex))
-  }
-  if (parts.length === 0 && placeholder) {
-    parts.push(
-      <span key="ph" data-ignore className="pointer-events-none text-gray-400">
-        {placeholder}
-      </span>
-    )
-  }
-
-  return (
-    <div
-      ref={elRef}
-      id={id}
-      contentEditable
-      suppressContentEditableWarning
-      onInput={() => {
-        if (!elRef.current) return
-        const next = serializeTemplateEl(elRef.current)
-        setInternal(next)
-        onChange(next)
-      }}
-      className={cn(
-        'min-h-8 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-        className
-      )}
-    >
-      {parts}
-    </div>
-  )
-}
-
-/** Renders template text with placeholders as badges (known = green, unknown = gray) */
+/** Renders template text with placeholders as badges (known = solid, unknown = lighter tint) */
 function TemplateWithBadges({ text, className }: { text: string; className?: string }) {
   const parts: Array<{ type: 'text' | 'placeholder'; value: string }> = []
   let lastIndex = 0
@@ -310,8 +196,8 @@ function TemplateWithBadges({ text, className }: { text: string; className?: str
             variant={KNOWN_PLACEHOLDERS.has(p.value) ? 'default' : 'secondary'}
             className={
               KNOWN_PLACEHOLDERS.has(p.value)
-                ? 'bg-emerald-600 text-white border-0 text-[10px] px-1.5 py-0 font-mono'
-                : 'bg-gray-200 text-gray-600 border-0 text-[10px] px-1.5 py-0 font-mono'
+                ? 'bg-[#ff5252] text-black border-0 text-[10px] px-1.5 py-0 font-mono'
+                : 'bg-[#ff5252]/15 text-black border-0 text-[10px] px-1.5 py-0 font-mono'
             }
           >
             {`{${p.value}}`}
@@ -350,10 +236,10 @@ export default function NotificationTemplatesManager({
   /** Custom message body for message test pushes */
   const [testMessagePreview, setTestMessagePreview] = useState('Hey, want to grab coffee tomorrow?')
   /** Inline status shown in test modal after send */
-  const [testSendStatus, setTestSendStatus] = useState<string | null>(null)
-  /** Popover must portal inside this dialog so clicks on the list aren’t swallowed as “outside” the dialog. */
-  const [testPushPopoverContainer, setTestPushPopoverContainer] = useState<HTMLDivElement | null>(null)
-
+  const [testSendStatus, setTestSendStatus] = useState<{
+    text: string
+    tone: 'success' | 'warning'
+  } | null>(null)
   const openEdit = (t: NotificationContentTemplate) => {
     setEditing(t)
     setTitleTemplate(t.title_template)
@@ -521,8 +407,24 @@ export default function NotificationTemplatesManager({
         }
         throw new Error(parts.filter(Boolean).join('\n') || 'Failed to send test')
       }
-      const msg = [data.message, data.warning].filter(Boolean).join(' ')
-      setTestSendStatus(msg || 'Test push queued.')
+      const pushFailed = data.push_delivery_failed === true
+      const pushDetail =
+        typeof data.push_failure_message === 'string' ? data.push_failure_message.trim() : ''
+
+      let text: string
+      if (pushFailed) {
+        text = pushDetail
+          ? `Job queued. ${pushDetail}`
+          : [data.message, data.warning].filter(Boolean).join(' ') ||
+            'Job queued; push could not be delivered.'
+      } else {
+        text = [data.message, data.warning].filter(Boolean).join(' ') || 'Test push queued.'
+      }
+
+      setTestSendStatus({
+        text,
+        tone: pushFailed ? 'warning' : 'success',
+      })
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to send test')
     } finally {
@@ -537,14 +439,16 @@ export default function NotificationTemplatesManager({
       {/* Templates list — minimal rows */}
       <section>
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Templates</h2>
-        <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 overflow-hidden">
+        <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 overflow-x-auto">
           {templates.map((t) => (
             <div
               key={t.notification_type}
-              className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 hover:bg-gray-50/80"
+              className="flex flex-wrap items-center gap-x-6 sm:gap-x-10 gap-y-2 px-3 sm:px-4 py-2.5 hover:bg-gray-50/80 min-w-0"
             >
-              <span className="font-mono text-sm text-gray-900 w-44 shrink-0">{t.notification_type}</span>
-              <span className="text-sm text-gray-700 min-w-0 flex-1">
+              <span className="font-mono text-sm text-gray-900 w-44 sm:w-52 shrink-0 pr-2">
+                {t.notification_type}
+              </span>
+              <span className="text-sm text-gray-700 min-w-0 flex-1 pl-1">
                 <TemplateWithBadges text={t.title_template} /> — <TemplateWithBadges text={t.body_template} />
               </span>
               <span className="text-xs text-gray-400 shrink-0">{formatDate(t.updated_at)}</span>
@@ -552,7 +456,7 @@ export default function NotificationTemplatesManager({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-gray-600 hover:text-emerald-600"
+                  className="h-7 px-2 text-gray-600 hover:text-[#ff5252]"
                   onClick={() => openTestModal(t.notification_type)}
                   title="Send test push"
                 >
@@ -591,22 +495,22 @@ export default function NotificationTemplatesManager({
             <>
               <div className="space-y-2">
                 <Label className="text-xs">Title</Label>
-                <TemplateInput
+                <Input
                   id="edit-title"
                   value={titleTemplate}
-                  onChange={setTitleTemplate}
+                  onChange={(e) => setTitleTemplate(e.target.value)}
                   placeholder="Title template"
-                  className="text-sm"
+                  className="text-sm font-mono"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Body</Label>
-                <TemplateInput
+                <Textarea
                   id="edit-body"
                   value={bodyTemplate}
-                  onChange={setBodyTemplate}
+                  onChange={(e) => setBodyTemplate(e.target.value)}
                   placeholder="Body template"
-                  className="text-sm"
+                  className="min-h-[100px] text-sm font-mono"
                 />
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
@@ -617,7 +521,7 @@ export default function NotificationTemplatesManager({
                       key={`t-${p}`}
                       type="button"
                       onClick={() => insertPlaceholder(p, 'title')}
-                      className="mr-1 font-mono text-emerald-600 hover:underline"
+                      className="mr-1 font-mono text-[#ff5252] hover:underline"
                     >
                       {`{${p}}`}
                     </button>
@@ -630,16 +534,23 @@ export default function NotificationTemplatesManager({
                       key={`b-${p}`}
                       type="button"
                       onClick={() => insertPlaceholder(p, 'body')}
-                      className="mr-1 font-mono text-emerald-600 hover:underline"
+                      className="mr-1 font-mono text-[#ff5252] hover:underline"
                     >
                       {`{${p}}`}
                     </button>
                   ))}
                 </span>
               </div>
-              <p className="text-xs text-gray-400">
-                Preview: <strong>{previewText(titleTemplate)}</strong> — {previewText(bodyTemplate)}
-              </p>
+              <div className="text-xs text-gray-400 space-y-1">
+                <div>
+                  <span className="text-gray-500">Preview (title):</span>{' '}
+                  <TemplateWithBadges text={titleTemplate} />
+                </div>
+                <div>
+                  <span className="text-gray-500">Preview (body):</span>{' '}
+                  <TemplateWithBadges text={bodyTemplate} />
+                </div>
+              </div>
             </>
           )}
           <DialogFooter className="gap-2 pt-2">
@@ -667,8 +578,33 @@ export default function NotificationTemplatesManager({
           }
         }}
       >
-        <DialogContent className="max-w-md gap-4 p-4">
-          <div ref={setTestPushPopoverContainer} className="flex flex-col gap-4">
+        <DialogContent
+          className="max-w-md gap-4 p-4"
+          onPointerDownOutside={(e) => {
+            // Popover + cmdk render in a portal; without this, Dialog treats list clicks as “outside”.
+            const t = e.target as HTMLElement
+            if (
+              t.closest('[data-radix-popper-content-wrapper]') ||
+              t.closest('[data-radix-popover-content]') ||
+              t.closest('[cmdk-root]') ||
+              t.closest('[role="listbox"]')
+            ) {
+              e.preventDefault()
+            }
+          }}
+          onInteractOutside={(e) => {
+            const t = e.target as HTMLElement
+            if (
+              t.closest('[data-radix-popper-content-wrapper]') ||
+              t.closest('[data-radix-popover-content]') ||
+              t.closest('[cmdk-root]') ||
+              t.closest('[role="listbox"]')
+            ) {
+              e.preventDefault()
+            }
+          }}
+        >
+          <div className="flex flex-col gap-4">
             <DialogHeader className="space-y-0">
               <DialogTitle className="text-sm font-semibold">
                 Send test push — {testModalType}
@@ -681,7 +617,6 @@ export default function NotificationTemplatesManager({
                 users={testUsers}
                 value={modalTestUserId}
                 onChange={setModalTestUserId}
-                portalContainer={testPushPopoverContainer}
                 open={testRecipientPickerOpen}
                 onOpenChange={(o) => {
                   setTestRecipientPickerOpen(o)
@@ -699,7 +634,6 @@ export default function NotificationTemplatesManager({
                     users={testUsers}
                     value={modalContextUserId}
                     onChange={setModalContextUserId}
-                    portalContainer={testPushPopoverContainer}
                     open={testContextPickerOpen}
                     onOpenChange={(o) => {
                       setTestContextPickerOpen(o)
@@ -730,8 +664,15 @@ export default function NotificationTemplatesManager({
             </div>
             <DialogFooter className="gap-2 pt-2">
               {testSendStatus ? (
-                <p className="mr-auto text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-2 py-1.5">
-                  {testSendStatus}
+                <p
+                  className={cn(
+                    'mr-auto text-xs rounded-md px-2 py-1.5 border',
+                    testSendStatus.tone === 'warning'
+                      ? 'text-amber-900 bg-amber-50 border-amber-200'
+                      : 'text-emerald-700 bg-emerald-50 border-emerald-100'
+                  )}
+                >
+                  {testSendStatus.text}
                 </p>
               ) : null}
               <Button variant="outline" size="sm" onClick={() => setTestModalType(null)} disabled={sendingTest}>

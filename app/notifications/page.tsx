@@ -23,7 +23,7 @@ export default async function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-full px-5 sm:px-8 lg:px-10 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             Push notifications

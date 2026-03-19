@@ -367,16 +367,96 @@ export async function enqueuePendingNotificationJob(
   return { ok: true, jobId }
 }
 
+/** User-facing hint when Expo / APNs has nothing to send to */
+export function describeMissingPushTokenError(raw: string): string | null {
+  const t = raw.toLowerCase()
+  const looksMissing =
+    /\bno\s+(push\s+)?token\b/.test(t) ||
+    /\b(push\s+)?token\b.*\b(missing|not found|none|empty)\b/.test(t) ||
+    /\bno\s+device\s+token\b/.test(t) ||
+    /\b(device|expo)\s+token\b.*\b(missing|not registered|none)\b/.test(t) ||
+    /\bExponentPushToken\b.*\b(invalid|missing)\b/.test(t) ||
+    t.includes('no push token') ||
+    t.includes('no expo push token') ||
+    (t.includes('expo') && t.includes('token') && (t.includes('no ') || t.includes('missing')))
+  if (!looksMissing) return null
+  return 'No push token for this user — open the app on a device/simulator with notifications enabled so a token is registered, then try again.'
+}
+
+function summarizeInvokePayload(data: unknown): { failureText?: string } {
+  if (data == null || typeof data !== 'object') return {}
+  const d = data as Record<string, unknown>
+
+  if (typeof d.error === 'string' && d.error.trim()) {
+    return { failureText: d.error.trim() }
+  }
+  if (d.success === false && typeof d.message === 'string' && d.message.trim()) {
+    return { failureText: d.message.trim() }
+  }
+  const failures = d.failures ?? d.failed ?? d.errors
+  if (Array.isArray(failures) && failures.length > 0) {
+    const first = failures[0] as Record<string, unknown>
+    const reason =
+      (typeof first.reason === 'string' && first.reason) ||
+      (typeof first.error === 'string' && first.error) ||
+      (typeof first.message === 'string' && first.message) ||
+      null
+    if (reason) return { failureText: reason }
+    try {
+      return { failureText: JSON.stringify(first) }
+    } catch {
+      return { failureText: 'One or more sends failed' }
+    }
+  }
+  if (typeof d.warning === 'string' && d.warning.trim()) {
+    return { failureText: d.warning.trim() }
+  }
+  return {}
+}
+
+export type InvokeNotificationWorkerResult =
+  | { ok: true; note?: string }
+  | {
+      ok: false
+      error: string
+      /** Best message to show in admin UI */
+      displayMessage: string
+    }
+
 export async function invokeNotificationWorker(
   admin: SupabaseClient,
   functionName = 'send-push-notifications'
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<InvokeNotificationWorkerResult> {
   const { data, error } = await admin.functions.invoke(functionName, {
     body: {},
   })
+
   if (error) {
-    return { ok: false, error: error.message }
+    const msg = error.message || 'Edge Function failed'
+    const missing = describeMissingPushTokenError(msg)
+    return {
+      ok: false,
+      error: msg,
+      displayMessage: missing ?? msg,
+    }
   }
-  void data
+
+  const { failureText } = summarizeInvokePayload(data)
+  if (failureText) {
+    const missing = describeMissingPushTokenError(failureText)
+    return {
+      ok: false,
+      error: failureText,
+      displayMessage: missing ?? failureText,
+    }
+  }
+
+  if (data && typeof data === 'object') {
+    const d = data as Record<string, unknown>
+    if (typeof d.note === 'string' && d.note.trim()) {
+      return { ok: true, note: d.note.trim() }
+    }
+  }
+
   return { ok: true }
 }

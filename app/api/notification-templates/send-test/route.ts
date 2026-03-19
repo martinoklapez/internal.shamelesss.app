@@ -178,19 +178,30 @@ export async function POST(request: Request) {
     }
 
     let invokeNote: string | undefined
+    let pushDeliveryFailed = false
+    let pushFailureMessage: string | undefined
+
     if (process.env.NOTIFICATION_TEST_SKIP_INVOKE !== 'true') {
       const invoked = await invokeNotificationWorker(admin)
       if (!invoked.ok) {
-        invokeNote =
-          `Job queued (id: ${enqueued.jobId ?? 'unknown'}) but invoking send-push-notifications failed: ${invoked.error}. Process pending jobs manually or wait for your scheduler.`
+        pushDeliveryFailed = true
+        pushFailureMessage = invoked.displayMessage
+        invokeNote = `Invoking send-push-notifications failed: ${invoked.error}`
+      } else if (invoked.note) {
+        invokeNote = invoked.note
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: invokeNote ?? 'Test notification job queued and worker invoked.',
+      message:
+        pushDeliveryFailed && pushFailureMessage
+          ? 'Job queued — push could not be delivered.'
+          : invokeNote ?? 'Test notification job queued and worker invoked.',
       job_id: enqueued.jobId ?? undefined,
-      warning: invokeNote,
+      warning: pushDeliveryFailed ? undefined : invokeNote,
+      push_delivery_failed: pushDeliveryFailed,
+      push_failure_message: pushFailureMessage,
     })
   } catch (err) {
     console.error('Send test push:', err)
