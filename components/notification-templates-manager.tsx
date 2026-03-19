@@ -12,21 +12,161 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/date'
 import {
   type NotificationContentTemplate,
-  PLACEHOLDERS_BY_TYPE,
   NOTIFICATION_PLACEHOLDERS,
+  PLACEHOLDERS_BY_TYPE,
+  TEST_PUSH_CONTEXT_USER_LABEL,
+  notificationTestNeedsContextUser,
 } from '@/lib/notification-content-templates'
-import { Pencil, Trash2, Send, Play } from 'lucide-react'
+import { Pencil, Trash2, Send, Play, ChevronsUpDown, Check } from 'lucide-react'
+
+type TestPushUser = {
+  id: string
+  name: string | null
+  username: string | null
+  profile_picture_url: string | null
+  email: string | null
+}
+
+function TestUserCombobox({
+  label,
+  labelHint,
+  users,
+  value,
+  onChange,
+  portalContainer,
+  open,
+  onOpenChange,
+  emptyLabel = 'Search or select user…',
+}: {
+  label: string
+  labelHint?: string
+  users: TestPushUser[]
+  value: string
+  onChange: (id: string) => void
+  portalContainer: HTMLDivElement | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  emptyLabel?: string
+}) {
+  const selected = users.find((x) => x.id === value)
+  return (
+    <div className="space-y-1.5">
+      <div className="space-y-0.5">
+        <Label className="text-xs">{label}</Label>
+        {labelHint ? (
+          <p className="text-[11px] text-gray-500 leading-snug">{labelHint}</p>
+        ) : null}
+      </div>
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="h-auto min-h-9 w-full justify-between px-2 py-1.5 font-normal"
+          >
+            {value && selected ? (
+              <UserRow u={selected} size="sm" />
+            ) : value && !selected ? (
+              <UserRow
+                u={{
+                  id: value,
+                  name: null,
+                  username: null,
+                  profile_picture_url: null,
+                  email: null,
+                }}
+                size="sm"
+              />
+            ) : (
+              <span className="text-sm text-gray-500">{emptyLabel}</span>
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          container={portalContainer}
+          className="z-[200] w-[min(100vw-2rem,var(--radix-popover-trigger-width,100%))] border border-gray-200 bg-white p-0 shadow-lg"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <Command
+            className="bg-white opacity-100"
+            filter={(val, search, keywords) => {
+              const q = search.trim().toLowerCase()
+              if (!q) return 1
+              const hay = [val, ...(keywords ?? [])].join(' ').toLowerCase()
+              return hay.includes(q) ? 1 : 0
+            }}
+          >
+            <CommandInput placeholder="Search by name, @username, email…" className="h-9" />
+            <CommandList className="bg-white opacity-100 text-gray-900">
+              <CommandEmpty>No user found.</CommandEmpty>
+              {users.map((u) => (
+                <CommandItem
+                  key={u.id}
+                  value={u.id}
+                  keywords={
+                    [
+                      u.name ?? '',
+                      u.username ? `@${u.username}` : '',
+                      u.email ?? '',
+                    ].filter(Boolean) as string[]
+                  }
+                  onSelect={(id) => {
+                    onChange(id)
+                    onOpenChange(false)
+                  }}
+                  className="relative cursor-pointer py-2 pr-8 opacity-100 data-[disabled]:opacity-100"
+                >
+                  <UserRow u={u} />
+                  {value === u.id ? (
+                    <Check className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-black" />
+                  ) : null}
+                </CommandItem>
+              ))}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
+
+function UserRow({ u, size = 'md' }: { u: TestPushUser; size?: 'sm' | 'md' }) {
+  const avatarClass = size === 'sm' ? 'h-8 w-8' : 'h-9 w-9'
+  const initial = (u.name || u.username || u.email || 'U').charAt(0).toUpperCase()
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <Avatar className={avatarClass}>
+        {u.profile_picture_url ? (
+          <AvatarImage src={u.profile_picture_url} alt={u.name || u.username || 'User'} />
+        ) : null}
+        <AvatarFallback className="text-xs">{initial}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1 text-left">
+        <div className="truncate text-sm font-medium text-gray-900">{u.name || '—'}</div>
+        <div className="truncate text-xs text-gray-500">
+          {u.username ? `@${u.username}` : u.email || u.id.slice(0, 8)}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const PREVIEW_VALUES: Record<string, string> = {
   sender_name: 'John',
@@ -197,11 +337,22 @@ export default function NotificationTemplatesManager({
   const [saving, setSaving] = useState(false)
   const [deletingType, setDeletingType] = useState<string | null>(null)
 
-  const [testUsers, setTestUsers] = useState<Array<{ id: string; name: string | null; email: string | null }>>([])
+  const [testUsers, setTestUsers] = useState<TestPushUser[]>([])
+  const [testRecipientPickerOpen, setTestRecipientPickerOpen] = useState(false)
+  const [testContextPickerOpen, setTestContextPickerOpen] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
 
   const [testModalType, setTestModalType] = useState<string | null>(null)
+  /** User who receives the test push */
   const [modalTestUserId, setModalTestUserId] = useState<string>('')
+  /** Other party for template placeholders (sender, accepter, etc.) */
+  const [modalContextUserId, setModalContextUserId] = useState<string>('')
+  /** Custom message body for message test pushes */
+  const [testMessagePreview, setTestMessagePreview] = useState('Hey, want to grab coffee tomorrow?')
+  /** Inline status shown in test modal after send */
+  const [testSendStatus, setTestSendStatus] = useState<string | null>(null)
+  /** Popover must portal inside this dialog so clicks on the list aren’t swallowed as “outside” the dialog. */
+  const [testPushPopoverContainer, setTestPushPopoverContainer] = useState<HTMLDivElement | null>(null)
 
   const openEdit = (t: NotificationContentTemplate) => {
     setEditing(t)
@@ -281,21 +432,43 @@ export default function NotificationTemplatesManager({
     const res = await fetch('/api/users/list')
     const data = await res.json()
     if (res.ok && Array.isArray(data.users)) {
-      setTestUsers(data.users)
+      setTestUsers(
+        data.users.map((u: TestPushUser) => ({
+          ...u,
+          username: u.username ?? null,
+        }))
+      )
     }
+  }
+
+  const applyInitialTestUsers = (users: TestPushUser[]) => {
+    if (!users.length) {
+      setModalTestUserId('')
+      setModalContextUserId('')
+      return
+    }
+    setModalTestUserId(users[0].id)
+    const other = users.find((u) => u.id !== users[0].id)
+    setModalContextUserId(other?.id ?? '')
   }
 
   const openTestModal = (notificationType: string) => {
     setTestModalType(notificationType)
+    setTestMessagePreview('Hey, want to grab coffee tomorrow?')
+    setTestSendStatus(null)
     if (testUsers.length > 0) {
-      setModalTestUserId(testUsers[0].id)
+      applyInitialTestUsers(testUsers)
     } else {
       fetch('/api/users/list')
         .then((res) => res.json())
         .then((data) => {
           if (data.users?.length) {
-            setTestUsers(data.users)
-            setModalTestUserId(data.users[0].id)
+            const mapped = data.users.map((u: TestPushUser) => ({
+              ...u,
+              username: u.username ?? null,
+            }))
+            setTestUsers(mapped)
+            applyInitialTestUsers(mapped)
           }
         })
     }
@@ -303,20 +476,53 @@ export default function NotificationTemplatesManager({
 
   const handleSendTestFromModal = async () => {
     if (!testModalType || !modalTestUserId) {
-      alert('Select a user.')
+      alert('Select who receives the push.')
       return
     }
+    const needsContext = notificationTestNeedsContextUser(testModalType)
+    if (needsContext) {
+      if (!modalContextUserId) {
+        alert('This template uses placeholders — select the other user (sender / context).')
+        return
+      }
+      if (modalContextUserId === modalTestUserId) {
+        alert('Choose two different users: one receives the push, the other fills sender/name placeholders.')
+        return
+      }
+    }
     setSendingTest(true)
+    setTestSendStatus(null)
     try {
+      const payload: {
+        user_id: string
+        notification_type: string
+        context_user_id?: string
+        test_message_preview?: string
+      } = {
+        user_id: modalTestUserId,
+        notification_type: testModalType,
+      }
+      if (needsContext) payload.context_user_id = modalContextUserId
+      if (testModalType === 'message') {
+        payload.test_message_preview =
+          testMessagePreview.trim() || 'Hey, want to grab coffee tomorrow?'
+      }
+
       const res = await fetch('/api/notification-templates/send-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: modalTestUserId, notification_type: testModalType }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to send test')
-      setTestModalType(null)
-      alert(data.message ?? 'Test push sent.')
+      if (!res.ok) {
+        const parts = [data.error, data.details, data.hint, data.code ? `(${data.code})` : '']
+        if (data.debug && typeof data.debug === 'object') {
+          parts.push(`tried: ${JSON.stringify(data.debug)}`)
+        }
+        throw new Error(parts.filter(Boolean).join('\n') || 'Failed to send test')
+      }
+      const msg = [data.message, data.warning].filter(Boolean).join(' ')
+      setTestSendStatus(msg || 'Test push queued.')
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to send test')
     } finally {
@@ -448,48 +654,108 @@ export default function NotificationTemplatesManager({
       </Dialog>
 
       {/* Send test modal (opened from row play icon) */}
-      <Dialog open={testModalType !== null} onOpenChange={(open) => !open && setTestModalType(null)}>
-        <DialogContent className="max-w-sm gap-4 p-4">
-          <DialogHeader className="space-y-0">
-            <DialogTitle className="text-sm font-semibold">
-              Send test push — {testModalType}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">User</Label>
-              <Select
+      <Dialog
+        open={testModalType !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTestModalType(null)
+            setTestRecipientPickerOpen(false)
+            setTestContextPickerOpen(false)
+            setModalContextUserId('')
+            setTestMessagePreview('Hey, want to grab coffee tomorrow?')
+            setTestSendStatus(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-md gap-4 p-4">
+          <div ref={setTestPushPopoverContainer} className="flex flex-col gap-4">
+            <DialogHeader className="space-y-0">
+              <DialogTitle className="text-sm font-semibold">
+                Send test push — {testModalType}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <TestUserCombobox
+                label="Recipient"
+                labelHint="Gets the test push on their device."
+                users={testUsers}
                 value={modalTestUserId}
-                onValueChange={setModalTestUserId}
-                onOpenChange={(open) => open && testUsers.length === 0 && loadTestUsers()}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {testUsers.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name || u.email || u.id.slice(0, 8)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={setModalTestUserId}
+                portalContainer={testPushPopoverContainer}
+                open={testRecipientPickerOpen}
+                onOpenChange={(o) => {
+                  setTestRecipientPickerOpen(o)
+                  if (o && testUsers.length === 0) void loadTestUsers()
+                }}
+              />
+              {testModalType != null && notificationTestNeedsContextUser(testModalType) ? (
+                <>
+                  <TestUserCombobox
+                    label="Context user"
+                    labelHint={
+                      TEST_PUSH_CONTEXT_USER_LABEL[testModalType] ??
+                      'Used to fill template placeholders (name, etc.). Must be someone other than the recipient.'
+                    }
+                    users={testUsers}
+                    value={modalContextUserId}
+                    onChange={setModalContextUserId}
+                    portalContainer={testPushPopoverContainer}
+                    open={testContextPickerOpen}
+                    onOpenChange={(o) => {
+                      setTestContextPickerOpen(o)
+                      if (o && testUsers.length === 0) void loadTestUsers()
+                    }}
+                  />
+                  {testUsers.length < 2 ? (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2 py-1.5">
+                      You need at least two users in the database to test this template with real names.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+              {testModalType === 'message' ? (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Test message text</Label>
+                  <Textarea
+                    value={testMessagePreview}
+                    onChange={(e) => setTestMessagePreview(e.target.value)}
+                    placeholder="Hey, want to grab coffee tomorrow?"
+                    className="min-h-[76px] text-sm"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Used for the push body and placeholder <code>{'{message_preview}'}</code>.
+                  </p>
+                </div>
+              ) : null}
             </div>
+            <DialogFooter className="gap-2 pt-2">
+              {testSendStatus ? (
+                <p className="mr-auto text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-2 py-1.5">
+                  {testSendStatus}
+                </p>
+              ) : null}
+              <Button variant="outline" size="sm" onClick={() => setTestModalType(null)} disabled={sendingTest}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={handleSendTestFromModal}
+                disabled={
+                  sendingTest ||
+                  !modalTestUserId ||
+                  (testModalType != null &&
+                    notificationTestNeedsContextUser(testModalType) &&
+                    (!modalContextUserId ||
+                      modalContextUserId === modalTestUserId ||
+                      testUsers.length < 2))
+                }
+              >
+                <Send className="h-3.5 w-3.5" />
+                {sendingTest ? 'Sending...' : 'Send test'}
+              </Button>
+            </DialogFooter>
           </div>
-          <DialogFooter className="gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setTestModalType(null)} disabled={sendingTest}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="gap-1.5"
-              onClick={handleSendTestFromModal}
-              disabled={sendingTest || !modalTestUserId}
-            >
-              <Send className="h-3.5 w-3.5" />
-              {sendingTest ? 'Sending...' : 'Send test'}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

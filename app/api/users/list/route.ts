@@ -44,7 +44,7 @@ export async function GET() {
     // Fetch profiles for these users
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('user_id, name, profile_picture_url')
+      .select('user_id, name, username, profile_picture_url')
       .in('user_id', userIds)
 
     if (profilesError) {
@@ -99,6 +99,7 @@ export async function GET() {
       return {
         id: userId,
         name: profile?.name || null,
+        username: profile?.username || null,
         profile_picture_url: profile?.profile_picture_url || null,
         email: email, // Keep email as fallback
       }
