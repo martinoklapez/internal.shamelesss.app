@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -20,7 +20,11 @@ import {
   type ReengagementOutputType,
   type ReengagementTriggerType,
 } from '@/lib/reengagement-types'
-import { Check, ChevronsUpDown, Search } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react'
+
+const EXECUTIONS_PAGE_SIZE = 20
+
+type CampaignPanelTab = 'setup' | 'executions'
 
 const OUTPUT_TYPE_OPTIONS: ReengagementOutputType[] = [
   'push_notification',
@@ -52,12 +56,19 @@ export default function ReengagementManager() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
   const [outputs, setOutputs] = useState<ReengagementCampaignOutput[]>([])
   const [executions, setExecutions] = useState<ReengagementCampaignExecution[]>([])
+  const [campaignPanelTab, setCampaignPanelTab] = useState<CampaignPanelTab>('setup')
+  const [executionsPage, setExecutionsPage] = useState(1)
+  const [executionsTotal, setExecutionsTotal] = useState(0)
+  const [executionsLoading, setExecutionsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testUserId, setTestUserId] = useState('')
   const [testSecret, setTestSecret] = useState('')
 
   const [testUsers, setTestUsers] = useState<TestRunUser[]>([])
+  const [testUsersLoading, setTestUsersLoading] = useState(false)
+  const testUsersFetchInFlight = useRef(false)
+  const testUsersHydrated = useRef(false)
   const [testRecipientPickerOpen, setTestRecipientPickerOpen] = useState(false)
 
   const [secretMeta, setSecretMeta] = useState<{
@@ -72,26 +83,36 @@ export default function ReengagementManager() {
     [campaigns, selectedCampaignId]
   )
 
-  const loadTestUsers = async () => {
-    if (testUsers.length > 0) return
-    const res = await fetch('/api/users/list')
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Failed to load users')
-    const mapped = (data.users ?? []).map(
-      (u: {
-        id: string
-        name: string | null
-        username: string | null
-        profile_picture_url: string | null
-        email: string | null
-        role?: string | null
-      }) => ({
-        ...u,
-        role: typeof u.role === 'string' ? u.role : null,
-      })
-    )
-    setTestUsers(mapped)
-  }
+  const loadTestUsers = useCallback(async () => {
+    if (testUsersFetchInFlight.current || testUsersHydrated.current) return
+    testUsersFetchInFlight.current = true
+    setTestUsersLoading(true)
+    try {
+      const res = await fetch('/api/users/list')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to load users')
+      const mapped = (data.users ?? []).map(
+        (u: {
+          id: string
+          name: string | null
+          username: string | null
+          profile_picture_url: string | null
+          email: string | null
+          role?: string | null
+        }) => ({
+          ...u,
+          role: typeof u.role === 'string' ? u.role : null,
+        })
+      )
+      setTestUsers(mapped)
+      testUsersHydrated.current = true
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to load users')
+    } finally {
+      testUsersFetchInFlight.current = false
+      setTestUsersLoading(false)
+    }
+  }, [])
 
   const loadSecretMeta = async () => {
     const res = await fetch('/api/reengagement/test-run/meta')
@@ -132,20 +153,33 @@ export default function ReengagementManager() {
     }
   }
 
-  async function loadExecutions(campaignId: string) {
+  const loadExecutionsPage = useCallback(async (campaignId: string, page: number) => {
+    setExecutionsLoading(true)
     try {
-      const res = await fetch(`/api/reengagement/executions?campaign_id=${encodeURIComponent(campaignId)}&limit=50`)
+      const res = await fetch(
+        `/api/reengagement/executions?campaign_id=${encodeURIComponent(campaignId)}&page=${page}&page_size=${EXECUTIONS_PAGE_SIZE}`
+      )
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load executions')
       setExecutions(data.executions ?? [])
+      setExecutionsTotal(typeof data.total === 'number' ? data.total : 0)
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to load executions')
+      setExecutions([])
+      setExecutionsTotal(0)
+    } finally {
+      setExecutionsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     void loadCampaigns()
   }, [])
+
+  /** Preload recipients so the combobox list is ready when opened (avoids empty-state flash). */
+  useEffect(() => {
+    void loadTestUsers()
+  }, [loadTestUsers])
 
   useEffect(() => {
     void (async () => {
@@ -167,11 +201,22 @@ export default function ReengagementManager() {
     if (!selectedCampaignId) {
       setOutputs([])
       setExecutions([])
+      setExecutionsTotal(0)
+      setCampaignPanelTab('setup')
+      setExecutionsPage(1)
       return
     }
+    setCampaignPanelTab('setup')
+    setExecutionsPage(1)
+    setExecutions([])
+    setExecutionsTotal(0)
     void loadOutputs(selectedCampaignId)
-    void loadExecutions(selectedCampaignId)
   }, [selectedCampaignId])
+
+  useEffect(() => {
+    if (!selectedCampaignId || campaignPanelTab !== 'executions') return
+    void loadExecutionsPage(selectedCampaignId, executionsPage)
+  }, [selectedCampaignId, campaignPanelTab, executionsPage, loadExecutionsPage])
 
   async function createCampaign() {
     const name = prompt('Campaign name')
@@ -330,8 +375,8 @@ export default function ReengagementManager() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Test run failed')
       alert(`Run complete: ${JSON.stringify(data.result)}`)
-      if (selectedCampaignId) {
-        void loadExecutions(selectedCampaignId)
+      if (selectedCampaignId && campaignPanelTab === 'executions') {
+        void loadExecutionsPage(selectedCampaignId, executionsPage)
       }
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Test run failed')
@@ -339,6 +384,13 @@ export default function ReengagementManager() {
       setSaving(false)
     }
   }
+
+  const executionsTotalPages = Math.max(1, Math.ceil(executionsTotal / EXECUTIONS_PAGE_SIZE))
+  const executionsRangeFrom =
+    executionsTotal === 0 ? 0 : (executionsPage - 1) * EXECUTIONS_PAGE_SIZE + 1
+  const executionsRangeTo = Math.min(executionsPage * EXECUTIONS_PAGE_SIZE, executionsTotal)
+  const executionsCanPrev = executionsPage > 1
+  const executionsCanNext = executionsPage < executionsTotalPages
 
   if (loading) {
     return <div className="text-sm text-gray-500">Loading campaigns...</div>
@@ -391,11 +443,50 @@ export default function ReengagementManager() {
             Select or create a campaign.
           </div>
         ) : (
-          <>
-            <div className="border border-gray-200 rounded-lg p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Campaign settings</h2>
-                <div className="flex gap-2">
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50/80 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+                <h2 className="text-sm font-semibold shrink-0">Campaign settings</h2>
+                <div
+                  className="inline-flex h-8 shrink-0 items-center rounded-md border border-input bg-muted/40 p-0.5"
+                  role="tablist"
+                  aria-label="Campaign panel"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={campaignPanelTab === 'setup'}
+                    className={cn(
+                      'rounded px-3 py-1 text-xs font-medium transition-colors',
+                      campaignPanelTab === 'setup'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    onClick={() => setCampaignPanelTab('setup')}
+                  >
+                    Setup
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={campaignPanelTab === 'executions'}
+                    className={cn(
+                      'rounded px-3 py-1 text-xs font-medium transition-colors',
+                      campaignPanelTab === 'executions'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    onClick={() => {
+                      if (campaignPanelTab !== 'executions') setExecutionsPage(1)
+                      setCampaignPanelTab('executions')
+                    }}
+                  >
+                    Executions
+                  </button>
+                </div>
+              </div>
+              {campaignPanelTab === 'setup' ? (
+                <div className="flex gap-2 shrink-0">
                   <Button variant="outline" size="sm" onClick={() => deleteCampaign(selectedCampaign.id)} disabled={saving}>
                     Delete
                   </Button>
@@ -403,8 +494,11 @@ export default function ReengagementManager() {
                     Save campaign
                   </Button>
                 </div>
-              </div>
+              ) : null}
+            </div>
 
+            {campaignPanelTab === 'setup' ? (
+              <div className="p-4 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Name</Label>
@@ -566,42 +660,41 @@ export default function ReengagementManager() {
                   })}
                 </div>
               </div>
-            </div>
 
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Outputs</h2>
-                <Button size="sm" onClick={addOutput} disabled={saving}>
-                  Add output
-                </Button>
+              <div className="border-t border-gray-200 pt-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">Outputs</h3>
+                  <Button size="sm" onClick={addOutput} disabled={saving}>
+                    Add output
+                  </Button>
+                </div>
+                {outputs.length === 0 ? (
+                  <p className="text-sm text-gray-500">No outputs configured.</p>
+                ) : (
+                  outputs
+                    .slice()
+                    .sort((a, b) => a.order_index - b.order_index)
+                    .map((output, index) => (
+                      <OutputEditor
+                        key={output.id}
+                        output={output}
+                        index={index}
+                        total={outputs.length}
+                        disabled={saving}
+                        onChange={(next) =>
+                          setOutputs((prev) => prev.map((o) => (o.id === output.id ? next : o)))
+                        }
+                        onSave={(next) => saveOutput(next)}
+                        onDelete={() => deleteOutput(output.id)}
+                        onMoveUp={() => moveOutput(output.id, -1)}
+                        onMoveDown={() => moveOutput(output.id, 1)}
+                      />
+                    ))
+                )}
               </div>
-              {outputs.length === 0 ? (
-                <p className="text-sm text-gray-500">No outputs configured.</p>
-              ) : (
-                outputs
-                  .slice()
-                  .sort((a, b) => a.order_index - b.order_index)
-                  .map((output, index) => (
-                    <OutputEditor
-                      key={output.id}
-                      output={output}
-                      index={index}
-                      total={outputs.length}
-                      disabled={saving}
-                      onChange={(next) =>
-                        setOutputs((prev) => prev.map((o) => (o.id === output.id ? next : o)))
-                      }
-                      onSave={(next) => saveOutput(next)}
-                      onDelete={() => deleteOutput(output.id)}
-                      onMoveUp={() => moveOutput(output.id, -1)}
-                      onMoveDown={() => moveOutput(output.id, 1)}
-                    />
-                  ))
-              )}
-            </div>
 
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <h2 className="text-sm font-semibold">Test run</h2>
+              <div className="border-t border-gray-200 pt-6 space-y-3">
+              <h3 className="text-sm font-semibold">Test run</h3>
               <p className="text-xs text-gray-500">
                 Runs `run-reengagement` for the user and selected campaign (or all app_close campaigns if none selected).
               </p>
@@ -612,6 +705,7 @@ export default function ReengagementManager() {
                     label="Recipient"
                     labelHint="Pick who will receive the reengagement push(s)."
                     users={testUsers}
+                    usersLoading={testUsersLoading}
                     value={testUserId}
                     onChange={setTestUserId}
                     open={testRecipientPickerOpen}
@@ -673,36 +767,74 @@ export default function ReengagementManager() {
               <Button size="sm" onClick={runTest} disabled={saving}>
                 Run test
               </Button>
-            </div>
-
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <h2 className="text-sm font-semibold">Recent executions</h2>
-              {executions.length === 0 ? (
-                <p className="text-sm text-gray-500">No executions yet.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-gray-500 border-b">
-                        <th className="py-1.5 pr-3 font-medium">User</th>
-                        <th className="py-1.5 pr-3 font-medium">Executed</th>
-                        <th className="py-1.5 pr-3 font-medium">Created</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {executions.map((row) => (
-                        <tr key={row.id} className="border-b last:border-0">
-                          <td className="py-2 pr-3 font-mono text-xs text-gray-700">{row.user_id}</td>
-                          <td className="py-2 pr-3 text-gray-700">{formatDate(row.executed_at)}</td>
-                          <td className="py-2 pr-3 text-gray-500">{formatDate(row.created_at)}</td>
+              </div>
+              </div>
+            ) : (
+              <div className="p-4 space-y-3">
+                <p className="text-xs text-gray-500">Recent runs for this campaign.</p>
+                {executionsLoading ? (
+                  <p className="text-sm text-gray-500">Loading executions…</p>
+                ) : executions.length === 0 ? (
+                  <p className="text-sm text-gray-500">No executions yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-500 border-b">
+                          <th className="py-1.5 pr-3 font-medium">User</th>
+                          <th className="py-1.5 pr-3 font-medium">Executed</th>
+                          <th className="py-1.5 pr-3 font-medium">Created</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {executions.map((row) => (
+                          <tr key={row.id} className="border-b last:border-0">
+                            <td className="py-2 pr-3 font-mono text-xs text-gray-700">{row.user_id}</td>
+                            <td className="py-2 pr-3 text-gray-700">{formatDate(row.executed_at)}</td>
+                            <td className="py-2 pr-3 text-gray-500">{formatDate(row.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3 text-xs text-gray-500">
+                  <span>
+                    {executionsTotal === 0
+                      ? '0 executions'
+                      : `Showing ${executionsRangeFrom}–${executionsRangeTo} of ${executionsTotal}`}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      disabled={!executionsCanPrev || executionsLoading}
+                      aria-label="Previous page"
+                      onClick={() => setExecutionsPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="tabular-nums px-1">
+                      {executionsTotal === 0 ? '—' : `${executionsPage} / ${executionsTotalPages}`}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      disabled={!executionsCanNext || executionsLoading}
+                      aria-label="Next page"
+                      onClick={() => setExecutionsPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </>
+              </div>
+            )}
+          </div>
         )}
       </section>
     </div>
@@ -713,6 +845,7 @@ function TestUserCombobox({
   label,
   labelHint,
   users,
+  usersLoading,
   value,
   onChange,
   open,
@@ -721,6 +854,7 @@ function TestUserCombobox({
   label: string
   labelHint?: string
   users: TestRunUser[]
+  usersLoading: boolean
   value: string
   onChange: (id: string) => void
   open: boolean
@@ -794,8 +928,14 @@ function TestUserCombobox({
               />
             </div>
             <div className="max-h-[300px] overflow-y-auto overflow-x-hidden p-1">
-              {filteredUsers.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">No matching users.</div>
+              {usersLoading && users.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">Loading users…</div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  {users.length === 0 && !usersLoading
+                    ? 'No users available for this list.'
+                    : 'No matching users.'}
+                </div>
               ) : (
                 filteredUsers.map((u) => (
                   <button
