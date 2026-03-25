@@ -6,16 +6,10 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/date'
 import {
   REENGAGEMENT_ENTITLEMENT_OPTIONS,
@@ -26,7 +20,7 @@ import {
   type ReengagementOutputType,
   type ReengagementTriggerType,
 } from '@/lib/reengagement-types'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown, Search } from 'lucide-react'
 
 const OUTPUT_TYPE_OPTIONS: ReengagementOutputType[] = [
   'push_notification',
@@ -640,10 +634,10 @@ export default function ReengagementManager() {
                       title={
                         [
                           secretMeta.hasPrimary
-                            ? `REENGAGEMENT_SECRET: ${secretMeta.primaryMasked ?? '*****'}`
+                            ? `REENGAGEMENT_SECRET ${secretMeta.primaryMasked ?? '*****'}`
                             : null,
                           secretMeta.hasDemo
-                            ? `DEMO_REENGAGEMENT_SECRET: ${secretMeta.demoMasked ?? '*****'}`
+                            ? `DEMO_REENGAGEMENT_SECRET ${secretMeta.demoMasked ?? '*****'}`
                             : null,
                         ]
                           .filter(Boolean)
@@ -654,20 +648,17 @@ export default function ReengagementManager() {
                         className="h-2 w-2 shrink-0 rounded-full bg-green-500"
                         aria-hidden
                       />
-                      <div className="min-w-0 flex-1 truncate">
-                        <span className="text-muted-foreground">Server secret</span>
-                        <span className="ml-2 font-mono text-xs text-foreground">
-                          {[
-                            secretMeta.hasPrimary
-                              ? `REENGAGEMENT ${secretMeta.primaryMasked ?? '*****'}`
-                              : null,
-                            secretMeta.hasDemo
-                              ? `DEMO ${secretMeta.demoMasked ?? '*****'}`
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
+                      <div className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
+                        {[
+                          secretMeta.hasPrimary
+                            ? `REENGAGEMENT_SECRET ${secretMeta.primaryMasked ?? '*****'}`
+                            : null,
+                          secretMeta.hasDemo
+                            ? `DEMO_REENGAGEMENT_SECRET ${secretMeta.demoMasked ?? '*****'}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </div>
                     </div>
                   ) : (
@@ -735,6 +726,35 @@ function TestUserCombobox({
   open: boolean
   onOpenChange: (o: boolean) => void
 }) {
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    if (!open) setQuery('')
+  }, [open])
+
+  const selected = users.find((x) => x.id === value)
+
+  const filteredUsers = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return users
+    return users.filter((u) => {
+      const hay = [u.name, u.username, u.email, u.role, u.id]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return hay.includes(q)
+    })
+  }, [users, query])
+
+  const placeholderUser: TestRunUser = {
+    id: value,
+    name: null,
+    username: null,
+    profile_picture_url: null,
+    email: null,
+    role: null,
+  }
+
   return (
     <div className="space-y-1">
       {labelHint ? <p className="text-[11px] text-gray-500">{labelHint}</p> : null}
@@ -742,22 +762,18 @@ function TestUserCombobox({
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className="h-10 w-full justify-between gap-2 px-3 font-normal"
+            className="h-10 w-full justify-between gap-2 overflow-hidden px-3 py-0 font-normal"
           >
-            <div className="min-w-0 text-left">
-              {value
-                ? (() => {
-                    const u = users.find((x) => x.id === value)
-                    return (
-                      <div className="truncate">
-                        {u?.name || u?.username || u?.email || value}
-                        {u?.role ? <span className="ml-2 text-[11px] text-gray-500">({u.role})</span> : null}
-                      </div>
-                    )
-                  })()
-                : <span className="text-gray-400">Select a user…</span>}
+            <div className="flex min-w-0 flex-1 items-center overflow-hidden text-left">
+              {value && selected ? (
+                <RecipientTriggerLine u={selected} />
+              ) : value && !selected ? (
+                <RecipientTriggerLine u={placeholderUser} />
+              ) : (
+                <span className="truncate text-sm text-muted-foreground">Select a user…</span>
+              )}
             </div>
-            <ChevronsUpDown className="h-4 w-4 opacity-70" />
+            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-70" />
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -765,46 +781,74 @@ function TestUserCombobox({
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <Command
-            className="bg-white"
-            filter={(val, search, keywords) => {
-              const q = search.trim().toLowerCase()
-              if (!q) return 1
-              const hay = [val, ...(keywords ?? [])].join(' ').toLowerCase()
-              return hay.includes(q) ? 1 : 0
-            }}
-          >
-            <CommandInput placeholder={`Search ${label.toLowerCase()}…`} className="h-9" />
-            <CommandList className="bg-white text-gray-900">
-              <CommandEmpty>No matching users.</CommandEmpty>
-              {users.map((u) => (
-                <CommandItem
-                  key={u.id}
-                  value={u.id}
-                  keywords={
-                    [
-                      u.name ?? '',
-                      u.username ? `@${u.username}` : '',
-                      u.email ?? '',
-                      u.role ?? '',
-                    ].filter(Boolean) as string[]
-                  }
-                  onSelect={(id) => {
-                    onChange(id)
-                    onOpenChange(false)
-                  }}
-                  className="relative cursor-pointer py-2 pr-8 opacity-100 data-[disabled]:opacity-100"
-                >
-                  <UserRow u={u} />
-                  {value === u.id ? (
-                    <Check className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-black" />
-                  ) : null}
-                </CommandItem>
-              ))}
-            </CommandList>
-          </Command>
+          <div className="flex flex-col overflow-hidden rounded-md bg-white text-gray-900">
+            <div className="flex items-center border-b border-input px-3">
+              <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+              <input
+                type="search"
+                autoComplete="off"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search ${label.toLowerCase()}…`}
+                className="flex h-9 w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="max-h-[300px] overflow-y-auto overflow-x-hidden p-1">
+              {filteredUsers.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">No matching users.</div>
+              ) : (
+                filteredUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    className={cn(
+                      'flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-left text-sm outline-none hover:bg-gray-100 focus-visible:bg-gray-100',
+                      value === u.id && 'bg-gray-100'
+                    )}
+                    onClick={() => {
+                      onChange(u.id)
+                      onOpenChange(false)
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <UserRow u={u} size="sm" />
+                    </div>
+                    {value === u.id ? <Check className="h-4 w-4 shrink-0 text-black" /> : null}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         </PopoverContent>
       </Popover>
+    </div>
+  )
+}
+
+/** Single-line, fixed-height trigger (matches h-10 secret readout). */
+function RecipientTriggerLine({ u }: { u: TestRunUser }) {
+  const initial = (u.name || u.username || u.email || u.id || 'U').charAt(0).toUpperCase()
+  const primary = u.name?.trim() || u.username || u.email || u.id.slice(0, 8)
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+      <Avatar className="h-7 w-7 shrink-0">
+        {u.profile_picture_url ? (
+          <AvatarImage
+            src={u.profile_picture_url}
+            alt={u.name || u.username || 'User'}
+            className="object-cover"
+          />
+        ) : null}
+        <AvatarFallback className="text-[10px]">{initial}</AvatarFallback>
+      </Avatar>
+      <p className="min-w-0 flex-1 truncate text-sm leading-none">
+        <span className="font-medium text-foreground">{primary}</span>
+        {u.role ? <span className="text-muted-foreground"> · {u.role}</span> : null}
+        {u.username && u.name?.trim() ? (
+          <span className="text-muted-foreground"> · @{u.username}</span>
+        ) : null}
+      </p>
     </div>
   )
 }
