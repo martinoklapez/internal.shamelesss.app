@@ -72,6 +72,12 @@ const developerMenuItems = [
     icon: Bell,
     roles: ['admin', 'dev', 'developer'] as const,
   },
+  {
+    title: 'Reengagement',
+    url: '/reengagement',
+    icon: Sparkles,
+    roles: ['admin', 'dev', 'developer'] as const,
+  },
 ]
 
 const promoterMenuItems = [

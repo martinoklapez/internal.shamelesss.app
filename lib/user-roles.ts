@@ -53,7 +53,7 @@ export async function canAccessRoute(userId: string, route: string): Promise<boo
 
   // Promoters cannot access games and feature flags
   if (role === 'promoter') {
-    if (route.startsWith('/games') || route === '/feature-flags') {
+    if (route.startsWith('/games') || route === '/feature-flags' || route === '/reengagement') {
       return false
     }
   }
@@ -80,7 +80,7 @@ export function getAllowedRoutes(role: UserRole | null): string[] {
   }
 
   if (role === 'admin' || role === 'dev' || role === 'developer') {
-    return ['/home', '/games', '/devices', '/feature-flags']
+    return ['/home', '/games', '/devices', '/feature-flags', '/reengagement']
   }
 
   if (role === 'promoter') {

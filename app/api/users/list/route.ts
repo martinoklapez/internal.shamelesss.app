@@ -38,6 +38,28 @@ export async function GET() {
 
     // Get unique user IDs (in case a user has multiple roles)
     const userIds = [...new Set(usersWithRoles.map((u) => u.user_id))]
+
+    // Pick a single role per user for UI display.
+    // (The list endpoint is used for test-push selection UI, so a deterministic “best” role is helpful.)
+    const rolePriority: Record<string, number> = {
+      admin: 100,
+      dev: 95,
+      developer: 90,
+      promoter: 80,
+      tester: 70,
+      demo: 60,
+    }
+    const roleByUserId = new Map<string, string>()
+    for (const { user_id, role } of usersWithRoles) {
+      const prev = roleByUserId.get(user_id)
+      if (!prev) {
+        roleByUserId.set(user_id, role)
+        continue
+      }
+      const prevScore = rolePriority[prev] ?? 0
+      const nextScore = rolePriority[role] ?? 0
+      if (nextScore > prevScore) roleByUserId.set(user_id, role)
+    }
     console.log('Unique user IDs extracted:', userIds)
     console.log('Number of unique users:', userIds.length)
 
@@ -95,6 +117,7 @@ export async function GET() {
     const users = userIds.map((userId) => {
       const profile = profileMap.get(userId)
       const email = emailMap.get(userId) || null
+      const role = roleByUserId.get(userId) || null
 
       return {
         id: userId,
@@ -102,6 +125,7 @@ export async function GET() {
         username: profile?.username || null,
         profile_picture_url: profile?.profile_picture_url || null,
         email: email, // Keep email as fallback
+        role,
       }
     })
 

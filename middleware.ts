@@ -32,7 +32,16 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Define protected routes that require authentication
-  const protectedRoutes = ['/home', '/games', '/devices', '/feature-flags', '/characters', '/generate', '/notifications']
+  const protectedRoutes = [
+    '/home',
+    '/games',
+    '/devices',
+    '/feature-flags',
+    '/characters',
+    '/generate',
+    '/notifications',
+    '/reengagement',
+  ]
   const isProtectedRoute = protectedRoutes.some(route => 
     request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith(`${route}/`)
   )
@@ -65,7 +74,7 @@ export async function middleware(request: NextRequest) {
     // Promoters cannot access games and feature flags
     if (role === 'promoter') {
       const pathname = request.nextUrl.pathname
-      if (pathname.startsWith('/games') || pathname === '/feature-flags') {
+      if (pathname.startsWith('/games') || pathname === '/feature-flags' || pathname === '/reengagement') {
         const url = request.nextUrl.clone()
         url.pathname = '/home'
         return NextResponse.redirect(url)
