@@ -2,10 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -14,7 +28,10 @@ import { formatDate } from '@/lib/utils/date'
 import {
   REENGAGEMENT_ENTITLEMENT_OPTIONS,
   REENGAGEMENT_FRIEND_SENDER_OPTIONS,
+  REENGAGEMENT_GENDER_OPTIONS,
+  normalizeAudienceFilter,
   normalizeReengagementCampaign,
+  type ReengagementAudienceFilter,
   type ReengagementCampaign,
   type ReengagementCampaignExecution,
   type ReengagementCampaignOutput,
@@ -24,7 +41,8 @@ import {
   type ReengagementScheduleKind,
   type ReengagementTriggerType,
 } from '@/lib/reengagement-types'
-import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react'
+import { COUNTRIES } from '@/lib/countries'
+import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Play, Search } from 'lucide-react'
 import { useAppDialogs } from '@/components/app-dialogs-provider'
 import { notifyError, notifySuccess } from '@/lib/notify'
 
@@ -162,6 +180,7 @@ export default function ReengagementManager() {
   const testUsersFetchInFlight = useRef(false)
   const testUsersHydrated = useRef(false)
   const [testRecipientPickerOpen, setTestRecipientPickerOpen] = useState(false)
+  const [testRunModalOpen, setTestRunModalOpen] = useState(false)
 
   const [secretMeta, setSecretMeta] = useState<{
     hasPrimary: boolean
@@ -566,6 +585,7 @@ export default function ReengagementManager() {
             Select or create a campaign.
           </div>
         ) : (
+          <>
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-background">
             <div className="flex h-14 shrink-0 items-end justify-between gap-3 border-b border-gray-200 bg-background px-3 sm:px-4">
               <div className="flex min-h-0 min-w-0 flex-1 items-end gap-2 sm:gap-3">
@@ -604,16 +624,29 @@ export default function ReengagementManager() {
                   </button>
                 </div>
               </div>
-              <div className="flex min-h-[2.25rem] min-w-[180px] shrink-0 items-end justify-end gap-2 pb-2.5 sm:min-w-[200px]">
+              <div className="flex min-h-[2.25rem] min-w-[200px] shrink-0 items-end justify-end gap-1 pb-2.5 sm:min-w-[240px]">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+                  title="Test run (run-reengagement)"
+                  onClick={() => {
+                    setTestRunModalOpen(true)
+                    void loadTestUsers()
+                  }}
+                >
+                  <Play className="h-4 w-4" />
+                </Button>
                 {campaignPanelTab === 'setup' ? (
-                  <>
+                  <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => deleteCampaign(selectedCampaign.id)} disabled={saving}>
                       Delete
                     </Button>
                     <Button size="sm" onClick={() => saveCampaign(selectedCampaign)} disabled={saving}>
                       Save campaign
                     </Button>
-                  </>
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -780,6 +813,130 @@ export default function ReengagementManager() {
                     )
                   })}
                 </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Audience filter</h3>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Optional limits on <code className="text-[11px]">profiles</code> (gender, ISO country, age). Leave empty to
+                    target all users. Scheduled sweeps apply this in SQL; single/batch runs re-check the same rules.
+                  </p>
+                  <p className="mt-2 text-xs text-amber-900/90 dark:text-amber-200/90">
+                    If a rule is set and the profile field is missing (NULL), the user does not match — e.g. gender filter
+                    excludes users with no gender.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Genders</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {REENGAGEMENT_GENDER_OPTIONS.map((option) => {
+                      const selected = (selectedCampaign.audience_filter.genders ?? []).includes(option)
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          className={`text-xs rounded border px-2 py-1 capitalize ${
+                            selected ? 'border-violet-300 bg-violet-50 text-violet-800' : 'border-gray-300 text-gray-600'
+                          }`}
+                          onClick={() =>
+                            setCampaigns((prev) =>
+                              prev.map((c) => {
+                                if (c.id !== selectedCampaign.id) return c
+                                const nextAf: ReengagementAudienceFilter = { ...c.audience_filter }
+                                const cur = new Set(nextAf.genders ?? [])
+                                if (cur.has(option)) cur.delete(option)
+                                else cur.add(option)
+                                if (cur.size) nextAf.genders = [...cur].sort()
+                                else delete nextAf.genders
+                                return { ...c, audience_filter: normalizeAudienceFilter(nextAf) }
+                              })
+                            )
+                          }
+                        >
+                          {option}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[11px] text-gray-500">Compared case-insensitively to profiles.gender (stored normalized).</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Country codes</Label>
+                  <CountryCodeMultiSelect
+                    selected={selectedCampaign.audience_filter.country_codes ?? []}
+                    disabled={saving}
+                    onChange={(codes) =>
+                      setCampaigns((prev) =>
+                        prev.map((c) => {
+                          if (c.id !== selectedCampaign.id) return c
+                          const nextAf: ReengagementAudienceFilter = { ...c.audience_filter }
+                          if (codes.length) nextAf.country_codes = codes
+                          else delete nextAf.country_codes
+                          return { ...c, audience_filter: normalizeAudienceFilter(nextAf) }
+                        })
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Age min (inclusive)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={150}
+                      placeholder="Any"
+                      value={selectedCampaign.audience_filter.age_min ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        setCampaigns((prev) =>
+                          prev.map((c) => {
+                            if (c.id !== selectedCampaign.id) return c
+                            const nextAf: ReengagementAudienceFilter = { ...c.audience_filter }
+                            if (raw === '') delete nextAf.age_min
+                            else {
+                              const n = Math.floor(Number(raw))
+                              if (!Number.isFinite(n) || n < 0 || n > 150) return c
+                              nextAf.age_min = n
+                            }
+                            return { ...c, audience_filter: normalizeAudienceFilter(nextAf) }
+                          })
+                        )
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Age max (inclusive)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={150}
+                      placeholder="Any"
+                      value={selectedCampaign.audience_filter.age_max ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        setCampaigns((prev) =>
+                          prev.map((c) => {
+                            if (c.id !== selectedCampaign.id) return c
+                            const nextAf: ReengagementAudienceFilter = { ...c.audience_filter }
+                            if (raw === '') delete nextAf.age_max
+                            else {
+                              const n = Math.floor(Number(raw))
+                              if (!Number.isFinite(n) || n < 0 || n > 150) return c
+                              nextAf.age_max = n
+                            }
+                            return { ...c, audience_filter: normalizeAudienceFilter(nextAf) }
+                          })
+                        )
+                      }}
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-500">Compared to profiles.age. If min or max is set and age is NULL, the user does not match.</p>
               </div>
 
               {selectedCampaign.trigger_type === 'scheduled' ? (
@@ -957,82 +1114,6 @@ export default function ReengagementManager() {
                     ))
                 )}
               </div>
-
-              <div className="border-t border-gray-200 pt-6 space-y-3">
-              <h3 className="text-sm font-semibold">Test run</h3>
-              <p className="text-xs text-gray-500">
-                Runs `run-reengagement` for the user and selected campaign (or all app_close campaigns if none selected).
-              </p>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:items-end">
-                <div className="space-y-1.5">
-                  <Label>Recipient</Label>
-                  <TestUserCombobox
-                    label="Recipient"
-                    labelHint="Pick who will receive the reengagement push(s)."
-                    users={testUsers}
-                    usersLoading={testUsersLoading}
-                    value={testUserId}
-                    onChange={setTestUserId}
-                    open={testRecipientPickerOpen}
-                    onOpenChange={(o) => {
-                      setTestRecipientPickerOpen(o)
-                      if (o && testUsers.length === 0) void loadTestUsers()
-                    }}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label>Secret</Label>
-                  {secretMeta == null ? (
-                    <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
-                      Checking env secrets…
-                    </div>
-                  ) : secretMeta.hasPrimary || secretMeta.hasDemo ? (
-                    <div
-                      className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-sm ring-offset-background"
-                      title={
-                        [
-                          secretMeta.hasPrimary
-                            ? `REENGAGEMENT_SECRET ${secretMeta.primaryMasked ?? '*****'}`
-                            : null,
-                          secretMeta.hasDemo
-                            ? `DEMO_REENGAGEMENT_SECRET ${secretMeta.demoMasked ?? '*****'}`
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ') || undefined
-                      }
-                    >
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full bg-green-500"
-                        aria-hidden
-                      />
-                      <div className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
-                        {[
-                          secretMeta.hasPrimary
-                            ? `REENGAGEMENT_SECRET ${secretMeta.primaryMasked ?? '*****'}`
-                            : null,
-                          secretMeta.hasDemo
-                            ? `DEMO_REENGAGEMENT_SECRET ${secretMeta.demoMasked ?? '*****'}`
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </div>
-                    </div>
-                  ) : (
-                    <Input
-                      value={testSecret}
-                      onChange={(e) => setTestSecret(e.target.value)}
-                      placeholder="REENGAGEMENT_SECRET"
-                    />
-                  )}
-                </div>
-              </div>
-              <Button size="sm" onClick={runTest} disabled={saving}>
-                Run test
-              </Button>
-              </div>
               </div>
             ) : (
               <div className="p-4 space-y-3">
@@ -1100,8 +1181,230 @@ export default function ReengagementManager() {
               </div>
             )}
           </div>
+
+          <Dialog
+            open={testRunModalOpen}
+            onOpenChange={(open) => {
+              setTestRunModalOpen(open)
+              if (!open) setTestRecipientPickerOpen(false)
+            }}
+          >
+            <DialogContent
+              className="max-w-md gap-4 p-4"
+              onPointerDownOutside={(e) => {
+                const t = e.target as HTMLElement
+                if (
+                  t.closest('[data-radix-popper-content-wrapper]') ||
+                  t.closest('[data-radix-popover-content]') ||
+                  t.closest('[cmdk-root]') ||
+                  t.closest('[role="listbox"]')
+                ) {
+                  e.preventDefault()
+                }
+              }}
+              onInteractOutside={(e) => {
+                const t = e.target as HTMLElement
+                if (
+                  t.closest('[data-radix-popper-content-wrapper]') ||
+                  t.closest('[data-radix-popover-content]') ||
+                  t.closest('[cmdk-root]') ||
+                  t.closest('[role="listbox"]')
+                ) {
+                  e.preventDefault()
+                }
+              }}
+            >
+              <div className="flex flex-col gap-4">
+                <DialogHeader className="space-y-0">
+                  <DialogTitle className="text-sm font-semibold">Test run — {selectedCampaign.name}</DialogTitle>
+                </DialogHeader>
+                <p className="text-xs text-muted-foreground">
+                  Runs <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-mono">run-reengagement</code> for the user
+                  and selected campaign (or all app_close campaigns if none selected).
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  If the user fails an <code className="text-[11px]">audience_filter</code> rule only, the edge function may return{' '}
+                  <code className="text-[11px]">audience_mismatch</code> for that campaign in the result payload.
+                </p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:items-end">
+                  <div className="space-y-1.5">
+                    <TestUserCombobox
+                      label="Recipient"
+                      labelHint="Pick who will receive the reengagement push(s)."
+                      users={testUsers}
+                      usersLoading={testUsersLoading}
+                      value={testUserId}
+                      onChange={setTestUserId}
+                      open={testRecipientPickerOpen}
+                      onOpenChange={(o) => {
+                        setTestRecipientPickerOpen(o)
+                        if (o && testUsers.length === 0) void loadTestUsers()
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>Secret</Label>
+                    {secretMeta == null ? (
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
+                        Checking env secrets…
+                      </div>
+                    ) : secretMeta.hasPrimary || secretMeta.hasDemo ? (
+                      <div
+                        className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-sm ring-offset-background"
+                        title={
+                          [
+                            secretMeta.hasPrimary
+                              ? `REENGAGEMENT_SECRET ${secretMeta.primaryMasked ?? '*****'}`
+                              : null,
+                            secretMeta.hasDemo
+                              ? `DEMO_REENGAGEMENT_SECRET ${secretMeta.demoMasked ?? '*****'}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ') || undefined
+                        }
+                      >
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" aria-hidden />
+                        <div className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
+                          {[
+                            secretMeta.hasPrimary
+                              ? `REENGAGEMENT_SECRET ${secretMeta.primaryMasked ?? '*****'}`
+                              : null,
+                            secretMeta.hasDemo
+                              ? `DEMO_REENGAGEMENT_SECRET ${secretMeta.demoMasked ?? '*****'}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </div>
+                      </div>
+                    ) : (
+                      <Input
+                        value={testSecret}
+                        onChange={(e) => setTestSecret(e.target.value)}
+                        placeholder="REENGAGEMENT_SECRET"
+                      />
+                    )}
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTestRunModalOpen(false)}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={runTest} disabled={saving}>
+                    Run test
+                  </Button>
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
+          </>
         )}
       </section>
+    </div>
+  )
+}
+
+function CountryCodeMultiSelect({
+  selected,
+  onChange,
+  disabled,
+}: {
+  selected: string[]
+  onChange: (codes: string[]) => void
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const selectedSet = useMemo(() => new Set(selected), [selected])
+  const sortedSelected = useMemo(() => [...selected].sort(), [selected])
+
+  const toggle = useCallback(
+    (code: string) => {
+      const next = new Set(selected)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
+      onChange([...next].sort())
+    },
+    [selected, onChange]
+  )
+
+  return (
+    <div className="space-y-2">
+      {sortedSelected.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {sortedSelected.map((code) => (
+            <Badge key={code} variant="secondary" className="gap-0.5 pl-2 pr-1 font-mono text-xs">
+              {code}
+              <button
+                type="button"
+                disabled={disabled}
+                className="rounded p-0.5 hover:bg-muted disabled:pointer-events-none"
+                aria-label={`Remove ${code}`}
+                onClick={() => toggle(code)}
+              >
+                ×
+              </button>
+            </Badge>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No countries selected — any country matches.</p>
+      )}
+      <Popover modal={false} open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 w-full justify-between font-normal"
+            disabled={disabled}
+          >
+            <span className="text-muted-foreground">Add or remove countries…</span>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="z-[200] w-[min(100vw-2rem,320px)] border border-gray-200 bg-white p-0 shadow-lg"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <Command
+            className="bg-white"
+            filter={(val, search) => {
+              const q = search.trim().toLowerCase()
+              if (!q) return 1
+              return val.toLowerCase().includes(q) ? 1 : 0
+            }}
+          >
+            <CommandInput placeholder="Search by name or code…" className="h-9" />
+            <CommandList className="max-h-[260px] bg-white">
+              <CommandEmpty>No country found.</CommandEmpty>
+              {COUNTRIES.map((c) => {
+                const isSel = selectedSet.has(c.code)
+                return (
+                  <CommandItem
+                    key={c.code}
+                    value={`${c.code} ${c.name}`}
+                    onSelect={() => toggle(c.code)}
+                    className="cursor-pointer"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    <span className="ml-2 shrink-0 font-mono text-xs text-muted-foreground">{c.code}</span>
+                    {isSel ? <Check className="ml-2 h-4 w-4 shrink-0" /> : null}
+                  </CommandItem>
+                )
+              })}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   )
 }

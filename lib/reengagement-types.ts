@@ -10,6 +10,16 @@ export type ReengagementFriendSenderSelector =
   | 'opposite_gender'
   | 'specific_user'
 
+/** Targeting on profiles.*; all set dimensions are AND’d. Empty object = no restriction. */
+export interface ReengagementAudienceFilter {
+  genders?: string[]
+  country_codes?: string[]
+  age_min?: number
+  age_max?: number
+}
+
+export const REENGAGEMENT_GENDER_OPTIONS = ['male', 'female', 'other'] as const
+
 export interface ReengagementCampaign {
   id: string
   name: string
@@ -40,6 +50,8 @@ export interface ReengagementCampaign {
   schedule_resume_after_user_id: string | null
   /** True while a multi-page sweep is incomplete (server-managed) */
   schedule_run_in_progress: boolean
+  /** JSON targeting; server normalizes compares (gender lower, country upper). */
+  audience_filter: ReengagementAudienceFilter
 }
 
 export interface ReengagementCampaignOutput {
@@ -75,6 +87,58 @@ export const REENGAGEMENT_FRIEND_SENDER_OPTIONS: ReengagementFriendSenderSelecto
   'specific_user',
 ]
 
+/** Sanitize audience_filter from DB or API body: only valid keys, normalized values, `{}` when no rules. */
+export function normalizeAudienceFilter(raw: unknown): ReengagementAudienceFilter {
+  if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {}
+  }
+  const o = raw as Record<string, unknown>
+  const out: ReengagementAudienceFilter = {}
+
+  if (Array.isArray(o.genders)) {
+    const genders = [
+      ...new Set(
+        o.genders
+          .map((x) => String(x ?? '').trim().toLowerCase())
+          .filter((x) => x.length > 0)
+      ),
+    ].sort()
+    if (genders.length > 0) out.genders = genders
+  }
+
+  if (Array.isArray(o.country_codes)) {
+    const country_codes = [
+      ...new Set(
+        o.country_codes
+          .map((x) => String(x ?? '').trim().toUpperCase())
+          .filter((x) => /^[A-Z]{2}$/.test(x))
+      ),
+    ].sort()
+    if (country_codes.length > 0) out.country_codes = country_codes
+  }
+
+  const parseAge = (v: unknown): number | undefined => {
+    if (v === null || v === undefined || v === '') return undefined
+    const n = typeof v === 'number' ? v : Number(v)
+    if (!Number.isFinite(n)) return undefined
+    const i = Math.floor(n)
+    if (i < 0 || i > 150) return undefined
+    return i
+  }
+
+  const age_min = parseAge(o.age_min)
+  const age_max = parseAge(o.age_max)
+  if (age_min !== undefined) out.age_min = age_min
+  if (age_max !== undefined) out.age_max = age_max
+  if (out.age_min !== undefined && out.age_max !== undefined && out.age_min > out.age_max) {
+    const t = out.age_min
+    out.age_min = out.age_max
+    out.age_max = t
+  }
+
+  return out
+}
+
 /** Coerce nullable / missing schedule columns after `select('*')` (e.g. older rows or partial JSON). */
 export function normalizeReengagementCampaign(row: ReengagementCampaign): ReengagementCampaign {
   return {
@@ -89,5 +153,6 @@ export function normalizeReengagementCampaign(row: ReengagementCampaign): Reenga
     last_run_at: row.last_run_at ?? null,
     schedule_resume_after_user_id: row.schedule_resume_after_user_id ?? null,
     schedule_run_in_progress: row.schedule_run_in_progress ?? false,
+    audience_filter: normalizeAudienceFilter((row as { audience_filter?: unknown }).audience_filter),
   }
 }

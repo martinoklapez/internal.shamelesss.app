@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdminUser } from '@/lib/api/admin-auth'
 import { getAdminSupabaseClient } from '@/lib/supabase/admin'
 import {
+  normalizeAudienceFilter,
   normalizeReengagementCampaign,
   type ReengagementCampaign,
   type ReengagementScheduleKind,
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
       scheduled_at: EMPTY_TS(body.scheduled_at),
       schedule_cron: EMPTY_TS(body.schedule_cron),
       next_run_at: EMPTY_TS(body.next_run_at),
+      audience_filter: normalizeAudienceFilter(body.audience_filter),
     }
 
     const admin = getAdminSupabaseClient()
@@ -131,6 +133,9 @@ export async function PATCH(request: Request) {
     if (body.scheduled_at !== undefined) payload.scheduled_at = EMPTY_TS(body.scheduled_at)
     if (body.schedule_cron !== undefined) payload.schedule_cron = EMPTY_TS(body.schedule_cron)
     if (body.next_run_at !== undefined) payload.next_run_at = EMPTY_TS(body.next_run_at)
+    if (body.audience_filter !== undefined) {
+      payload.audience_filter = normalizeAudienceFilter(body.audience_filter)
+    }
 
     const admin = getAdminSupabaseClient()
     const { data, error } = await admin
