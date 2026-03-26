@@ -13,11 +13,15 @@ import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/date'
 import {
   REENGAGEMENT_ENTITLEMENT_OPTIONS,
+  REENGAGEMENT_FRIEND_SENDER_OPTIONS,
+  normalizeReengagementCampaign,
   type ReengagementCampaign,
   type ReengagementCampaignExecution,
   type ReengagementCampaignOutput,
+  type ReengagementFriendSenderSelector,
   type ReengagementIntensityType,
   type ReengagementOutputType,
+  type ReengagementScheduleKind,
   type ReengagementTriggerType,
 } from '@/lib/reengagement-types'
 import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react'
@@ -25,6 +29,90 @@ import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide
 const EXECUTIONS_PAGE_SIZE = 20
 
 type CampaignPanelTab = 'setup' | 'executions'
+
+/** Parse stored UTC ISO into parts for native date/time inputs (local calendar & clock). */
+function isoUtcStringToLocalParts(iso: string | null | undefined): { date: string; time: string } {
+  if (!iso?.trim()) return { date: '', time: '' }
+  const d = new Date(iso.trim())
+  if (Number.isNaN(d.getTime())) return { date: '', time: '' }
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return { date: `${y}-${m}-${day}`, time: `${hh}:${mm}` }
+}
+
+/** Combine local date + time into a UTC ISO string for the API. */
+function localPartsToIsoUtcString(date: string, time: string): string | null {
+  const dStr = date.trim()
+  if (!dStr) return null
+  const tStr = time.trim() || '00:00'
+  const [y, mo, da] = dStr.split('-').map((x) => Number(x))
+  const [hh, mm] = tStr.split(':').map((x) => Number(x))
+  if (![y, mo, da].every((n) => Number.isFinite(n))) return null
+  const h = Number.isFinite(hh) ? hh : 0
+  const min = Number.isFinite(mm) ? mm : 0
+  const d = new Date(y, mo - 1, da, h, min, 0, 0)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toISOString()
+}
+
+function IsoUtcDateTimePickers({
+  idPrefix,
+  value,
+  onChange,
+  disabled,
+}: {
+  idPrefix: string
+  value: string | null | undefined
+  onChange: (iso: string | null) => void
+  disabled?: boolean
+}) {
+  const { date, time } = useMemo(() => isoUtcStringToLocalParts(value), [value])
+
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="min-w-[10.5rem] flex-1 space-y-1">
+        <Label className="text-xs text-muted-foreground" htmlFor={`${idPrefix}-date`}>
+          Date
+        </Label>
+        <Input
+          id={`${idPrefix}-date`}
+          type="date"
+          className="h-9"
+          disabled={disabled}
+          value={date}
+          onChange={(e) => {
+            const nextDate = e.target.value
+            if (!nextDate) {
+              onChange(null)
+              return
+            }
+            onChange(localPartsToIsoUtcString(nextDate, time || '00:00'))
+          }}
+        />
+      </div>
+      <div className="w-[9rem] space-y-1">
+        <Label className="text-xs text-muted-foreground" htmlFor={`${idPrefix}-time`}>
+          Time
+        </Label>
+        <Input
+          id={`${idPrefix}-time`}
+          type="time"
+          step={60}
+          className="h-9"
+          disabled={disabled || !date}
+          value={time}
+          onChange={(e) => {
+            if (!date) return
+            onChange(localPartsToIsoUtcString(date, e.target.value || '00:00'))
+          }}
+        />
+      </div>
+    </div>
+  )
+}
 
 const OUTPUT_TYPE_OPTIONS: ReengagementOutputType[] = [
   'push_notification',
@@ -42,7 +130,9 @@ type TestRunUser = {
 }
 
 function defaultOutputConfig(type: ReengagementOutputType): Record<string, unknown> {
-  if (type === 'friend_request') return { sender_selector: 'any_male', message: null }
+  if (type === 'friend_request') {
+    return { sender_selector: 'any_male', specific_user_id: null, message: null }
+  }
   if (type === 'profile_views') return { count: 1, viewer_selector: 'same_country', fallback_country_code: 'US' }
   return {
     title: 'Come back!',
@@ -132,9 +222,14 @@ export default function ReengagementManager() {
       const res = await fetch('/api/reengagement/campaigns')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load campaigns')
-      setCampaigns(data.campaigns ?? [])
-      const first = (data.campaigns ?? [])[0]
-      setSelectedCampaignId((prev) => prev ?? first?.id ?? null)
+      const list: ReengagementCampaign[] = (data.campaigns ?? []).map((row: ReengagementCampaign) =>
+        normalizeReengagementCampaign(row)
+      )
+      setCampaigns(list)
+      setSelectedCampaignId((prev) => {
+        if (!prev) return null
+        return list.some((c) => c.id === prev) ? prev : null
+      })
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to load campaigns')
     } finally {
@@ -230,7 +325,7 @@ export default function ReengagementManager() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to create campaign')
-      setCampaigns((prev) => [data.campaign, ...prev])
+      setCampaigns((prev) => [normalizeReengagementCampaign(data.campaign), ...prev])
       setSelectedCampaignId(data.campaign.id)
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to create campaign')
@@ -249,7 +344,9 @@ export default function ReengagementManager() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save campaign')
-      setCampaigns((prev) => prev.map((c) => (c.id === data.campaign.id ? data.campaign : c)))
+      setCampaigns((prev) =>
+        prev.map((c) => (c.id === data.campaign.id ? normalizeReengagementCampaign(data.campaign) : c))
+      )
       alert('Campaign saved')
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to save campaign')
@@ -399,9 +496,9 @@ export default function ReengagementManager() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-6">
       <section className="border border-gray-200 rounded-lg overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-gray-50">
           <h2 className="text-sm font-semibold">Campaigns</h2>
-          <Button size="sm" className="h-7" onClick={createCampaign} disabled={saving}>
+          <Button size="sm" className="h-7 shrink-0" onClick={() => createCampaign()} disabled={saving}>
             New
           </Button>
         </div>
@@ -443,24 +540,20 @@ export default function ReengagementManager() {
             Select or create a campaign.
           </div>
         ) : (
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50/80 px-4 py-3">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-                <h2 className="text-sm font-semibold shrink-0">Campaign settings</h2>
-                <div
-                  className="inline-flex h-8 shrink-0 items-center rounded-md border border-input bg-muted/40 p-0.5"
-                  role="tablist"
-                  aria-label="Campaign panel"
-                >
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-background">
+            <div className="flex h-14 shrink-0 items-end justify-between gap-3 border-b border-gray-200 bg-background px-3 sm:px-4">
+              <div className="flex min-h-0 min-w-0 flex-1 items-end gap-2 sm:gap-3">
+                <h2 className="shrink-0 pb-2.5 text-sm font-semibold text-foreground">Campaign settings</h2>
+                <div className="flex items-end gap-px" role="tablist" aria-label="Campaign panel">
                   <button
                     type="button"
                     role="tab"
                     aria-selected={campaignPanelTab === 'setup'}
                     className={cn(
-                      'rounded px-3 py-1 text-xs font-medium transition-colors',
+                      'min-w-[6.5rem] rounded-t-md border border-transparent border-b-0 px-6 py-2 text-center text-xs font-medium transition-colors sm:min-w-[7.5rem] sm:px-8',
                       campaignPanelTab === 'setup'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
+                        ? 'relative z-[1] -mb-px border-gray-200 border-b-background bg-background text-foreground shadow-[0_-1px_2px_rgba(0,0,0,0.03)] dark:border-zinc-700 dark:border-b-background dark:shadow-none'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                     )}
                     onClick={() => setCampaignPanelTab('setup')}
                   >
@@ -471,10 +564,10 @@ export default function ReengagementManager() {
                     role="tab"
                     aria-selected={campaignPanelTab === 'executions'}
                     className={cn(
-                      'rounded px-3 py-1 text-xs font-medium transition-colors',
+                      'min-w-[6.5rem] rounded-t-md border border-transparent border-b-0 px-6 py-2 text-center text-xs font-medium transition-colors sm:min-w-[7.5rem] sm:px-8',
                       campaignPanelTab === 'executions'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
+                        ? 'relative z-[1] -mb-px border-gray-200 border-b-background bg-background text-foreground shadow-[0_-1px_2px_rgba(0,0,0,0.03)] dark:border-zinc-700 dark:border-b-background dark:shadow-none'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                     )}
                     onClick={() => {
                       if (campaignPanelTab !== 'executions') setExecutionsPage(1)
@@ -485,16 +578,18 @@ export default function ReengagementManager() {
                   </button>
                 </div>
               </div>
-              {campaignPanelTab === 'setup' ? (
-                <div className="flex gap-2 shrink-0">
-                  <Button variant="outline" size="sm" onClick={() => deleteCampaign(selectedCampaign.id)} disabled={saving}>
-                    Delete
-                  </Button>
-                  <Button size="sm" onClick={() => saveCampaign(selectedCampaign)} disabled={saving}>
-                    Save campaign
-                  </Button>
-                </div>
-              ) : null}
+              <div className="flex min-h-[2.25rem] min-w-[180px] shrink-0 items-end justify-end gap-2 pb-2.5 sm:min-w-[200px]">
+                {campaignPanelTab === 'setup' ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => deleteCampaign(selectedCampaign.id)} disabled={saving}>
+                      Delete
+                    </Button>
+                    <Button size="sm" onClick={() => saveCampaign(selectedCampaign)} disabled={saving}>
+                      Save campaign
+                    </Button>
+                  </>
+                ) : null}
+              </div>
             </div>
 
             {campaignPanelTab === 'setup' ? (
@@ -660,6 +755,150 @@ export default function ReengagementManager() {
                   })}
                 </div>
               </div>
+
+              {selectedCampaign.trigger_type === 'scheduled' ? (
+                <div className="border-t border-gray-200 pt-6 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold">Schedule</h3>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Audience is evaluated at send time (profile sweep). Cron and <code className="text-[11px]">next_run_at</code>{' '}
+                      use UTC; timezone is for display. Set <code className="text-[11px]">next_run_at</code> for the orchestrator
+                      to pick up this campaign.
+                    </p>
+                  </div>
+
+                  <label className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <span className="text-sm">Pause schedule</span>
+                    <Switch
+                      checked={selectedCampaign.schedule_paused}
+                      onCheckedChange={(checked) =>
+                        setCampaigns((prev) =>
+                          prev.map((c) =>
+                            c.id === selectedCampaign.id ? { ...c, schedule_paused: checked } : c
+                          )
+                        )
+                      }
+                    />
+                  </label>
+                  <p className="text-[11px] text-gray-500 -mt-2">
+                    When paused, run-scheduled-reengagement ignores this row; <code className="text-[11px]">next_run_at</code> is
+                    kept.
+                  </p>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Schedule timezone (display)</Label>
+                      <Input
+                        value={selectedCampaign.schedule_timezone}
+                        onChange={(e) =>
+                          setCampaigns((prev) =>
+                            prev.map((c) =>
+                              c.id === selectedCampaign.id
+                                ? { ...c, schedule_timezone: e.target.value || 'UTC' }
+                                : c
+                            )
+                          )
+                        }
+                        placeholder="UTC"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Schedule kind</Label>
+                      <select
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        value={selectedCampaign.schedule_kind ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value as '' | ReengagementScheduleKind
+                          setCampaigns((prev) =>
+                            prev.map((c) => {
+                              if (c.id !== selectedCampaign.id) return c
+                              const kind = v === '' ? null : v
+                              return {
+                                ...c,
+                                schedule_kind: kind,
+                                schedule_cron: kind === 'recurring' ? c.schedule_cron : null,
+                              }
+                            })
+                          )
+                        }}
+                      >
+                        <option value="">(unset)</option>
+                        <option value="one_off">one_off</option>
+                        <option value="recurring">recurring</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label>scheduled_at</Label>
+                      <IsoUtcDateTimePickers
+                        idPrefix={`camp-${selectedCampaign.id}-scheduled`}
+                        value={selectedCampaign.scheduled_at}
+                        onChange={(iso) =>
+                          setCampaigns((prev) =>
+                            prev.map((c) =>
+                              c.id === selectedCampaign.id ? { ...c, scheduled_at: iso } : c
+                            )
+                          )
+                        }
+                      />
+                      <p className="text-[11px] text-gray-500">
+                        Semantic first run for one-off. Date and time use your device timezone; saved as UTC for the API.
+                      </p>
+                    </div>
+                    {selectedCampaign.schedule_kind === 'recurring' ? (
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Label>schedule_cron (5 fields, UTC)</Label>
+                        <Input
+                          value={selectedCampaign.schedule_cron ?? ''}
+                          placeholder="0 9 * * 1"
+                          onChange={(e) =>
+                            setCampaigns((prev) =>
+                              prev.map((c) =>
+                                c.id === selectedCampaign.id
+                                  ? { ...c, schedule_cron: e.target.value.trim() || null }
+                                  : c
+                              )
+                            )
+                          }
+                        />
+                        <p className="text-[11px] text-gray-500">Example: Monday 09:00 UTC → 0 9 * * 1</p>
+                      </div>
+                    ) : null}
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label>next_run_at</Label>
+                      <IsoUtcDateTimePickers
+                        idPrefix={`camp-${selectedCampaign.id}-nextrun`}
+                        value={selectedCampaign.next_run_at}
+                        onChange={(iso) =>
+                          setCampaigns((prev) =>
+                            prev.map((c) =>
+                              c.id === selectedCampaign.id ? { ...c, next_run_at: iso } : c
+                            )
+                          )
+                        }
+                      />
+                      <p className="text-[11px] text-gray-500">
+                        When the orchestrator should treat this campaign as due. Same local date/time → UTC storage as above.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border border-dashed border-gray-200 bg-gray-50/80 p-3 text-xs text-gray-600 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-400">
+                    <p className="font-medium text-gray-700 dark:text-zinc-300">Orchestrator status (read-only)</p>
+                    <ul className="mt-2 list-inside list-disc space-y-1">
+                      <li>
+                        last_run_at:{' '}
+                        {selectedCampaign.last_run_at ? formatDate(selectedCampaign.last_run_at) : '—'}
+                      </li>
+                      <li>
+                        schedule_run_in_progress: {selectedCampaign.schedule_run_in_progress ? 'true' : 'false'}
+                      </li>
+                      <li className="font-mono text-[11px] break-all">
+                        schedule_resume_after_user_id: {selectedCampaign.schedule_resume_after_user_id ?? '—'}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="border-t border-gray-200 pt-6 space-y-3">
                 <div className="flex items-center justify-between">
@@ -1022,6 +1261,87 @@ function UserRow({ u, size = 'sm' }: { u: TestRunUser; size?: 'sm' | 'md' }) {
   )
 }
 
+function FriendRequestConfigFields({
+  output,
+  disabled,
+  onChange,
+}: {
+  output: ReengagementCampaignOutput
+  disabled: boolean
+  onChange: (next: ReengagementCampaignOutput) => void
+}) {
+  const fc = (output.config ?? {}) as Record<string, unknown>
+  const raw = fc.sender_selector
+  const sender: ReengagementFriendSenderSelector = REENGAGEMENT_FRIEND_SENDER_OPTIONS.includes(
+    raw as ReengagementFriendSenderSelector
+  )
+    ? (raw as ReengagementFriendSenderSelector)
+    : 'any_male'
+  const uid = typeof fc.specific_user_id === 'string' ? fc.specific_user_id : ''
+  const message = typeof fc.message === 'string' ? fc.message : ''
+
+  return (
+    <div className="grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 md:grid-cols-2">
+      <div className="space-y-1 md:col-span-2">
+        <Label className="text-xs">Sender selector</Label>
+        <select
+          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+          disabled={disabled}
+          value={sender}
+          onChange={(e) => {
+            const v = e.target.value as ReengagementFriendSenderSelector
+            onChange({
+              ...output,
+              config: {
+                ...fc,
+                sender_selector: v,
+                specific_user_id: v === 'specific_user' ? fc.specific_user_id ?? null : null,
+              },
+            })
+          }}
+        >
+          {REENGAGEMENT_FRIEND_SENDER_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </div>
+      {sender === 'specific_user' ? (
+        <div className="space-y-1 md:col-span-2">
+          <Label className="text-xs">specific_user_id</Label>
+          <Input
+            className="font-mono text-xs"
+            disabled={disabled}
+            value={uid}
+            placeholder="Sender user UUID"
+            onChange={(e) =>
+              onChange({
+                ...output,
+                config: { ...fc, specific_user_id: e.target.value.trim() || null },
+              })
+            }
+          />
+        </div>
+      ) : null}
+      <div className="space-y-1 md:col-span-2">
+        <Label className="text-xs">Message (optional)</Label>
+        <Input
+          disabled={disabled}
+          value={message}
+          placeholder="Friend request message"
+          onChange={(e) =>
+            onChange({
+              ...output,
+              config: { ...fc, message: e.target.value || null },
+            })
+          }
+        />
+      </div>
+    </div>
+  )
+}
+
 function OutputEditor({
   output,
   index,
@@ -1108,6 +1428,10 @@ function OutputEditor({
           />
         </div>
       </div>
+
+      {output.output_type === 'friend_request' ? (
+        <FriendRequestConfigFields output={output} disabled={disabled} onChange={onChange} />
+      ) : null}
 
       <div className="space-y-1">
         <Label className="text-xs">Config JSON</Label>
