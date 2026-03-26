@@ -25,6 +25,8 @@ import {
   type ReengagementTriggerType,
 } from '@/lib/reengagement-types'
 import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react'
+import { useAppDialogs } from '@/components/app-dialogs-provider'
+import { notifyError, notifySuccess } from '@/lib/notify'
 
 const EXECUTIONS_PAGE_SIZE = 20
 
@@ -173,6 +175,8 @@ export default function ReengagementManager() {
     [campaigns, selectedCampaignId]
   )
 
+  const { confirm, prompt } = useAppDialogs()
+
   const loadTestUsers = useCallback(async () => {
     if (testUsersFetchInFlight.current || testUsersHydrated.current) return
     testUsersFetchInFlight.current = true
@@ -197,7 +201,7 @@ export default function ReengagementManager() {
       setTestUsers(mapped)
       testUsersHydrated.current = true
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to load users')
+      notifyError(e instanceof Error ? e.message : 'Failed to load users')
     } finally {
       testUsersFetchInFlight.current = false
       setTestUsersLoading(false)
@@ -231,7 +235,7 @@ export default function ReengagementManager() {
         return list.some((c) => c.id === prev) ? prev : null
       })
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to load campaigns')
+      notifyError(e instanceof Error ? e.message : 'Failed to load campaigns')
     } finally {
       setLoading(false)
     }
@@ -244,7 +248,7 @@ export default function ReengagementManager() {
       if (!res.ok) throw new Error(data.error || 'Failed to load outputs')
       setOutputs(data.outputs ?? [])
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to load outputs')
+      notifyError(e instanceof Error ? e.message : 'Failed to load outputs')
     }
   }
 
@@ -259,7 +263,7 @@ export default function ReengagementManager() {
       setExecutions(data.executions ?? [])
       setExecutionsTotal(typeof data.total === 'number' ? data.total : 0)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to load executions')
+      notifyError(e instanceof Error ? e.message : 'Failed to load executions')
       setExecutions([])
       setExecutionsTotal(0)
     } finally {
@@ -314,7 +318,12 @@ export default function ReengagementManager() {
   }, [selectedCampaignId, campaignPanelTab, executionsPage, loadExecutionsPage])
 
   async function createCampaign() {
-    const name = prompt('Campaign name')
+    const name = await prompt({
+      title: 'New campaign',
+      label: 'Campaign name',
+      placeholder: 'My campaign',
+      confirmLabel: 'Create',
+    })
     if (!name?.trim()) return
     setSaving(true)
     try {
@@ -328,7 +337,7 @@ export default function ReengagementManager() {
       setCampaigns((prev) => [normalizeReengagementCampaign(data.campaign), ...prev])
       setSelectedCampaignId(data.campaign.id)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to create campaign')
+      notifyError(e instanceof Error ? e.message : 'Failed to create campaign')
     } finally {
       setSaving(false)
     }
@@ -347,16 +356,22 @@ export default function ReengagementManager() {
       setCampaigns((prev) =>
         prev.map((c) => (c.id === data.campaign.id ? normalizeReengagementCampaign(data.campaign) : c))
       )
-      alert('Campaign saved')
+      notifySuccess('Campaign saved')
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to save campaign')
+      notifyError(e instanceof Error ? e.message : 'Failed to save campaign')
     } finally {
       setSaving(false)
     }
   }
 
   async function deleteCampaign(id: string) {
-    if (!confirm('Delete campaign? Outputs and executions relation data may be affected.')) return
+    const ok = await confirm({
+      title: 'Delete campaign?',
+      description: 'Outputs and executions relation data may be affected.',
+      variant: 'destructive',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     setSaving(true)
     try {
       const res = await fetch(`/api/reengagement/campaigns?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
@@ -365,7 +380,7 @@ export default function ReengagementManager() {
       setCampaigns((prev) => prev.filter((c) => c.id !== id))
       setSelectedCampaignId((prev) => (prev === id ? null : prev))
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to delete campaign')
+      notifyError(e instanceof Error ? e.message : 'Failed to delete campaign')
     } finally {
       setSaving(false)
     }
@@ -390,7 +405,7 @@ export default function ReengagementManager() {
       if (!res.ok) throw new Error(data.error || 'Failed to add output')
       setOutputs((prev) => [...prev, data.output].sort((a, b) => a.order_index - b.order_index))
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to add output')
+      notifyError(e instanceof Error ? e.message : 'Failed to add output')
     } finally {
       setSaving(false)
     }
@@ -408,14 +423,19 @@ export default function ReengagementManager() {
       if (!res.ok) throw new Error(data.error || 'Failed to save output')
       setOutputs((prev) => prev.map((o) => (o.id === data.output.id ? data.output : o)))
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to save output')
+      notifyError(e instanceof Error ? e.message : 'Failed to save output')
     } finally {
       setSaving(false)
     }
   }
 
   async function deleteOutput(id: string) {
-    if (!confirm('Delete output step?')) return
+    const ok = await confirm({
+      title: 'Delete output step?',
+      variant: 'destructive',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     setSaving(true)
     try {
       const res = await fetch(`/api/reengagement/outputs?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
@@ -423,7 +443,7 @@ export default function ReengagementManager() {
       if (!res.ok) throw new Error(data.error || 'Failed to delete output')
       setOutputs((prev) => prev.filter((o) => o.id !== id))
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to delete output')
+      notifyError(e instanceof Error ? e.message : 'Failed to delete output')
     } finally {
       setSaving(false)
     }
@@ -448,15 +468,21 @@ export default function ReengagementManager() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to reorder outputs')
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to reorder outputs')
+      notifyError(e instanceof Error ? e.message : 'Failed to reorder outputs')
       void loadOutputs(selectedCampaignId!)
     }
   }
 
   async function runTest() {
-    if (!testUserId.trim()) return alert('Select a recipient user.')
+    if (!testUserId.trim()) {
+      notifyError('Select a recipient user.')
+      return
+    }
     const envConfigured = Boolean(secretMeta?.hasPrimary || secretMeta?.hasDemo)
-    if (!envConfigured && !testSecret.trim()) return alert('Enter the reengagement secret.')
+    if (!envConfigured && !testSecret.trim()) {
+      notifyError('Enter the reengagement secret.')
+      return
+    }
     setSaving(true)
     try {
       const secretToSend = envConfigured ? undefined : testSecret.trim()
@@ -471,12 +497,12 @@ export default function ReengagementManager() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Test run failed')
-      alert(`Run complete: ${JSON.stringify(data.result)}`)
+      notifySuccess(JSON.stringify(data.result), 'Test run complete')
       if (selectedCampaignId && campaignPanelTab === 'executions') {
         void loadExecutionsPage(selectedCampaignId, executionsPage)
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Test run failed')
+      notifyError(e instanceof Error ? e.message : 'Test run failed')
     } finally {
       setSaving(false)
     }
@@ -1452,7 +1478,7 @@ function OutputEditor({
             onChange(next)
             onSave(next)
           } catch {
-            alert('Config must be valid JSON')
+            notifyError('Config must be valid JSON')
           }
         }}
         disabled={disabled}

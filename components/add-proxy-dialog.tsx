@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Eye, EyeOff } from 'lucide-react'
+import { notifyError } from '@/lib/notify'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -164,7 +165,7 @@ export function AddProxyDialog({ deviceId, proxy, children }: AddProxyDialogProp
       router.refresh()
     } catch (error) {
       console.error(`Error ${isEditing ? 'updating' : 'creating'} proxy:`, error)
-      alert(error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} proxy`)
+      notifyError(error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} proxy`)
     } finally {
       setIsLoading(false)
     }

@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog'
 import AddMostLikelyToDialog from './add-most-likely-to-dialog'
+import { notifyError } from '@/lib/notify'
 
 interface MostLikelyToListProps {
   questions: MostLikelyToQuestion[]
@@ -68,7 +69,7 @@ export default function MostLikelyToList({
       setItemToDelete(null)
     } catch (error) {
       console.error('Error deleting question:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete question')
+      notifyError(error instanceof Error ? error.message : 'Failed to delete question')
     } finally {
       setDeleting(false)
     }

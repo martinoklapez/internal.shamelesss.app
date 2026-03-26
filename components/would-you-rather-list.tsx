@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog'
 import AddWouldYouRatherDialog from './add-would-you-rather-dialog'
+import { notifyError } from '@/lib/notify'
 
 interface WouldYouRatherListProps {
   questions: WouldYouRatherQuestion[]
@@ -68,7 +69,7 @@ export default function WouldYouRatherList({
       setItemToDelete(null)
     } catch (error) {
       console.error('Error deleting question:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete question')
+      notifyError(error instanceof Error ? error.message : 'Failed to delete question')
     } finally {
       setDeleting(false)
     }

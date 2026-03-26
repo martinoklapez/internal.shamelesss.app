@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Eye, EyeOff } from 'lucide-react'
+import { notifyError } from '@/lib/notify'
 import { getSocialPlatformImage } from '@/lib/social-platform-images'
 
 const PLATFORMS = ['TikTok', 'Instagram', 'Snapchat', 'Pinterest'] as const
@@ -128,7 +129,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
       router.refresh()
     } catch (error) {
       console.error(`Error ${isEditing ? 'updating' : 'creating'} social account:`, error)
-      alert(error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} social account`)
+      notifyError(error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} social account`)
     } finally {
       setIsLoading(false)
     }

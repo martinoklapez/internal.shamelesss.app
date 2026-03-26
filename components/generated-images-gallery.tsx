@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { X, ChevronLeft, ChevronRight, Copy, Check, Download, Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { CharacterGeneratedImage } from '@/types/database'
+import { notifyError } from '@/lib/notify'
 
 function formatPrompt(prompt: string): { isJson: boolean; content: string | React.ReactNode } {
   try {
@@ -127,7 +128,7 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
       document.body.removeChild(a)
     } catch (error) {
       console.error('Error downloading image:', error)
-      alert('Failed to download image. Please try again.')
+      notifyError('Failed to download image. Please try again.')
     }
   }
 
@@ -180,7 +181,7 @@ export function GeneratedImagesGallery({ images: initialImages }: GeneratedImage
       router.refresh()
     } catch (error) {
       console.error('Error archiving image:', error)
-      alert(error instanceof Error ? error.message : 'Failed to archive image. Please try again.')
+      notifyError(error instanceof Error ? error.message : 'Failed to archive image. Please try again.')
       setArchivingImageId(null)
     }
   }

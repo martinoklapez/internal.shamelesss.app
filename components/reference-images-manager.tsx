@@ -6,6 +6,8 @@ import Image from 'next/image'
 import { Upload, X, Star, StarOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { CharacterReferenceImage } from '@/types/database'
+import { useAppDialogs } from '@/components/app-dialogs-provider'
+import { notifyError, notifySuccess } from '@/lib/notify'
 
 interface ReferenceImagesManagerProps {
   characterId: string
@@ -16,6 +18,7 @@ export function ReferenceImagesManager({
   characterId,
   initialImages,
 }: ReferenceImagesManagerProps) {
+  const { confirm } = useAppDialogs()
   const router = useRouter()
   const [images, setImages] = useState<CharacterReferenceImage[]>(initialImages)
   const [uploading, setUploading] = useState(false)
@@ -27,7 +30,7 @@ export function ReferenceImagesManager({
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
+      notifyError('Please select an image file')
       return
     }
 
@@ -53,6 +56,7 @@ export function ReferenceImagesManager({
       const newImage = await response.json()
       setImages([...images, newImage])
       router.refresh()
+      notifySuccess('Image uploaded')
 
       // Reset file input
       if (fileInputRef.current) {
@@ -60,16 +64,19 @@ export function ReferenceImagesManager({
       }
     } catch (error) {
       console.error('Error uploading image:', error)
-      alert(error instanceof Error ? error.message : 'Failed to upload image')
+      notifyError(error instanceof Error ? error.message : 'Failed to upload image')
     } finally {
       setUploading(false)
     }
   }
 
   const handleDelete = async (imageId: string) => {
-    if (!confirm('Are you sure you want to delete this reference image?')) {
-      return
-    }
+    const ok = await confirm({
+      title: 'Delete this reference image?',
+      variant: 'destructive',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
 
     try {
       const response = await fetch(
@@ -90,9 +97,10 @@ export function ReferenceImagesManager({
 
       setImages(images.filter(img => img.id !== imageId))
       router.refresh()
+      notifySuccess('Image deleted')
     } catch (error) {
       console.error('Error deleting image:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete image')
+      notifyError(error instanceof Error ? error.message : 'Failed to delete image')
     }
   }
 
@@ -119,9 +127,10 @@ export function ReferenceImagesManager({
       const updatedImage = await response.json()
       setImages(images.map(img => img.id === imageId ? updatedImage : img))
       router.refresh()
+      notifySuccess('Default updated')
     } catch (error) {
       console.error('Error toggling default:', error)
-      alert(error instanceof Error ? error.message : 'Failed to update image')
+      notifyError(error instanceof Error ? error.message : 'Failed to update image')
     } finally {
       setToggling(null)
     }

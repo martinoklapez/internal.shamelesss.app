@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { notifyError, notifySuccess } from '@/lib/notify'
 
 interface iCloudProfile {
   id?: string
@@ -129,9 +130,10 @@ export function AddICloudProfileDialog({ deviceId, iCloudProfile, children }: Ad
         })
       }
       router.refresh()
+      notifySuccess(isEditing ? 'Profile updated' : 'Profile created')
     } catch (error) {
       console.error(`Error ${isEditing ? 'updating' : 'creating'} iCloud profile:`, error)
-      alert(error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} iCloud profile`)
+      notifyError(error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} iCloud profile`)
     } finally {
       setIsLoading(false)
     }

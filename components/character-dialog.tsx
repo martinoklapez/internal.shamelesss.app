@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { AICharacter } from '@/types/database'
+import { useAppDialogs } from '@/components/app-dialogs-provider'
+import { notifyError } from '@/lib/notify'
 
 interface CharacterDialogProps {
   character?: AICharacter
@@ -31,6 +33,7 @@ export function CharacterDialog({
   onCharacterDeleted,
   children,
 }: CharacterDialogProps) {
+  const { confirm } = useAppDialogs()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(character?.name || '')
   const [isLoading, setIsLoading] = useState(false)
@@ -81,16 +84,21 @@ export function CharacterDialog({
       router.refresh()
     } catch (error) {
       console.error('Error saving character:', error)
-      alert(error instanceof Error ? error.message : 'Failed to save character')
+      notifyError(error instanceof Error ? error.message : 'Failed to save character')
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!character || !confirm(`Are you sure you want to delete "${character.name}"? This will also delete all reference and generated images.`)) {
-      return
-    }
+    if (!character) return
+    const ok = await confirm({
+      title: `Delete “${character.name}”?`,
+      description: 'This will also delete all reference and generated images.',
+      variant: 'destructive',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
 
     setIsDeleting(true)
 
@@ -116,7 +124,7 @@ export function CharacterDialog({
       router.refresh()
     } catch (error) {
       console.error('Error deleting character:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete character')
+      notifyError(error instanceof Error ? error.message : 'Failed to delete character')
     } finally {
       setIsDeleting(false)
     }

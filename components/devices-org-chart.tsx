@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { getSocialPlatformImage } from '@/lib/social-platform-images'
+import { notifyError } from '@/lib/notify'
 
 type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'archived'
 
@@ -288,7 +289,7 @@ function SocialAccountCard({ account }: { account: SocialAccount }) {
       router.refresh()
     } catch (e) {
       console.error('Error updating social account status:', e)
-      alert(e instanceof Error ? e.message : 'Failed to update status')
+      notifyError(e instanceof Error ? e.message : 'Failed to update status')
     }
   }
 

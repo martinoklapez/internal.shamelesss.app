@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog'
 import AddPositionDialog from './add-position-dialog'
+import { notifyError } from '@/lib/notify'
 
 interface PositionsListProps {
   positions: Position[]
@@ -69,7 +70,7 @@ export default function PositionsList({
       setItemToDelete(null)
     } catch (error) {
       console.error('Error deleting position:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete position')
+      notifyError(error instanceof Error ? error.message : 'Failed to delete position')
     } finally {
       setDeleting(false)
     }

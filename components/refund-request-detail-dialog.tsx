@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { User, Save } from 'lucide-react'
+import { notifyError, notifySuccess } from '@/lib/notify'
 
 interface RefundRequestDetailDialogProps {
   request: RefundRequestWithProfile
@@ -93,9 +94,10 @@ export function RefundRequestDetailDialog({
       const updatedRequest = await response.json()
       setStatus(updatedRequest.status)
       onStatusUpdate()
+      notifySuccess('Status updated')
     } catch (error) {
       console.error('Error updating status:', error)
-      alert('Failed to update status. Please try again.')
+      notifyError('Failed to update status. Please try again.')
     } finally {
       setUpdating(false)
     }
@@ -117,9 +119,10 @@ export function RefundRequestDetailDialog({
       const updatedRequest = await response.json()
       setAdminResponse(updatedRequest.admin_response || '')
       onStatusUpdate()
+      notifySuccess('Response saved')
     } catch (error) {
       console.error('Error saving admin response:', error)
-      alert('Failed to save admin response. Please try again.')
+      notifyError('Failed to save admin response. Please try again.')
     } finally {
       setSavingResponse(false)
     }

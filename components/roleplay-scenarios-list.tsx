@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog'
 import AddRoleplayScenarioDialog from './add-roleplay-scenario-dialog'
+import { notifyError } from '@/lib/notify'
 
 interface RoleplayScenariosListProps {
   scenarios: RoleplayScenario[]
@@ -68,7 +69,7 @@ export default function RoleplayScenariosList({
       setItemToDelete(null)
     } catch (error) {
       console.error('Error deleting scenario:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete scenario')
+      notifyError(error instanceof Error ? error.message : 'Failed to delete scenario')
     } finally {
       setDeleting(false)
     }

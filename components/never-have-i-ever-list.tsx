@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog'
 import AddNeverHaveIEverDialog from './add-never-have-i-ever-dialog'
+import { notifyError } from '@/lib/notify'
 
 interface NeverHaveIEverListProps {
   statements: NeverHaveIEverStatement[]
@@ -68,7 +69,7 @@ export default function NeverHaveIEverList({
       setItemToDelete(null)
     } catch (error) {
       console.error('Error deleting statement:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete statement')
+      notifyError(error instanceof Error ? error.message : 'Failed to delete statement')
     } finally {
       setDeleting(false)
     }

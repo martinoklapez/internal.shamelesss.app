@@ -33,6 +33,8 @@ import {
   notificationTestNeedsContextUser,
 } from '@/lib/notification-content-templates'
 import { Pencil, Trash2, Send, Play, ChevronsUpDown, Check } from 'lucide-react'
+import { useAppDialogs } from '@/components/app-dialogs-provider'
+import { notifyError, notifySuccess } from '@/lib/notify'
 
 type TestPushUser = {
   id: string
@@ -215,6 +217,7 @@ interface NotificationTemplatesManagerProps {
 export default function NotificationTemplatesManager({
   initialTemplates,
 }: NotificationTemplatesManagerProps) {
+  const { confirm } = useAppDialogs()
   const router = useRouter()
   const [templates, setTemplates] = useState(initialTemplates)
   const [editing, setEditing] = useState<NotificationContentTemplate | null>(null)
@@ -287,15 +290,22 @@ export default function NotificationTemplatesManager({
       )
       closeEdit()
       router.refresh()
+      notifySuccess('Template saved')
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to save')
+      notifyError(e instanceof Error ? e.message : 'Failed to save')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (notificationType: string) => {
-    if (!confirm(`Delete template for "${notificationType}"? The Edge Function will fall back to job defaults.`)) return
+    const ok = await confirm({
+      title: `Delete template for “${notificationType}”?`,
+      description: 'The Edge Function will fall back to job defaults.',
+      variant: 'destructive',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     setDeletingType(notificationType)
     try {
       const res = await fetch(
@@ -307,7 +317,7 @@ export default function NotificationTemplatesManager({
       setTemplates((prev) => prev.filter((t) => t.notification_type !== notificationType))
       router.refresh()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to delete')
+      notifyError(e instanceof Error ? e.message : 'Failed to delete')
     } finally {
       setDeletingType(null)
     }
@@ -362,17 +372,19 @@ export default function NotificationTemplatesManager({
 
   const handleSendTestFromModal = async () => {
     if (!testModalType || !modalTestUserId) {
-      alert('Select who receives the push.')
+      notifyError('Select who receives the push.')
       return
     }
     const needsContext = notificationTestNeedsContextUser(testModalType)
     if (needsContext) {
       if (!modalContextUserId) {
-        alert('This template uses placeholders — select the other user (sender / context).')
+        notifyError('This template uses placeholders — select the other user (sender / context).')
         return
       }
       if (modalContextUserId === modalTestUserId) {
-        alert('Choose two different users: one receives the push, the other fills sender/name placeholders.')
+        notifyError(
+          'Choose two different users: one receives the push, the other fills sender/name placeholders.'
+        )
         return
       }
     }
@@ -426,7 +438,7 @@ export default function NotificationTemplatesManager({
         tone: pushFailed ? 'warning' : 'success',
       })
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to send test')
+      notifyError(e instanceof Error ? e.message : 'Failed to send test')
     } finally {
       setSendingTest(false)
     }

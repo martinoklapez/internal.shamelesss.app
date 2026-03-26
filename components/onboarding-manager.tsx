@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog'
+import { notifyError } from '@/lib/notify'
 
 interface OnboardingManagerProps {
   initialQuizScreens: QuizScreen[]
@@ -351,7 +352,7 @@ export default function OnboardingManager({
       router.refresh()
     } catch (error) {
       console.error('Error toggling screen visibility:', error)
-      alert('Failed to update screen visibility. Please try again.')
+      notifyError('Failed to update screen visibility. Please try again.')
     }
   }, [router])
 
@@ -523,7 +524,7 @@ export default function OnboardingManager({
       router.refresh()
     } catch (error) {
       console.error('Error deleting screen:', error)
-      alert('Failed to delete screen. Please try again.')
+      notifyError('Failed to delete screen. Please try again.')
     } finally {
       setDeleteDialogOpen(false)
       setScreenToDelete(null)

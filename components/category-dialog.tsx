@@ -14,6 +14,8 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Trash2 } from 'lucide-react'
+import { useAppDialogs } from '@/components/app-dialogs-provider'
+import { notifyError } from '@/lib/notify'
 
 interface CategoryDialogProps {
   open: boolean
@@ -32,6 +34,7 @@ export default function CategoryDialog({
   categories = [],
   onSuccess,
 }: CategoryDialogProps) {
+  const { confirm } = useAppDialogs()
   const isEditing = !!category
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -122,9 +125,14 @@ export default function CategoryDialog({
   }
 
   const handleDelete = async () => {
-    if (!category || !confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
-      return
-    }
+    if (!category) return
+    const ok = await confirm({
+      title: 'Delete this category?',
+      description: 'This action cannot be undone.',
+      variant: 'destructive',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
 
     setDeleting(true)
     setError(null)

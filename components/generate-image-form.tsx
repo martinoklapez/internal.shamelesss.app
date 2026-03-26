@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { AICharacter, CharacterReferenceImage, CharacterGeneratedImage } from '@/types/database'
+import { notifyError, notifySuccess } from '@/lib/notify'
 
 interface GenerateImageFormProps {
   characters: AICharacter[]
@@ -94,9 +95,10 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
       setGeneratedImage(result)
       setProgress('')
       router.refresh()
+      notifySuccess('Image generated')
     } catch (error) {
       console.error('Error generating image:', error)
-      alert(error instanceof Error ? error.message : 'Failed to generate image')
+      notifyError(error instanceof Error ? error.message : 'Failed to generate image')
       setProgress('')
     } finally {
       setIsGenerating(false)
@@ -341,7 +343,7 @@ export function GenerateImageForm({ characters, characterData }: GenerateImageFo
                       document.body.removeChild(a)
                     } catch (error) {
                       console.error('Error downloading image:', error)
-                      alert('Failed to download image. Please try again.')
+                      notifyError('Failed to download image. Please try again.')
                     }
                   }}
                   title="Download image in highest quality"

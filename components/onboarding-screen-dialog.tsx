@@ -26,6 +26,7 @@ import type { OnboardingComponent } from '@/lib/database/onboarding-components'
 import { OnboardingScreenPreview } from './onboarding-screen-preview'
 import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X, Play } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useAppDialogs } from '@/components/app-dialogs-provider'
 
 interface OnboardingScreenDialogProps {
   open: boolean
@@ -70,6 +71,7 @@ export function OnboardingScreenDialog({
   const [showJsonView, setShowJsonView] = useState(false)
   const [previewKey, setPreviewKey] = useState(0)
   const { toast } = useToast()
+  const { confirm } = useAppDialogs()
 
   // ScratchDates Preview: positions list + image source (position picker or custom URL)
   const [scratchDatesPositions, setScratchDatesPositions] = useState<Array<{ id: string; name: string; image_url: string }>>([])
@@ -1046,8 +1048,14 @@ export function OnboardingScreenDialog({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                        if (confirm('Are you sure you want to delete this screen? This action cannot be undone.')) {
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Delete this screen?',
+                          description: 'This action cannot be undone.',
+                          variant: 'destructive',
+                          confirmLabel: 'Delete',
+                        })
+                        if (ok) {
                           onDelete(screen.id, screenType)
                           onOpenChange(false)
                         }

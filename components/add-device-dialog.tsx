@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { notifyError, notifySuccess } from '@/lib/notify'
 
 interface AddDeviceDialogProps {
   children?: React.ReactNode
@@ -116,9 +117,10 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
       setManagerId('')
       setOwner('')
       router.refresh()
+      notifySuccess('Device created')
     } catch (error) {
       console.error('Error creating device:', error)
-      alert(error instanceof Error ? error.message : 'Failed to create device')
+      notifyError(error instanceof Error ? error.message : 'Failed to create device')
     } finally {
       setIsLoading(false)
     }

@@ -9,6 +9,7 @@ import { Button } from './ui/button'
 import CategoryDialog from './category-dialog'
 import { Pencil, Plus, Eye, List } from 'lucide-react'
 import Link from 'next/link'
+import { notifyError } from '@/lib/notify'
 
 interface CategoryManagerProps {
   gameId: string
@@ -71,7 +72,7 @@ export default function CategoryManager({ gameId, categories: initialCategories,
           cat.id === categoryId ? { ...cat, is_active: currentStatus } : cat
         )
       )
-      alert(error instanceof Error ? error.message : 'Failed to update category. Please try again.')
+      notifyError(error instanceof Error ? error.message : 'Failed to update category. Please try again.')
     } finally {
       setLoadingCategoryId(null)
     }

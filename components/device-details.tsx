@@ -16,6 +16,8 @@ import { getSocialPlatformImage } from '@/lib/social-platform-images'
 import { AddICloudProfileDialog } from './add-icloud-profile-dialog'
 import { AddSocialAccountDialog } from './add-social-account-dialog'
 import { AddProxyDialog } from './add-proxy-dialog'
+import { useAppDialogs } from '@/components/app-dialogs-provider'
+import { notifyError } from '@/lib/notify'
 
 type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'archived'
 
@@ -94,6 +96,7 @@ interface DeviceDetailsProps {
 
 
 export default function DeviceDetails({ device, currentUserId }: DeviceDetailsProps) {
+  const { confirm } = useAppDialogs()
   const router = useRouter()
   const [visibleCredentials, setVisibleCredentials] = useState<Set<string>>(new Set())
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -130,9 +133,12 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
   }
 
   const handleArchiveProfile = async (profileId: string) => {
-    if (!confirm('Are you sure you want to archive this iCloud profile?')) {
-      return
-    }
+    const ok = await confirm({
+      title: 'Archive this iCloud profile?',
+      variant: 'destructive',
+      confirmLabel: 'Archive',
+    })
+    if (!ok) return
 
     try {
       const response = await fetch('/api/icloud-profiles/archive', {
@@ -151,14 +157,17 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
       router.refresh()
     } catch (error) {
       console.error('Error archiving iCloud profile:', error)
-      alert(error instanceof Error ? error.message : 'Failed to archive iCloud profile')
+      notifyError(error instanceof Error ? error.message : 'Failed to archive iCloud profile')
     }
   }
 
   const handleArchiveProxy = async (proxyId: string) => {
-    if (!confirm('Are you sure you want to archive this proxy?')) {
-      return
-    }
+    const ok = await confirm({
+      title: 'Archive this proxy?',
+      variant: 'destructive',
+      confirmLabel: 'Archive',
+    })
+    if (!ok) return
 
     try {
       const response = await fetch('/api/proxies/archive', {
@@ -177,14 +186,17 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
       router.refresh()
     } catch (error) {
       console.error('Error archiving proxy:', error)
-      alert(error instanceof Error ? error.message : 'Failed to archive proxy')
+      notifyError(error instanceof Error ? error.message : 'Failed to archive proxy')
     }
   }
 
   const handleArchiveSocialAccount = async (accountId: string) => {
-    if (!confirm('Are you sure you want to archive this social account?')) {
-      return
-    }
+    const ok = await confirm({
+      title: 'Archive this social account?',
+      variant: 'destructive',
+      confirmLabel: 'Archive',
+    })
+    if (!ok) return
 
     try {
       const response = await fetch('/api/social-accounts/archive', {
@@ -203,7 +215,7 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
       router.refresh()
     } catch (error) {
       console.error('Error archiving social account:', error)
-      alert(error instanceof Error ? error.message : 'Failed to archive social account')
+      notifyError(error instanceof Error ? error.message : 'Failed to archive social account')
     }
   }
 
@@ -231,7 +243,7 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
       router.refresh()
     } catch (error) {
       console.error('Error updating social account status:', error)
-      alert(error instanceof Error ? error.message : 'Failed to update status')
+      notifyError(error instanceof Error ? error.message : 'Failed to update status')
     }
   }
 

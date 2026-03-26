@@ -18,6 +18,8 @@ import { Separator } from '@/components/ui/separator'
 import Image from 'next/image'
 import { ExternalLink, Download, User, MessageSquare, Image as ImageIcon, Trash2, Users, Save } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useAppDialogs } from '@/components/app-dialogs-provider'
+import { notifyError, notifySuccess } from '@/lib/notify'
 
 interface ReportDetailDialogProps {
   report: ReportWithProfiles
@@ -60,6 +62,7 @@ export function ReportDetailDialog({
   onOpenChange,
   onStatusUpdate,
 }: ReportDetailDialogProps) {
+  const { confirm } = useAppDialogs()
   const [status, setStatus] = useState(report.status)
   const [updating, setUpdating] = useState(false)
   const [adminResponse, setAdminResponse] = useState<string>(report.admin_response || '')
@@ -127,9 +130,10 @@ export function ReportDetailDialog({
       const updatedReport = await response.json()
       setStatus(updatedReport.status)
       onStatusUpdate()
+      notifySuccess('Status updated')
     } catch (error) {
       console.error('Error updating status:', error)
-      alert('Failed to update status. Please try again.')
+      notifyError('Failed to update status. Please try again.')
     } finally {
       setUpdating(false)
     }
@@ -151,18 +155,24 @@ export function ReportDetailDialog({
       const updatedReport = await response.json()
       setAdminResponse(updatedReport.admin_response || '')
       onStatusUpdate()
+      notifySuccess('Response saved')
     } catch (error) {
       console.error('Error saving admin response:', error)
-      alert('Failed to save admin response. Please try again.')
+      notifyError('Failed to save admin response. Please try again.')
     } finally {
       setSavingResponse(false)
     }
   }
 
   const handleDeleteConnection = async () => {
-    if (!connection || !confirm('Are you sure you want to delete this connection and all associated friend requests? This action cannot be undone.')) {
-      return
-    }
+    if (!connection) return
+    const ok = await confirm({
+      title: 'Delete this connection?',
+      description: 'This will remove the connection and all associated friend requests. This cannot be undone.',
+      variant: 'destructive',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
 
     setDeletingConnection(true)
     try {
@@ -203,16 +213,20 @@ export function ReportDetailDialog({
       }
     } catch (error) {
       console.error('Error deleting connection:', error)
-      alert('Failed to delete connection. Please try again.')
+      notifyError('Failed to delete connection. Please try again.')
     } finally {
       setDeletingConnection(false)
     }
   }
 
   const handleDeleteFriendRequest = async (friendRequestId: string) => {
-    if (!confirm('Are you sure you want to delete this friend request? This action cannot be undone.')) {
-      return
-    }
+    const ok = await confirm({
+      title: 'Delete this friend request?',
+      description: 'This action cannot be undone.',
+      variant: 'destructive',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
 
     setDeletingFriendRequest(friendRequestId)
     try {
@@ -234,7 +248,7 @@ export function ReportDetailDialog({
       }
     } catch (error) {
       console.error('Error deleting friend request:', error)
-      alert('Failed to delete friend request. Please try again.')
+      notifyError('Failed to delete friend request. Please try again.')
     } finally {
       setDeletingFriendRequest(null)
     }
