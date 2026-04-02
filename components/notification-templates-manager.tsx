@@ -27,7 +27,6 @@ import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/date'
 import {
   type NotificationContentTemplate,
-  NOTIFICATION_PLACEHOLDERS,
   PLACEHOLDERS_BY_TYPE,
   TEST_PUSH_CONTEXT_USER_LABEL,
   notificationTestNeedsContextUser,
@@ -168,9 +167,7 @@ function UserRow({ u, size = 'md' }: { u: TestPushUser; size?: 'sm' | 'md' }) {
   )
 }
 
-const KNOWN_PLACEHOLDERS = new Set(Object.keys(NOTIFICATION_PLACEHOLDERS))
-
-/** Renders template text with placeholders as badges (known = solid, unknown = lighter tint) */
+/** Renders template text with `{placeholder}` segments as badges (one consistent style for all). */
 function TemplateWithBadges({ text, className }: { text: string; className?: string }) {
   const parts: Array<{ type: 'text' | 'placeholder'; value: string }> = []
   let lastIndex = 0
@@ -195,12 +192,8 @@ function TemplateWithBadges({ text, className }: { text: string; className?: str
         ) : (
           <Badge
             key={i}
-            variant={KNOWN_PLACEHOLDERS.has(p.value) ? 'default' : 'secondary'}
-            className={
-              KNOWN_PLACEHOLDERS.has(p.value)
-                ? 'bg-[#ff5252] text-black border-0 text-[10px] px-1.5 py-0 font-mono'
-                : 'bg-[#ff5252]/15 text-black border-0 text-[10px] px-1.5 py-0 font-mono'
-            }
+            variant="default"
+            className="bg-[#ff5252] text-black border-0 text-[10px] px-1.5 py-0 font-mono"
           >
             {`{${p.value}}`}
           </Badge>
