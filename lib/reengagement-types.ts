@@ -3,12 +3,24 @@ export type ReengagementTriggerType = 'app_close' | 'scheduled'
 export type ReengagementOutputType = 'friend_request' | 'push_notification' | 'profile_views'
 export type ReengagementScheduleKind = 'one_off' | 'recurring'
 
-/** friend_request.config.sender_selector */
+/**
+ * friend_request.config.sender_selector — runtime: run-reengagement Edge Function.
+ * primarySenderId = first non-empty string among preferred_user_id, specific_user_id.
+ */
 export type ReengagementFriendSenderSelector =
+  | 'preferred_user'
+  | 'specific_user'
   | 'any_male'
   | 'any_female'
   | 'opposite_gender'
-  | 'specific_user'
+  | 'same_gender'
+
+/** Pool step only (fallback_sender_selector). Same semantics as top-level pool modes. */
+export type ReengagementFriendPoolSelector =
+  | 'any_male'
+  | 'any_female'
+  | 'opposite_gender'
+  | 'same_gender'
 
 /** Targeting on profiles.*; all set dimensions are AND’d. Empty object = no restriction. */
 export interface ReengagementAudienceFilter {
@@ -81,11 +93,34 @@ export const REENGAGEMENT_ENTITLEMENT_OPTIONS = [
 ] as const
 
 export const REENGAGEMENT_FRIEND_SENDER_OPTIONS: ReengagementFriendSenderSelector[] = [
+  'preferred_user',
+  'specific_user',
   'any_male',
   'any_female',
   'opposite_gender',
-  'specific_user',
+  'same_gender',
 ]
+
+export const REENGAGEMENT_FRIEND_POOL_SELECTOR_OPTIONS: ReengagementFriendPoolSelector[] = [
+  'any_male',
+  'any_female',
+  'opposite_gender',
+  'same_gender',
+]
+
+export function isReengagementFriendSenderSelector(v: unknown): v is ReengagementFriendSenderSelector {
+  return (
+    typeof v === 'string' &&
+    (REENGAGEMENT_FRIEND_SENDER_OPTIONS as readonly string[]).includes(v)
+  )
+}
+
+export function isReengagementFriendPoolSelector(v: unknown): v is ReengagementFriendPoolSelector {
+  return (
+    typeof v === 'string' &&
+    (REENGAGEMENT_FRIEND_POOL_SELECTOR_OPTIONS as readonly string[]).includes(v)
+  )
+}
 
 /** Sanitize audience_filter from DB or API body: only valid keys, normalized values, `{}` when no rules. */
 export function normalizeAudienceFilter(raw: unknown): ReengagementAudienceFilter {

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient()
     const {
@@ -15,12 +15,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const demoOnly =
+      searchParams.get('demo_only') === '1' ||
+      searchParams.get('demo_only') === 'true'
+
     // Fetch users who have roles we care about in the admin panel
     // Using .select('*') to get all columns and ensure we're not missing any data
     const { data: usersWithRoles, error } = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .in('role', ['admin', 'developer', 'promoter', 'tester', 'demo'])
+      .in('role', demoOnly ? ['demo'] : ['admin', 'developer', 'promoter', 'tester', 'demo'])
 
     if (error) {
       console.error('Error fetching users from user_roles:', error)
@@ -32,33 +37,42 @@ export async function GET() {
     }
 
     if (!usersWithRoles || usersWithRoles.length === 0) {
-      console.warn('No users found with roles: admin, developer, promoter, tester')
+      console.warn(
+        demoOnly
+          ? 'No users found with role demo'
+          : 'No users found with roles: admin, developer, promoter, tester, demo'
+      )
       return NextResponse.json({ users: [] }, { status: 200 })
     }
 
     // Get unique user IDs (in case a user has multiple roles)
     const userIds = [...new Set(usersWithRoles.map((u) => u.user_id))]
 
-    // Pick a single role per user for UI display.
-    // (The list endpoint is used for test-push selection UI, so a deterministic “best” role is helpful.)
-    const rolePriority: Record<string, number> = {
-      admin: 100,
-      dev: 95,
-      developer: 90,
-      promoter: 80,
-      tester: 70,
-      demo: 60,
-    }
+    // Pick a single role per user for UI display (skip when demo_only — every row is demo).
     const roleByUserId = new Map<string, string>()
-    for (const { user_id, role } of usersWithRoles) {
-      const prev = roleByUserId.get(user_id)
-      if (!prev) {
-        roleByUserId.set(user_id, role)
-        continue
+    if (demoOnly) {
+      for (const { user_id } of usersWithRoles) {
+        roleByUserId.set(user_id, 'demo')
       }
-      const prevScore = rolePriority[prev] ?? 0
-      const nextScore = rolePriority[role] ?? 0
-      if (nextScore > prevScore) roleByUserId.set(user_id, role)
+    } else {
+      const rolePriority: Record<string, number> = {
+        admin: 100,
+        dev: 95,
+        developer: 90,
+        promoter: 80,
+        tester: 70,
+        demo: 60,
+      }
+      for (const { user_id, role } of usersWithRoles) {
+        const prev = roleByUserId.get(user_id)
+        if (!prev) {
+          roleByUserId.set(user_id, role)
+          continue
+        }
+        const prevScore = rolePriority[prev] ?? 0
+        const nextScore = rolePriority[role] ?? 0
+        if (nextScore > prevScore) roleByUserId.set(user_id, role)
+      }
     }
     console.log('Unique user IDs extracted:', userIds)
     console.log('Number of unique users:', userIds.length)

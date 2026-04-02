@@ -7,7 +7,13 @@ export const dynamic = 'force-dynamic'
 
 function defaultConfig(outputType: ReengagementOutputType): Record<string, unknown> {
   if (outputType === 'friend_request') {
-    return { sender_selector: 'any_male', message: null }
+    return {
+      sender_selector: 'any_male',
+      preferred_user_id: null,
+      specific_user_id: null,
+      fallback_sender_selector: null,
+      message: null,
+    }
   }
   if (outputType === 'push_notification') {
     return {
