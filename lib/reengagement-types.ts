@@ -1,5 +1,15 @@
 export type ReengagementIntensityType = 'once_per_user' | 'x_per_y_days'
-export type ReengagementTriggerType = 'app_close' | 'scheduled'
+export type ReengagementTriggerType = 'app_close' | 'scheduled' | 'subscription_cancelled'
+
+export const REENGAGEMENT_TRIGGER_TYPES: readonly ReengagementTriggerType[] = [
+  'app_close',
+  'scheduled',
+  'subscription_cancelled',
+] as const
+
+export function isReengagementTriggerType(v: unknown): v is ReengagementTriggerType {
+  return typeof v === 'string' && (REENGAGEMENT_TRIGGER_TYPES as readonly string[]).includes(v)
+}
 export type ReengagementOutputType = 'friend_request' | 'push_notification' | 'profile_views'
 export type ReengagementScheduleKind = 'one_off' | 'recurring'
 

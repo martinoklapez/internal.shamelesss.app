@@ -37,6 +37,7 @@ import {
   type ReengagementOutputType,
   type ReengagementScheduleKind,
   type ReengagementTriggerType,
+  REENGAGEMENT_TRIGGER_TYPES,
 } from '@/lib/reengagement-types'
 import { COUNTRIES, getFlagEmoji } from '@/lib/countries'
 import {
@@ -216,6 +217,12 @@ const OUTPUT_TYPE_OPTIONS: ReengagementOutputType[] = [
   'profile_views',
 ]
 
+const REENGAGEMENT_TRIGGER_LABELS: Record<ReengagementTriggerType, string> = {
+  app_close: 'app_close — client invokes run-reengagement on app close',
+  scheduled: 'scheduled — run-scheduled-reengagement (cron, UTC)',
+  subscription_cancelled: 'subscription_cancelled — Superwall cancellation / expiration webhook',
+}
+
 type TestRunUser = {
   id: string
   name: string | null
@@ -285,6 +292,11 @@ export default function ReengagementManager() {
     () => campaigns.find((c) => c.id === selectedCampaignId) ?? null,
     [campaigns, selectedCampaignId]
   )
+
+  const superwallReengagementWebhookUrl = useMemo(() => {
+    const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
+    return base ? `${base}/functions/v1/superwall-reengagement-webhook` : ''
+  }, [])
 
   latestForBaseline.current = { campaigns, selectedCampaignId }
 
@@ -735,14 +747,23 @@ export default function ReengagementManager() {
     setSaving(true)
     try {
       const secretToSend = envConfigured ? undefined : testSecret.trim()
+      const testBody: {
+        userId: string
+        campaignId?: string
+        secret?: string
+        triggerType?: string
+      } = {
+        userId: testUserId.trim(),
+        campaignId: selectedCampaignId ?? undefined,
+        secret: secretToSend,
+      }
+      if (selectedCampaign?.trigger_type === 'subscription_cancelled') {
+        testBody.triggerType = 'subscription_cancelled'
+      }
       const res = await fetch('/api/reengagement/test-run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: testUserId.trim(),
-          campaignId: selectedCampaignId ?? undefined,
-          secret: secretToSend,
-        }),
+        body: JSON.stringify(testBody),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Test run failed')
@@ -948,12 +969,45 @@ export default function ReengagementManager() {
                       )
                     }
                   >
-                    <option value="app_close">app_close</option>
-                    <option value="scheduled">scheduled</option>
+                    {REENGAGEMENT_TRIGGER_TYPES.map((tt) => (
+                      <option key={tt} value={tt}>
+                        {REENGAGEMENT_TRIGGER_LABELS[tt]}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
               </div>
+
+              {selectedCampaign.trigger_type === 'subscription_cancelled' ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/25 dark:text-amber-100">
+                  <p className="font-medium text-amber-900 dark:text-amber-50">Superwall churn trigger</p>
+                  <p className="mt-2 text-amber-950/90 dark:text-amber-100/90">
+                    Production runs when Superwall sends cancellation or expiration events to your Edge Function. Configure
+                    the webhook URL in Superwall to point at{' '}
+                    {superwallReengagementWebhookUrl ? (
+                      <code className="break-all rounded bg-amber-100/80 px-1 py-0.5 text-[11px] dark:bg-amber-900/50">
+                        {superwallReengagementWebhookUrl}
+                      </code>
+                    ) : (
+                      <code className="text-[11px]">
+                        {'{SUPABASE_URL}'}/functions/v1/superwall-reengagement-webhook
+                      </code>
+                    )}
+                    . Optional header: <code className="text-[11px]">x-superwall-webhook-secret</code> if you set{' '}
+                    <code className="text-[11px]">SUPERWALL_WEBHOOK_SECRET</code>.
+                  </p>
+                  <p className="mt-2 text-amber-950/90 dark:text-amber-100/90">
+                    Only campaigns with this trigger type are selected. For win-back flows, consider{' '}
+                    <strong>Skip if subscribed</strong> tokens such as <code className="text-[11px]">has_active_subscription</code>{' '}
+                    so users who resubscribe are not spammed.
+                  </p>
+                  <p className="mt-2 text-amber-950/90 dark:text-amber-100/90">
+                    Push steps need active push tokens and user notification preference for reengagement; friend requests and
+                    profile views need demo-role users in the sender/viewer pools.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                 <label className="flex items-center justify-between rounded-md border px-3 py-2">
@@ -1766,8 +1820,31 @@ export default function ReengagementManager() {
                   <DialogTitle className="text-sm font-semibold">Test run — {selectedCampaign.name}</DialogTitle>
                 </DialogHeader>
                 <p className="text-xs text-muted-foreground">
-                  Runs <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-mono">run-reengagement</code> for the user
-                  and selected campaign (or all app_close campaigns if none selected).
+                  {selectedCampaign.trigger_type === 'subscription_cancelled' ? (
+                    <>
+                      Calls{' '}
+                      <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-mono">run-reengagement</code> with{' '}
+                      <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-mono">triggerType: subscription_cancelled</code>{' '}
+                      (same shape as <code className="text-[11px]">superwall-reengagement-webhook</code>) plus{' '}
+                      <code className="text-[11px]">userId</code>, <code className="text-[11px]">secret</code>, and this
+                      campaign&apos;s id so only matching active campaigns run.
+                    </>
+                  ) : selectedCampaign.trigger_type === 'scheduled' ? (
+                    <>
+                      Calls{' '}
+                      <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-mono">run-reengagement</code> for this
+                      user with this campaign id (mirrors scheduled batches). Cron and <code className="text-[11px]">next_run_at</code>{' '}
+                      do not fire from this button.
+                    </>
+                  ) : (
+                    <>
+                      Calls{' '}
+                      <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-mono">run-reengagement</code> for this
+                      user. With this campaign selected, that row is targeted; production app_close calls often omit{' '}
+                      <code className="text-[11px]">campaignId</code> to evaluate all active <code className="text-[11px]">app_close</code>{' '}
+                      campaigns.
+                    </>
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   If the user fails an <code className="text-[11px]">audience_filter</code> rule only, the edge function may return{' '}

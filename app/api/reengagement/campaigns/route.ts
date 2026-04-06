@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server'
 import { requireAdminUser } from '@/lib/api/admin-auth'
 import { getAdminSupabaseClient } from '@/lib/supabase/admin'
 import {
+  isReengagementTriggerType,
   normalizeAudienceFilter,
   normalizeReengagementCampaign,
   type ReengagementCampaign,
   type ReengagementScheduleKind,
+  type ReengagementTriggerType,
 } from '@/lib/reengagement-types'
 
 export const dynamic = 'force-dynamic'
@@ -17,6 +19,12 @@ const SCHEDULE_KIND = (v: unknown): ReengagementScheduleKind | null => {
   if (v === null || v === undefined || v === '') return null
   if (v === 'one_off' || v === 'recurring') return v
   return null
+}
+
+function parseTriggerTypeForCreate(v: unknown): ReengagementTriggerType | NextResponse {
+  if (v === undefined || v === null || v === '') return 'app_close'
+  if (isReengagementTriggerType(v)) return v
+  return NextResponse.json({ error: 'Invalid trigger_type' }, { status: 400 })
 }
 
 export async function GET() {
@@ -56,6 +64,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'name is required' }, { status: 400 })
     }
 
+    const triggerParsed = parseTriggerTypeForCreate(body.trigger_type)
+    if (triggerParsed instanceof NextResponse) return triggerParsed
+
     const payload = {
       name: body.name.trim(),
       is_active: body.is_active ?? true,
@@ -65,7 +76,7 @@ export async function POST(request: Request) {
       intensity_type: body.intensity_type ?? 'once_per_user',
       intensity_x: body.intensity_x ?? null,
       intensity_y_days: body.intensity_y_days ?? null,
-      trigger_type: body.trigger_type ?? 'app_close',
+      trigger_type: triggerParsed,
       schedule_paused: body.schedule_paused ?? false,
       schedule_timezone: typeof body.schedule_timezone === 'string' && body.schedule_timezone.trim()
         ? body.schedule_timezone.trim()
@@ -123,7 +134,12 @@ export async function PATCH(request: Request) {
     if (body.intensity_type !== undefined) payload.intensity_type = body.intensity_type
     if (body.intensity_x !== undefined) payload.intensity_x = body.intensity_x
     if (body.intensity_y_days !== undefined) payload.intensity_y_days = body.intensity_y_days
-    if (body.trigger_type !== undefined) payload.trigger_type = body.trigger_type
+    if (body.trigger_type !== undefined) {
+      if (!isReengagementTriggerType(body.trigger_type)) {
+        return NextResponse.json({ error: 'Invalid trigger_type' }, { status: 400 })
+      }
+      payload.trigger_type = body.trigger_type
+    }
     if (body.schedule_paused !== undefined) payload.schedule_paused = body.schedule_paused
     if (body.schedule_timezone !== undefined) {
       const z = typeof body.schedule_timezone === 'string' ? body.schedule_timezone.trim() : ''

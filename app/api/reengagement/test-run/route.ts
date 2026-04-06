@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdminUser } from '@/lib/api/admin-auth'
 import { getAdminSupabaseClient } from '@/lib/supabase/admin'
+import { isReengagementTriggerType } from '@/lib/reengagement-types'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,8 @@ export async function POST(request: Request) {
       userId?: string
       campaignId?: string
       secret?: string
+      /** Mirrors production: superwall-reengagement-webhook passes subscription_cancelled */
+      triggerType?: string
     }
 
     if (!body.userId?.trim()) {
@@ -34,6 +37,13 @@ export async function POST(request: Request) {
     const admin = getAdminSupabaseClient()
     const payload: Record<string, string> = { userId: body.userId.trim(), secret }
     if (body.campaignId?.trim()) payload.campaignId = body.campaignId.trim()
+    const tt = body.triggerType?.trim()
+    if (tt) {
+      if (!isReengagementTriggerType(tt)) {
+        return NextResponse.json({ error: 'Invalid triggerType' }, { status: 400 })
+      }
+      payload.triggerType = tt
+    }
 
     const { data, error } = await admin.functions.invoke('run-reengagement', { body: payload })
     if (error) return NextResponse.json({ error: error.message }, { status: 502 })
