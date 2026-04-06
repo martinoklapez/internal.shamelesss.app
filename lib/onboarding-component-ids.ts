@@ -21,6 +21,8 @@ export const CONVERSION_ONLY = [
   'username_input',
   'age_input',
   'gender',
+  'gender_select',
+  'country_select',
   'push_notification_permission',
 ] as const
 
@@ -70,10 +72,22 @@ export const COMPONENT_DISPLAY: Record<
   rate_app_blurred: { component_name: 'Rate App (Blurred)', description: 'In-app review with blur. Conversion only.' },
   rate_app_default: { component_name: 'Rate App (Default)', description: 'In-app review (no blur). Conversion only.' },
   rate_app_stars: { component_name: 'Rate App (Stars)', description: 'Star rating with title, 5 stars box, Continue. Optional feedback modal for 1–3 stars.' },
-  push_notification_permission: { component_name: 'Push Notification Permission', description: 'Push permission (simplified in quiz, full in conversion).' },
+  push_notification_permission: {
+    component_name: 'Push Notification Permission',
+    description:
+      'Push permission screen. Options (jsonb): template_source custom | notification_template, notification_type (when template), mockup_type (custom only; else derived from template), display_name, profile_image_url, title, body (placeholders), demo_user_id (demo account).',
+  },
   tracking_permission: { component_name: 'Tracking Permission', description: 'ATT mockup (Allow / Ask App Not to Track).' },
   quiz_results: { component_name: 'Quiz Results', description: 'Two-bar chart. Conversion only.' },
-  gender: { component_name: 'Gender', description: 'Gender selection. Conversion only.' },
+  gender: { component_name: 'Gender (legacy)', description: 'Legacy gender key; prefer gender_select. Conversion only.' },
+  gender_select: {
+    component_name: 'Gender Select',
+    description: 'Gender selection screen. Conversion funnel only (not quiz).',
+  },
+  country_select: {
+    component_name: 'Country Select',
+    description: 'Country selection screen. Conversion funnel only (not quiz).',
+  },
   info: { component_name: 'Info', description: 'Fallback: title + description + Next.' },
   scratchdates_preview: { component_name: 'ScratchDates Preview', description: 'Scratch-off card to preview a position from ScratchDates. Options: image_url (required), title (optional).' },
 }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/user-roles'
-import { isAllowedQuizComponent } from '@/lib/onboarding-component-ids'
+import { isAllowedQuizComponent, QUIZ_COMPONENT_IDS } from '@/lib/onboarding-component-ids'
 
 function getAdminClient() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     if (component_id != null && component_id !== '' && !isAllowedQuizComponent(component_id)) {
       return NextResponse.json(
         {
-          error: `component_id "${component_id}" is not allowed for quiz screens. Use options, instant_radio, loading, name_input, username_input, age_input, age_input_scroll, profile_image, frequency_slider, satisfaction_slider, testimonial_loader, rate_app, push_notification_permission, tracking_permission, or info.`,
+          error: `component_id "${component_id}" is not allowed for quiz screens (conversion-only components such as country_select and gender_select belong in the conversion funnel). Allowed: ${QUIZ_COMPONENT_IDS.join(', ')}.`,
         },
         { status: 400 }
       )
@@ -144,7 +144,7 @@ export async function PUT(request: Request) {
     if (component_id != null && component_id !== '' && !isAllowedQuizComponent(component_id)) {
       return NextResponse.json(
         {
-          error: `component_id "${component_id}" is not allowed for quiz screens. Use options, instant_radio, loading, name_input, username_input, age_input, age_input_scroll, profile_image, frequency_slider, satisfaction_slider, testimonial_loader, rate_app, push_notification_permission, tracking_permission, or info.`,
+          error: `component_id "${component_id}" is not allowed for quiz screens (conversion-only components such as country_select and gender_select belong in the conversion funnel). Allowed: ${QUIZ_COMPONENT_IDS.join(', ')}.`,
         },
         { status: 400 }
       )

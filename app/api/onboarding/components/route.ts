@@ -76,6 +76,14 @@ export async function GET(request: Request) {
       data.sort((a: any, b: any) =>
         (a.component_name || '').localeCompare(b.component_name || '')
       )
+
+      // Enforce allowlists so mis-tagged DB rows (e.g. conversion-only components with "quiz" in categories)
+      // never appear in the wrong funnel or pass the picker but fail on save.
+      const allowedKeys =
+        category === 'quiz'
+          ? new Set(QUIZ_COMPONENT_IDS)
+          : new Set(CONVERSION_COMPONENT_IDS)
+      data = data.filter((r: any) => r.component_key && allowedKeys.has(r.component_key))
     } else {
       const { data: dbData, error } = await supabase
         .from('onboarding_components')

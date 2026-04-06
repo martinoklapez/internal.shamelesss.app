@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
+import { substitutePushMockupPlaceholders } from '@/lib/push-permission-mockup'
 import { SiInstagram, SiTiktok, SiReddit, SiYoutube, SiX, SiFacebook, SiAppstore } from 'react-icons/si'
 import { Globe, Heart, Info, Upload } from 'lucide-react'
 import type { IconType } from 'react-icons'
@@ -20,6 +21,8 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   const [nameInputValue, setNameInputValue] = useState<string>('')
   const [usernameInputValue, setUsernameInputValue] = useState<string>('')
   const [profileImageSelected, setProfileImageSelected] = useState<boolean>(false)
+  const [countrySelectChoice, setCountrySelectChoice] = useState<string | null>(null)
+  const [genderSelectChoice, setGenderSelectChoice] = useState<string | null>(null)
   const [rateAppCountdown, setRateAppCountdown] = useState<number | null>(null)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [rateAppStarsSelected, setRateAppStarsSelected] = useState<number>(0)
@@ -750,6 +753,161 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     )
   }
 
+  // Country select (conversion funnel only in admin; quiz API blocks this component_id)
+  if (componentId === 'country_select') {
+    const DEFAULT_COUNTRIES = [
+      { label: 'United States', value: 'US' },
+      { label: 'United Kingdom', value: 'GB' },
+      { label: 'Germany', value: 'DE' },
+      { label: 'France', value: 'FR' },
+      { label: 'Canada', value: 'CA' },
+    ]
+    const rows =
+      getOptionsArray().length > 0
+        ? getOptionsArray()
+        : DEFAULT_COUNTRIES.map((c) => ({ label: c.label, value: c.value }))
+    const formatLabel = (text: string) => {
+      if (!text) return ''
+      return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase()
+    }
+    return (
+      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+        <div className="px-3 pt-8 pb-2 flex-shrink-0">
+          <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-black rounded-full" style={{ width: `${progressPercentage}%` }} />
+          </div>
+        </div>
+        <div className="px-3 pb-0 flex-shrink-0">
+          {title ? (
+            <h3 className="text-lg font-black text-black mb-2 leading-5 tracking-tight text-left">{title}</h3>
+          ) : (
+            <h3 className="text-lg font-black text-gray-400 mb-2 leading-5 tracking-tight text-left italic">No title</h3>
+          )}
+          {description ? (
+            <p className="text-xs text-black opacity-90 leading-4 mb-3 text-left">{description}</p>
+          ) : (
+            <p className="text-xs text-gray-400 opacity-60 leading-4 mb-3 text-left italic">No description</p>
+          )}
+        </div>
+        <div className="flex-1 px-3 pb-2 overflow-y-auto min-h-0">
+          <div className="flex flex-col gap-2 w-full">
+            {rows.map((option: { label?: string; value?: string; id?: string }, index: number) => {
+              const key = option.value || option.id || String(index)
+              const isSelected = countrySelectChoice === key
+              const optionLabel = formatLabel(option.label || option.value || `Option ${index + 1}`)
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setCountrySelectChoice(key)}
+                  className={`w-full rounded-[30px] border-[2px] border-black flex items-center justify-center transition-all duration-200 ease-in-out ${isSelected ? 'bg-[#FF5252]' : 'bg-white'}`}
+                  style={{
+                    transform: isSelected ? 'translateY(0)' : 'translateY(2px)',
+                    boxShadow: isSelected ? '0 2px 0 0 #000000' : 'none',
+                    padding: '8px',
+                  }}
+                >
+                  <span
+                    className={`text-black text-center text-sm leading-4 tracking-tight ${isSelected ? 'font-black' : 'font-bold'}`}
+                  >
+                    {optionLabel}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {countrySelectChoice ? (
+          <div className="px-3 py-2 flex-shrink-0">
+            <button
+              type="button"
+              className="w-full h-8 bg-[#FF5252] border-[3px] border-black rounded-[30px] font-black text-black text-sm hover:opacity-90 transition-opacity"
+            >
+              Next
+            </button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  // Gender select (conversion only) — legacy component_id `gender` uses the same preview
+  if (componentId === 'gender_select' || componentId === 'gender') {
+    const DEFAULT_GENDERS = [
+      { label: 'Woman', value: 'female' },
+      { label: 'Man', value: 'male' },
+      { label: 'Non-binary', value: 'non_binary' },
+      { label: 'Prefer not to say', value: 'prefer_not_to_say' },
+    ]
+    const rows =
+      getOptionsArray().length > 0
+        ? getOptionsArray()
+        : DEFAULT_GENDERS.map((g) => ({ label: g.label, value: g.value }))
+    const formatLabel = (text: string) => {
+      if (!text) return ''
+      return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase()
+    }
+    return (
+      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+        <div className="px-3 pt-8 pb-2 flex-shrink-0">
+          <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-black rounded-full" style={{ width: `${progressPercentage}%` }} />
+          </div>
+        </div>
+        <div className="px-3 pb-0 flex-shrink-0">
+          {title ? (
+            <h3 className="text-lg font-black text-black mb-2 leading-5 tracking-tight text-left">{title}</h3>
+          ) : (
+            <h3 className="text-lg font-black text-gray-400 mb-2 leading-5 tracking-tight text-left italic">No title</h3>
+          )}
+          {description ? (
+            <p className="text-xs text-black opacity-90 leading-4 mb-3 text-left">{description}</p>
+          ) : (
+            <p className="text-xs text-gray-400 opacity-60 leading-4 mb-3 text-left italic">No description</p>
+          )}
+        </div>
+        <div className="flex-1 px-3 pb-2 overflow-y-auto min-h-0">
+          <div className="flex flex-col gap-2 w-full">
+            {rows.map((option: { label?: string; value?: string; id?: string }, index: number) => {
+              const key = option.value || option.id || String(index)
+              const isSelected = genderSelectChoice === key
+              const optionLabel = formatLabel(option.label || option.value || `Option ${index + 1}`)
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setGenderSelectChoice(key)}
+                  className={`w-full rounded-[30px] border-[2px] border-black flex items-center justify-center transition-all duration-200 ease-in-out ${isSelected ? 'bg-[#FF5252]' : 'bg-white'}`}
+                  style={{
+                    transform: isSelected ? 'translateY(0)' : 'translateY(2px)',
+                    boxShadow: isSelected ? '0 2px 0 0 #000000' : 'none',
+                    padding: '8px',
+                  }}
+                >
+                  <span
+                    className={`text-black text-center text-sm leading-4 tracking-tight ${isSelected ? 'font-black' : 'font-bold'}`}
+                  >
+                    {optionLabel}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {genderSelectChoice ? (
+          <div className="px-3 py-2 flex-shrink-0">
+            <button
+              type="button"
+              className="w-full h-8 bg-[#FF5252] border-[3px] border-black rounded-[30px] font-black text-black text-sm hover:opacity-90 transition-opacity"
+            >
+              Next
+            </button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   // Profile Image (Onboarding + Conversion)
   if (componentId === 'profile_image') {
     const skipable = options && typeof options === 'object' && 'skipable' in options && options.skipable === true
@@ -1277,31 +1435,52 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     )
   }
 
-  // Push Notification Permission (conversion – same header/CTA layout as quiz, content in middle)
+  // Push Notification Permission — options jsonb: mockup_type, display_name, profile_image_url, title, body, demo_user_id
   if (componentId === 'push_notification_permission') {
+    const po =
+      options && typeof options === 'object' && !Array.isArray(options)
+        ? (options as Record<string, unknown>)
+        : {}
+    const mockupType = po.mockup_type === 'app-icon' ? 'app-icon' : 'user-avatar'
+    const displayName = typeof po.display_name === 'string' ? po.display_name : ''
+    const profileUrl = typeof po.profile_image_url === 'string' ? po.profile_image_url.trim() : ''
+    const notifTitleRaw =
+      typeof po.title === 'string' && po.title.trim()
+        ? po.title.trim()
+        : mockupType === 'app-icon'
+          ? 'Shameless'
+          : "You've caught someone's eye 👀"
+    const bodyRaw =
+      typeof po.body === 'string' && po.body.trim()
+        ? po.body.trim()
+        : mockupType === 'app-icon'
+          ? 'New activity for you'
+          : '{name} wants to connect!'
+    const subVars = { displayName: displayName || 'Someone' }
+    const titleShown = substitutePushMockupPlaceholders(notifTitleRaw, subVars)
+    const bodyLine = substitutePushMockupPlaceholders(bodyRaw, subVars)
+
     const displayTitle = title || "Don't miss a thing"
+    const hintBody =
+      description?.trim() ||
+      'Let us notify you when other users send you a friend request or a new message. Tap "Allow" above 👉'
+
     return (
       <div
         className="w-full h-full flex flex-col bg-white overflow-hidden"
         style={{ fontFamily: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
       >
-        {/* Progress bar – same as quiz screens */}
         <div className="px-3 pt-8 pb-2 flex-shrink-0">
           <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
             <div className="h-full bg-black rounded-full" style={{ width: `${progressPercentage}%` }}></div>
           </div>
         </div>
 
-        {/* Header – same as quiz (title only, no description) */}
         <div className="px-3 pb-0 flex-shrink-0">
-          <h3 className="text-lg font-black text-black mb-2 leading-5 tracking-tight text-left">
-            {displayTitle}
-          </h3>
+          <h3 className="text-lg font-black text-black mb-2 leading-5 tracking-tight text-left">{displayTitle}</h3>
         </div>
 
-        {/* Content – centered in middle (notification mock, hint, link) */}
         <div className="flex-1 px-3 pb-2 overflow-y-auto min-h-0 flex flex-col items-center justify-center gap-2.5">
-          {/* Notification mock */}
           <div
             className="w-full max-w-[calc(100%-8px)] flex-shrink-0 flex items-start gap-2 rounded-[7px] p-1.5 bg-white border"
             style={{
@@ -1310,29 +1489,77 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
             }}
           >
             <div
-              className="w-9 h-9 flex-shrink-0 relative flex items-center justify-center bg-[#FF5252] text-white font-bold text-xs overflow-hidden"
-              style={{ borderRadius: 8 }}
+              className="w-9 h-9 flex-shrink-0 relative flex items-center justify-center overflow-hidden bg-[#FF5252] text-white font-bold text-xs"
+              style={{ borderRadius: mockupType === 'user-avatar' ? 9999 : 8 }}
             >
-              <img
-                src="/assets/app/app-icon.png"
-                alt=""
-                className="w-full h-full object-cover absolute inset-0"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                  const parent = e.currentTarget.parentElement
-                  const fallback = parent?.querySelector('[data-fallback]') as HTMLElement
-                  if (fallback) fallback.style.display = 'flex'
-                }}
-              />
-              <span data-fallback className="hidden font-black text-sm text-white" style={{ display: 'none' }}>S</span>
+              {mockupType === 'user-avatar' && profileUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profileUrl}
+                  alt=""
+                  className="w-full h-full object-cover absolute inset-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    const parent = e.currentTarget.parentElement
+                    const fallback = parent?.querySelector('[data-push-fallback]') as HTMLElement
+                    if (fallback) fallback.style.display = 'flex'
+                  }}
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/assets/app/app-icon.png"
+                  alt=""
+                  className="w-full h-full object-cover absolute inset-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    const parent = e.currentTarget.parentElement
+                    const fallback = parent?.querySelector('[data-push-fallback]') as HTMLElement
+                    if (fallback) fallback.style.display = 'flex'
+                  }}
+                />
+              )}
+              <span
+                data-push-fallback
+                className="hidden font-black text-[10px] text-white items-center justify-center absolute inset-0"
+                style={{ display: 'none' }}
+              >
+                {(displayName || 'S').slice(0, 1).toUpperCase()}
+              </span>
             </div>
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <div className="flex justify-between items-baseline gap-1">
-                <span className="text-black font-semibold truncate" style={{ fontSize: 10 }}>Shamelesss</span>
-                <span className="text-[#8E8E93] flex-shrink-0" style={{ fontSize: 9 }}>now</span>
-              </div>
-              <div className="text-black font-semibold truncate" style={{ fontSize: 9 }}>New friend request</div>
-              <div className="text-[#3C3C43] truncate opacity-80" style={{ fontSize: 8, lineHeight: 1.3 }}>Someone wants to connect with you</div>
+              {mockupType === 'user-avatar' ? (
+                <>
+                  <div className="flex justify-between items-baseline gap-1">
+                    <span className="text-black font-semibold truncate" style={{ fontSize: 10 }}>
+                      {displayName || 'Someone'}
+                    </span>
+                    <span className="text-[#8E8E93] flex-shrink-0" style={{ fontSize: 9 }}>
+                      now
+                    </span>
+                  </div>
+                  <div className="text-black font-semibold truncate" style={{ fontSize: 9 }}>
+                    {titleShown}
+                  </div>
+                  <div className="text-[#3C3C43] truncate opacity-80" style={{ fontSize: 8, lineHeight: 1.3 }}>
+                    {bodyLine}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-baseline gap-1">
+                    <span className="text-black font-semibold truncate" style={{ fontSize: 10 }}>
+                      {titleShown}
+                    </span>
+                    <span className="text-[#8E8E93] flex-shrink-0" style={{ fontSize: 9 }}>
+                      now
+                    </span>
+                  </div>
+                  <div className="text-[#3C3C43] truncate opacity-80" style={{ fontSize: 8, lineHeight: 1.3 }}>
+                    {bodyLine}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -1340,7 +1567,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
             className="text-center px-2"
             style={{ color: '#374151', fontSize: 8, lineHeight: 1.35, fontWeight: 400 }}
           >
-            Let us notify you when other users send you a friend request or a new message. Tap &quot;Allow&quot; above 👉
+            {hintBody}
           </p>
 
           <button
@@ -1352,7 +1579,6 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
           </button>
         </div>
 
-        {/* CTA – same position and style as quiz screens */}
         <div className="px-3 py-2 flex-shrink-0">
           <button
             type="button"

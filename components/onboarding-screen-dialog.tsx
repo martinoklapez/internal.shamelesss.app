@@ -23,10 +23,76 @@ import {
 } from './ui/select'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 import type { OnboardingComponent } from '@/lib/database/onboarding-components'
+import {
+  isAllowedQuizComponent,
+  isAllowedConversionComponent,
+} from '@/lib/onboarding-component-ids'
+import {
+  finalizePushMockupForSave,
+  getMockupTypeForNotificationType,
+} from '@/lib/push-permission-mockup'
 import { OnboardingScreenPreview } from './onboarding-screen-preview'
 import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X, Play } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAppDialogs } from '@/components/app-dialogs-provider'
+
+const DEFAULT_PUSH_NOTIFICATION_OPTIONS = {
+  mockup_type: 'user-avatar' as const,
+  display_name: '',
+  title: "You've caught someone's eye 👀",
+  body: '{name} wants to connect!',
+}
+
+type PushNotifMockupType = 'user-avatar' | 'app-icon'
+
+type DemoUserRow = {
+  id: string
+  name: string | null
+  username: string | null
+  profile_picture_url: string | null
+  email: string | null
+  role: string | null
+}
+
+type PushNotifContentTemplateRow = {
+  notification_type: string
+  title_template: string
+  body_template: string
+}
+
+/** `__custom__` = not tied to notification_content_templates */
+const PUSH_NOTIF_CUSTOM_KEY = '__custom__' as const
+
+function buildPushNotificationOptionsJson(params: {
+  templateKey: string
+  mockup_type: PushNotifMockupType
+  display_name: string
+  title: string
+  body: string
+  demo_user_id: string
+  demoUsers: DemoUserRow[]
+}): string {
+  const profile_image_url = params.demo_user_id.trim()
+    ? params.demoUsers.find((u) => u.id === params.demo_user_id.trim())?.profile_picture_url?.trim() ?? ''
+    : ''
+  const template_source =
+    params.templateKey === PUSH_NOTIF_CUSTOM_KEY ? 'custom' : 'notification_template'
+  const o: Record<string, string> = {
+    template_source,
+    mockup_type: params.mockup_type,
+    display_name: params.display_name.trim(),
+    profile_image_url,
+    title: params.title.trim(),
+    body: params.body.trim(),
+  }
+  if (template_source === 'notification_template' && params.templateKey !== PUSH_NOTIF_CUSTOM_KEY) {
+    o.notification_type = params.templateKey
+  }
+  if (params.demo_user_id.trim()) {
+    o.demo_user_id = params.demo_user_id.trim()
+  }
+  return JSON.stringify(o, null, 2)
+}
 
 interface OnboardingScreenDialogProps {
   open: boolean
@@ -80,6 +146,18 @@ export function OnboardingScreenDialog({
   const [scratchDatesSelectedPositionId, setScratchDatesSelectedPositionId] = useState<string>('')
   const [scratchDatesCustomUrl, setScratchDatesCustomUrl] = useState('')
   const [scratchDatesTitle, setScratchDatesTitle] = useState('')
+
+  // Push notification permission: notification mockup JSON + demo user picker
+  const [pushNotifMockupType, setPushNotifMockupType] = useState<PushNotifMockupType>('user-avatar')
+  const [pushNotifDisplayName, setPushNotifDisplayName] = useState('')
+  const [pushNotifNotifTitle, setPushNotifNotifTitle] = useState(DEFAULT_PUSH_NOTIFICATION_OPTIONS.title)
+  const [pushNotifBody, setPushNotifBody] = useState(DEFAULT_PUSH_NOTIFICATION_OPTIONS.body)
+  const [pushNotifDemoUserId, setPushNotifDemoUserId] = useState('')
+  const [pushNotifDemoUsers, setPushNotifDemoUsers] = useState<DemoUserRow[]>([])
+  const [pushNotifDemoUsersLoading, setPushNotifDemoUsersLoading] = useState(false)
+  const [pushNotifTemplateKey, setPushNotifTemplateKey] = useState<string>(PUSH_NOTIF_CUSTOM_KEY)
+  const [pushNotifContentTemplates, setPushNotifContentTemplates] = useState<PushNotifContentTemplateRow[]>([])
+  const [pushNotifTemplatesLoading, setPushNotifTemplatesLoading] = useState(false)
 
   // Check if options is an array of objects with label/value structure
   const isOptionsArray = (): boolean => {
@@ -190,6 +268,124 @@ export function OnboardingScreenDialog({
       setScratchDatesTitle('')
     }
   }, [componentId, options, scratchDatesPositions])
+
+  // Load demo-role users for push_notification_permission mockup
+  useEffect(() => {
+    if (!open || componentId !== 'push_notification_permission') return
+    setPushNotifDemoUsersLoading(true)
+    fetch('/api/users/list?demo_only=true')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.users)) setPushNotifDemoUsers(data.users as DemoUserRow[])
+      })
+      .catch(() => toast({ title: 'Could not load demo users', variant: 'destructive' }))
+      .finally(() => setPushNotifDemoUsersLoading(false))
+  }, [open, componentId, toast])
+
+  // Load notification_content_templates for push mockup picker
+  useEffect(() => {
+    if (!open || componentId !== 'push_notification_permission') return
+    setPushNotifTemplatesLoading(true)
+    fetch('/api/notification-templates')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.error) return
+        const list = Array.isArray(data) ? data : data?.templates
+        if (Array.isArray(list)) {
+          setPushNotifContentTemplates(
+            list.filter(
+              (row: unknown): row is PushNotifContentTemplateRow =>
+                !!row &&
+                typeof row === 'object' &&
+                typeof (row as PushNotifContentTemplateRow).notification_type === 'string'
+            )
+          )
+        }
+      })
+      .catch(() => toast({ title: 'Could not load notification templates', variant: 'destructive' }))
+      .finally(() => setPushNotifTemplatesLoading(false))
+  }, [open, componentId, toast])
+
+  // Sync options JSON -> push notification form fields
+  useEffect(() => {
+    if (componentId !== 'push_notification_permission') return
+    try {
+      const raw = options.trim()
+      const parsed = raw ? JSON.parse(raw) : {}
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('invalid')
+      }
+      const keys = Object.keys(parsed as object)
+      if (keys.length === 0) {
+        setPushNotifTemplateKey(PUSH_NOTIF_CUSTOM_KEY)
+        setPushNotifMockupType(DEFAULT_PUSH_NOTIFICATION_OPTIONS.mockup_type)
+        setPushNotifDisplayName(DEFAULT_PUSH_NOTIFICATION_OPTIONS.display_name)
+        setPushNotifNotifTitle(DEFAULT_PUSH_NOTIFICATION_OPTIONS.title)
+        setPushNotifBody(DEFAULT_PUSH_NOTIFICATION_OPTIONS.body)
+        setPushNotifDemoUserId('')
+        setOptions(
+          buildPushNotificationOptionsJson({
+            templateKey: PUSH_NOTIF_CUSTOM_KEY,
+            mockup_type: DEFAULT_PUSH_NOTIFICATION_OPTIONS.mockup_type,
+            display_name: '',
+            title: DEFAULT_PUSH_NOTIFICATION_OPTIONS.title,
+            body: DEFAULT_PUSH_NOTIFICATION_OPTIONS.body,
+            demo_user_id: '',
+            demoUsers: pushNotifDemoUsers,
+          })
+        )
+        return
+      }
+      const p = parsed as Record<string, unknown>
+      const nt = typeof p.notification_type === 'string' ? p.notification_type.trim() : ''
+      const templateKey =
+        p.template_source === 'notification_template' && nt ? nt : PUSH_NOTIF_CUSTOM_KEY
+      const mockupFromJson = p.mockup_type === 'app-icon' ? 'app-icon' : 'user-avatar'
+      const mockup_type =
+        templateKey === PUSH_NOTIF_CUSTOM_KEY
+          ? mockupFromJson
+          : getMockupTypeForNotificationType(templateKey)
+      const display_name = typeof p.display_name === 'string' ? p.display_name : ''
+      const notifTitle = typeof p.title === 'string' ? p.title : DEFAULT_PUSH_NOTIFICATION_OPTIONS.title
+      const notifBody = typeof p.body === 'string' ? p.body : DEFAULT_PUSH_NOTIFICATION_OPTIONS.body
+      const demo_user_id = typeof p.demo_user_id === 'string' ? p.demo_user_id : ''
+      setPushNotifTemplateKey(templateKey)
+      setPushNotifMockupType(mockup_type)
+      setPushNotifDisplayName(display_name)
+      setPushNotifNotifTitle(notifTitle)
+      setPushNotifBody(notifBody)
+      setPushNotifDemoUserId(demo_user_id)
+      setOptions(
+        buildPushNotificationOptionsJson({
+          templateKey,
+          mockup_type,
+          display_name,
+          title: notifTitle,
+          body: notifBody,
+          demo_user_id,
+          demoUsers: pushNotifDemoUsers,
+        })
+      )
+    } catch {
+      setPushNotifTemplateKey(PUSH_NOTIF_CUSTOM_KEY)
+      setPushNotifMockupType('user-avatar')
+      setPushNotifDisplayName('')
+      setPushNotifNotifTitle(DEFAULT_PUSH_NOTIFICATION_OPTIONS.title)
+      setPushNotifBody(DEFAULT_PUSH_NOTIFICATION_OPTIONS.body)
+      setPushNotifDemoUserId('')
+      setOptions(
+        buildPushNotificationOptionsJson({
+          templateKey: PUSH_NOTIF_CUSTOM_KEY,
+          mockup_type: DEFAULT_PUSH_NOTIFICATION_OPTIONS.mockup_type,
+          display_name: '',
+          title: DEFAULT_PUSH_NOTIFICATION_OPTIONS.title,
+          body: DEFAULT_PUSH_NOTIFICATION_OPTIONS.body,
+          demo_user_id: '',
+          demoUsers: pushNotifDemoUsers,
+        })
+      )
+    }
+  }, [componentId, options, pushNotifDemoUsers])
 
   // Fetch available components when dialog opens and screenType is selected
   useEffect(() => {
@@ -315,7 +511,27 @@ export function OnboardingScreenDialog({
       })
       return
     }
-    
+
+    if (componentId) {
+      if (screenType === 'quiz' && !isAllowedQuizComponent(componentId)) {
+        toast({
+          title: 'Wrong funnel for this component',
+          description:
+            `"${componentId}" is conversion-only (e.g. push notification permission, profile fields). Open the conversion funnel on the onboarding page, add or edit the screen there, or choose a quiz component.`,
+          variant: 'destructive',
+        })
+        return
+      }
+      if (screenType === 'conversion' && !isAllowedConversionComponent(componentId)) {
+        toast({
+          title: 'Wrong funnel for this component',
+          description: `"${componentId}" is not allowed on conversion screens (e.g. rate_app is quiz-only). Pick another component.`,
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
     setLoading(true)
 
     try {
@@ -334,6 +550,22 @@ export function OnboardingScreenDialog({
         }
       } else if (screenType === 'conversion') {
         parsedOptions = []
+      }
+
+      if (
+        componentId === 'push_notification_permission' &&
+        parsedOptions &&
+        typeof parsedOptions === 'object' &&
+        !Array.isArray(parsedOptions)
+      ) {
+        const nameForReplace = (pushNotifDisplayName || '').trim() || 'Someone'
+        const t =
+          typeof parsedOptions.title === 'string' ? parsedOptions.title : ''
+        const b =
+          typeof parsedOptions.body === 'string' ? parsedOptions.body : ''
+        const fin = finalizePushMockupForSave(t, b, nameForReplace)
+        parsedOptions.title = fin.title
+        parsedOptions.body = fin.body
       }
 
       const endpoint = screenType === 'quiz'
@@ -449,6 +681,43 @@ export function OnboardingScreenDialog({
   const showOptionsField = componentId && COMPONENT_IDS_WITH_OPTIONS.includes(componentId)
 
   const showScratchDatesOptionsField = componentId === 'scratchdates_preview'
+  const showPushNotificationOptionsField = componentId === 'push_notification_permission'
+
+  const commitPushNotificationFields = (patch: {
+    templateKey?: string
+    mockup_type?: PushNotifMockupType
+    display_name?: string
+    title?: string
+    body?: string
+    demo_user_id?: string
+  }) => {
+    const nextKey = patch.templateKey !== undefined ? patch.templateKey : pushNotifTemplateKey
+    const mockup_type =
+      nextKey === PUSH_NOTIF_CUSTOM_KEY
+        ? patch.mockup_type ?? pushNotifMockupType
+        : getMockupTypeForNotificationType(nextKey)
+    const display_name = patch.display_name ?? pushNotifDisplayName
+    const title = patch.title ?? pushNotifNotifTitle
+    const body = patch.body ?? pushNotifBody
+    const demo_user_id = patch.demo_user_id !== undefined ? patch.demo_user_id : pushNotifDemoUserId
+    if (patch.templateKey !== undefined) setPushNotifTemplateKey(patch.templateKey)
+    setPushNotifMockupType(mockup_type)
+    if (patch.display_name !== undefined) setPushNotifDisplayName(patch.display_name)
+    if (patch.title !== undefined) setPushNotifNotifTitle(patch.title)
+    if (patch.body !== undefined) setPushNotifBody(patch.body)
+    if (patch.demo_user_id !== undefined) setPushNotifDemoUserId(patch.demo_user_id)
+    setOptions(
+      buildPushNotificationOptionsJson({
+        templateKey: nextKey,
+        mockup_type,
+        display_name,
+        title,
+        body,
+        demo_user_id,
+        demoUsers: pushNotifDemoUsers,
+      })
+    )
+  }
 
   const setScratchDatesOptionsFromState = useCallback(() => {
     const imageUrl = scratchDatesImageSource === 'position' && scratchDatesSelectedPositionId
@@ -848,6 +1117,190 @@ export function OnboardingScreenDialog({
                           setOptions(JSON.stringify({ image_url: imageUrl, title: val || undefined }, null, 2))
                         }}
                         placeholder="e.g. Arcade"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showPushNotificationOptionsField && (
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                  <div>
+                    <Label>Push notification mockup (JSON options)</Label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Choose a template from <strong>notification_content_templates</strong> (or Custom). Title and
+                      body drive the in-banner copy; mockup layout follows the template type unless you use Custom.
+                      Pick a <strong>demo</strong> user for display name and avatar when the layout uses a user
+                      avatar. Stored as <code className="text-[11px]">options</code> (jsonb).
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-gray-500">Notification content template</Label>
+                    {pushNotifTemplatesLoading ? (
+                      <p className="text-sm text-gray-500 py-2">Loading templates…</p>
+                    ) : (
+                      <Select
+                        value={pushNotifTemplateKey}
+                        onValueChange={(v) => {
+                          if (v === PUSH_NOTIF_CUSTOM_KEY) {
+                            commitPushNotificationFields({ templateKey: PUSH_NOTIF_CUSTOM_KEY })
+                            return
+                          }
+                          const t = pushNotifContentTemplates.find((x) => x.notification_type === v)
+                          if (!t) return
+                          commitPushNotificationFields({
+                            templateKey: v,
+                            title: t.title_template,
+                            body: t.body_template,
+                          })
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={PUSH_NOTIF_CUSTOM_KEY}>Custom</SelectItem>
+                          {pushNotifTemplateKey !== PUSH_NOTIF_CUSTOM_KEY &&
+                            !pushNotifContentTemplates.some(
+                              (t) => t.notification_type === pushNotifTemplateKey
+                            ) && (
+                              <SelectItem value={pushNotifTemplateKey}>
+                                {pushNotifTemplateKey.replace(/_/g, ' ')} (saved; not in list)
+                              </SelectItem>
+                            )}
+                          {pushNotifContentTemplates.map((t) => (
+                            <SelectItem key={t.notification_type} value={t.notification_type}>
+                              {t.notification_type.replace(/_/g, ' ')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  {pushNotifTemplateKey === PUSH_NOTIF_CUSTOM_KEY ? (
+                    <div className="space-y-2">
+                      <Label className="text-xs text-gray-500">Mockup type</Label>
+                      <Select
+                        value={pushNotifMockupType}
+                        onValueChange={(v) =>
+                          commitPushNotificationFields({
+                            mockup_type: v === 'app-icon' ? 'app-icon' : 'user-avatar',
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user-avatar">User avatar (like iOS rich notification)</SelectItem>
+                          <SelectItem value="app-icon">App icon</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-600 rounded-md border border-gray-200 bg-white px-3 py-2">
+                      Mockup type:{' '}
+                      <span className="font-medium text-gray-900">
+                        {pushNotifMockupType === 'user-avatar'
+                          ? 'User avatar'
+                          : 'App icon'}
+                      </span>{' '}
+                      (from this template)
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-gray-500">Demo user (role = demo)</Label>
+                    {pushNotifDemoUsersLoading ? (
+                      <p className="text-sm text-gray-500 py-2">Loading demo users…</p>
+                    ) : (
+                      <Select
+                        value={pushNotifDemoUserId || '__none__'}
+                        onValueChange={(v) => {
+                          if (v === '__none__') {
+                            commitPushNotificationFields({ demo_user_id: '' })
+                            return
+                          }
+                          const u = pushNotifDemoUsers.find((x) => x.id === v)
+                          if (!u) return
+                          commitPushNotificationFields({
+                            demo_user_id: u.id,
+                            display_name: u.name?.trim() || u.username || 'Demo user',
+                          })
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="No demo user" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None — manual name &amp; image URL</SelectItem>
+                          {pushNotifDemoUsers.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              <span className="flex items-center gap-2">
+                                {u.profile_picture_url ? (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
+                                  <img
+                                    src={u.profile_picture_url}
+                                    alt=""
+                                    className="h-6 w-6 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="h-6 w-6 rounded-full bg-gray-200 inline-block shrink-0" />
+                                )}
+                                <span className="truncate">
+                                  {u.name?.trim() || u.username || u.email || u.id.slice(0, 8)}
+                                </span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {pushNotifDemoUsers.length === 0 && !pushNotifDemoUsersLoading ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2 py-1.5">
+                        No users with the <strong>demo</strong> role. Add one under Users, or enter name and image URL
+                        manually.
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="text-xs text-gray-500">Display name (notification)</Label>
+                      <Input
+                        value={pushNotifDisplayName}
+                        onChange={(e) => commitPushNotificationFields({ display_name: e.target.value })}
+                        placeholder="e.g. Emi Pham"
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="text-xs text-gray-500">
+                        Notification title{' '}
+                        <span className="text-gray-400 font-normal">
+                          (in-banner headline; placeholders like {'{name}'}, {'{message_preview}'} are filled on save)
+                        </span>
+                      </Label>
+                      <Input
+                        value={pushNotifNotifTitle}
+                        onChange={(e) => commitPushNotificationFields({ title: e.target.value })}
+                        placeholder={
+                          pushNotifMockupType === 'app-icon'
+                            ? 'e.g. Shameless'
+                            : "e.g. You've caught someone's eye 👀"
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="text-xs text-gray-500">
+                        Notification body{' '}
+                        <span className="text-gray-400 font-normal">
+                          (placeholders are replaced when you save)
+                        </span>
+                      </Label>
+                      <Textarea
+                        value={pushNotifBody}
+                        onChange={(e) => commitPushNotificationFields({ body: e.target.value })}
+                        placeholder="{name} wants to connect!"
+                        rows={2}
+                        className="text-sm"
                       />
                     </div>
                   </div>
