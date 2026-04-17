@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 import { substitutePushMockupPlaceholders } from '@/lib/push-permission-mockup'
+import { getDataConsentsDisplayModel } from '@/lib/data-consents-options'
 import { SiInstagram, SiTiktok, SiReddit, SiYoutube, SiX, SiFacebook, SiAppstore } from 'react-icons/si'
 import { Globe, Heart, Info, Upload } from 'lucide-react'
 import type { IconType } from 'react-icons'
@@ -110,6 +111,13 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     }, 1500)
 
     return () => clearInterval(interval)
+  }, [componentId, options])
+
+  const [dataConsentChecked, setDataConsentChecked] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    if (componentId !== 'data_consents') return
+    setDataConsentChecked({})
   }, [componentId, options])
 
   // Rate app blurred: countdown 4→3→2→1→0 then hide overlay
@@ -1841,6 +1849,102 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
             </button>
           </div>
         )}
+      </div>
+    )
+  }
+
+  // Data consents (conversion) — options must be a JSON object with consents[] (or items[])
+  if (componentId === 'data_consents') {
+    const { consents, acceptAllLabel, nextButtonLabel } = getDataConsentsDisplayModel(options)
+    const toggle = (id: string) => {
+      setDataConsentChecked((prev) => ({ ...prev, [id]: !prev[id] }))
+    }
+    const acceptAll = () => {
+      const next: Record<string, boolean> = {}
+      consents.forEach((c) => {
+        next[c.id] = true
+      })
+      setDataConsentChecked(next)
+    }
+    const requiredMet = consents.filter((c) => c.required).every((c) => dataConsentChecked[c.id])
+    const showEmpty = consents.length === 0
+
+    return (
+      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+        <div className="px-3 pt-8 pb-2 flex-shrink-0">
+          <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-black rounded-full" style={{ width: `${progressPercentage}%` }} />
+          </div>
+        </div>
+        <div className="px-3 pb-1 flex-shrink-0 min-h-0">
+          {title ? (
+            <h3 className="text-lg font-black text-black mb-1 leading-5 tracking-tight text-left">{title}</h3>
+          ) : (
+            <h3 className="text-lg font-black text-gray-400 mb-1 leading-5 tracking-tight text-left italic">No title</h3>
+          )}
+          {description ? (
+            <p className="text-xs text-black opacity-90 leading-4 mb-2 text-left">{description}</p>
+          ) : (
+            <p className="text-xs text-gray-400 opacity-60 leading-4 mb-2 text-left italic">No description</p>
+          )}
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2 flex flex-col gap-2">
+          {showEmpty ? (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2 py-2 text-left">
+              Invalid or empty options: use a JSON object with a <span className="font-mono">consents</span> array (not
+              a top-level array).
+            </p>
+          ) : (
+            <>
+              {consents.map((c) => {
+                const checked = !!dataConsentChecked[c.id]
+                return (
+                  <div
+                    key={c.id}
+                    className="rounded-xl border-2 border-black bg-white px-2 py-2 flex gap-2 items-start"
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={checked}
+                      onClick={() => toggle(c.id)}
+                      className={`mt-0.5 h-4 w-4 shrink-0 rounded border-2 border-black ${
+                        checked ? 'bg-[#FF5252]' : 'bg-white'
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="text-xs font-black text-black leading-tight">{c.title}</div>
+                      {c.description ? (
+                        <p className="text-[10px] text-gray-700 mt-1 leading-snug">{c.description}</p>
+                      ) : null}
+                      {c.learn_more?.url ? (
+                        <span className="text-[10px] text-blue-600 underline mt-1 inline-block">
+                          {c.learn_more.label || 'Learn more'}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })}
+              <button
+                type="button"
+                onClick={acceptAll}
+                className="w-full text-center text-xs font-bold text-black py-2 border-2 border-dashed border-gray-400 rounded-xl hover:bg-gray-50"
+              >
+                {acceptAllLabel}
+              </button>
+            </>
+          )}
+        </div>
+        <div className="px-3 py-2 flex-shrink-0">
+          <button
+            type="button"
+            disabled={showEmpty || !requiredMet}
+            className="w-full h-8 bg-[#FF5252] border-[3px] border-black rounded-[30px] font-black text-black text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ boxShadow: showEmpty || !requiredMet ? 'none' : '0 4px 0 #000' }}
+          >
+            {nextButtonLabel}
+          </button>
+        </div>
       </div>
     )
   }

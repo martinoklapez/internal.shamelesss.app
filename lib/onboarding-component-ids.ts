@@ -23,6 +23,7 @@ export const CONVERSION_ONLY = [
   'gender',
   'gender_select',
   'country_select',
+  'data_consents',
   'push_notification_permission',
 ] as const
 
@@ -87,6 +88,11 @@ export const COMPONENT_DISPLAY: Record<
   country_select: {
     component_name: 'Country Select',
     description: 'Country selection screen. Conversion funnel only (not quiz).',
+  },
+  data_consents: {
+    component_name: 'Data consents',
+    description:
+      'Checkbox list + Accept all + Next (conversion only). options must be a JSON object with consents[], accept_all_label, next_button_label — not a top-level array.',
   },
   info: { component_name: 'Info', description: 'Fallback: title + description + Next.' },
   scratchdates_preview: { component_name: 'ScratchDates Preview', description: 'Scratch-off card to preview a position from ScratchDates. Options: image_url (required), title (optional).' },

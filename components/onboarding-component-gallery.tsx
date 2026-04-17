@@ -74,6 +74,25 @@ const SAMPLE_OPTIONS: Record<string, Record<string, unknown>> = {
   rate_app_blurred: { final_reviews: [] },
   rate_app_default: { final_reviews: [] },
   quiz_results: {},
+  data_consents: {
+    consents: [
+      {
+        id: 'privacy',
+        title: 'Privacy & data use',
+        description: 'How we use your data.',
+        required: true,
+        learn_more: { label: 'Learn more', url: 'https://example.com/privacy' },
+      },
+      {
+        id: 'marketing',
+        title: 'Marketing',
+        description: 'Optional updates.',
+        required: false,
+      },
+    ],
+    accept_all_label: 'Accept All',
+    next_button_label: 'Next',
+  },
 }
 
 

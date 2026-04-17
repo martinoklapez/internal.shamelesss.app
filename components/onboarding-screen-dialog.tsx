@@ -31,6 +31,12 @@ import {
   finalizePushMockupForSave,
   getMockupTypeForNotificationType,
 } from '@/lib/push-permission-mockup'
+import {
+  emptyDataConsentRow,
+  parseDataConsentsOptionsJson,
+  serializeDataConsentsOptions,
+  type DataConsentEditorRow,
+} from '@/lib/data-consents-options'
 import { OnboardingScreenPreview } from './onboarding-screen-preview'
 import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X, Play } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -158,6 +164,11 @@ export function OnboardingScreenDialog({
   const [pushNotifTemplateKey, setPushNotifTemplateKey] = useState<string>(PUSH_NOTIF_CUSTOM_KEY)
   const [pushNotifContentTemplates, setPushNotifContentTemplates] = useState<PushNotifContentTemplateRow[]>([])
   const [pushNotifTemplatesLoading, setPushNotifTemplatesLoading] = useState(false)
+
+  const [dataConsentsRows, setDataConsentsRows] = useState<DataConsentEditorRow[]>([emptyDataConsentRow()])
+  const [dataConsentsAcceptAll, setDataConsentsAcceptAll] = useState('Accept All')
+  const [dataConsentsNext, setDataConsentsNext] = useState('Next')
+  const [dataConsentsJsonMode, setDataConsentsJsonMode] = useState(false)
 
   // Check if options is an array of objects with label/value structure
   const isOptionsArray = (): boolean => {
@@ -387,6 +398,15 @@ export function OnboardingScreenDialog({
     }
   }, [componentId, options, pushNotifDemoUsers])
 
+  // data_consents: keep form rows in sync with options JSON (visual mode only)
+  useEffect(() => {
+    if (componentId !== 'data_consents' || dataConsentsJsonMode) return
+    const parsed = parseDataConsentsOptionsJson(options)
+    setDataConsentsRows(parsed.rows.length ? parsed.rows : [emptyDataConsentRow()])
+    setDataConsentsAcceptAll(parsed.acceptAllLabel)
+    setDataConsentsNext(parsed.nextButtonLabel)
+  }, [componentId, options, dataConsentsJsonMode])
+
   // Fetch available components when dialog opens and screenType is selected
   useEffect(() => {
     if (open && screenType) {
@@ -536,7 +556,57 @@ export function OnboardingScreenDialog({
 
     try {
       let parsedOptions: any = null
-      if (options.trim()) {
+
+      if (componentId === 'data_consents') {
+        if (dataConsentsJsonMode) {
+          try {
+            const raw = options.trim()
+            parsedOptions = raw ? JSON.parse(raw) : {}
+          } catch {
+            toast({
+              title: 'Invalid JSON',
+              description: 'Fix the options JSON or switch back to the form editor.',
+              variant: 'destructive',
+            })
+            setLoading(false)
+            return
+          }
+          if (!parsedOptions || typeof parsedOptions !== 'object' || Array.isArray(parsedOptions)) {
+            toast({
+              title: 'Invalid data consents options',
+              description: 'options must be a JSON object with consents (or items), not a top-level array.',
+              variant: 'destructive',
+            })
+            setLoading(false)
+            return
+          }
+        } else {
+          parsedOptions = JSON.parse(
+            serializeDataConsentsOptions(dataConsentsRows, dataConsentsAcceptAll, dataConsentsNext)
+          )
+        }
+        const list = Array.isArray(parsedOptions.consents)
+          ? parsedOptions.consents
+          : Array.isArray(parsedOptions.items)
+            ? parsedOptions.items
+            : []
+        const hasTitledConsent = list.some(
+          (c: unknown) =>
+            c &&
+            typeof c === 'object' &&
+            typeof (c as { title?: string }).title === 'string' &&
+            (c as { title: string }).title.trim().length > 0
+        )
+        if (!hasTitledConsent) {
+          toast({
+            title: 'Consents required',
+            description: 'Add at least one consent with a non-empty title.',
+            variant: 'destructive',
+          })
+          setLoading(false)
+          return
+        }
+      } else if (options.trim()) {
         try {
           parsedOptions = JSON.parse(options)
         } catch (error) {
@@ -682,6 +752,18 @@ export function OnboardingScreenDialog({
 
   const showScratchDatesOptionsField = componentId === 'scratchdates_preview'
   const showPushNotificationOptionsField = componentId === 'push_notification_permission'
+  const showDataConsentsOptionsField = componentId === 'data_consents'
+
+  const commitDataConsentsOptions = (
+    rows: DataConsentEditorRow[],
+    acceptAll: string,
+    nextLabel: string
+  ) => {
+    setDataConsentsRows(rows)
+    setDataConsentsAcceptAll(acceptAll)
+    setDataConsentsNext(nextLabel)
+    setOptions(serializeDataConsentsOptions(rows, acceptAll, nextLabel))
+  }
 
   const commitPushNotificationFields = (patch: {
     templateKey?: string
@@ -807,6 +889,7 @@ export function OnboardingScreenDialog({
                         }`}
                         onClick={() => {
                           setComponentId(component.component_key)
+                          setDataConsentsJsonMode(false)
                           if (component.default_options) {
                             setOptions(JSON.stringify(component.default_options, null, 2))
                             setShowJsonView(false)
@@ -980,6 +1063,7 @@ export function OnboardingScreenDialog({
                     value={componentId || ''}
                     onValueChange={(value) => {
                       setComponentId(value)
+                      setDataConsentsJsonMode(false)
                       const selectedComponent = availableComponents.find(c => c.component_key === value)
                       if (selectedComponent?.default_options) {
                         setOptions(JSON.stringify(selectedComponent.default_options, null, 2))
@@ -1304,6 +1388,234 @@ export function OnboardingScreenDialog({
                       />
                     </div>
                   </div>
+                </div>
+              )}
+
+              {showDataConsentsOptionsField && (
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                  <div>
+                    <Label>Data consents (options JSONB)</Label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Stored as a single <strong>object</strong> with <code className="text-[11px]">consents</code>{' '}
+                      (or <code className="text-[11px]">items</code>), <code className="text-[11px]">accept_all_label</code>, and{' '}
+                      <code className="text-[11px]">next_button_label</code>. Do not use a top-level JSON array. Title
+                      and intro copy on the device still come from the screen title/description fields above.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        if (dataConsentsJsonMode) {
+                          setDataConsentsJsonMode(false)
+                        } else {
+                          setOptions(
+                            serializeDataConsentsOptions(
+                              dataConsentsRows,
+                              dataConsentsAcceptAll,
+                              dataConsentsNext
+                            )
+                          )
+                          setDataConsentsJsonMode(true)
+                        }
+                      }}
+                    >
+                      {dataConsentsJsonMode ? 'Back to form editor' : 'Edit raw JSON'}
+                    </Button>
+                  </div>
+                  {dataConsentsJsonMode ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={options}
+                        onChange={(e) => setOptions(e.target.value)}
+                        rows={14}
+                        className="font-mono text-sm"
+                        spellCheck={false}
+                      />
+                      <p className="text-xs text-gray-500">
+                        Must parse to an object with <code className="text-[11px]">consents</code> (array of items with{' '}
+                        <code className="text-[11px]">title</code>).
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-gray-500">Accept all row label</Label>
+                          <Input
+                            value={dataConsentsAcceptAll}
+                            onChange={(e) =>
+                              commitDataConsentsOptions(dataConsentsRows, e.target.value, dataConsentsNext)
+                            }
+                            placeholder="Accept All"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-gray-500">Primary CTA label</Label>
+                          <Input
+                            value={dataConsentsNext}
+                            onChange={(e) =>
+                              commitDataConsentsOptions(dataConsentsRows, dataConsentsAcceptAll, e.target.value)
+                            }
+                            placeholder="Next"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-gray-500">Consents (order = app order)</Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              commitDataConsentsOptions(
+                                [...dataConsentsRows, emptyDataConsentRow()],
+                                dataConsentsAcceptAll,
+                                dataConsentsNext
+                              )
+                            }
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            Add consent
+                          </Button>
+                        </div>
+                        {dataConsentsRows.map((row, index) => (
+                          <div
+                            key={index}
+                            className="rounded-lg border border-gray-200 bg-white p-3 space-y-2 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-center gap-2 justify-between">
+                              <span className="text-xs font-semibold text-gray-700">Consent {index + 1}</span>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2"
+                                  disabled={index === 0}
+                                  onClick={() => {
+                                    const next = [...dataConsentsRows]
+                                    ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+                                    commitDataConsentsOptions(next, dataConsentsAcceptAll, dataConsentsNext)
+                                  }}
+                                  title="Move up"
+                                >
+                                  ↑
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2"
+                                  disabled={index === dataConsentsRows.length - 1}
+                                  onClick={() => {
+                                    const next = [...dataConsentsRows]
+                                    ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+                                    commitDataConsentsOptions(next, dataConsentsAcceptAll, dataConsentsNext)
+                                  }}
+                                  title="Move down"
+                                >
+                                  ↓
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-red-600"
+                                  disabled={dataConsentsRows.length <= 1}
+                                  onClick={() => {
+                                    const next = dataConsentsRows.filter((_, i) => i !== index)
+                                    commitDataConsentsOptions(
+                                      next.length ? next : [emptyDataConsentRow()],
+                                      dataConsentsAcceptAll,
+                                      dataConsentsNext
+                                    )
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <Input
+                                placeholder="id (analytics)"
+                                value={row.id}
+                                onChange={(e) => {
+                                  const next = dataConsentsRows.map((r, i) =>
+                                    i === index ? { ...r, id: e.target.value } : r
+                                  )
+                                  commitDataConsentsOptions(next, dataConsentsAcceptAll, dataConsentsNext)
+                                }}
+                              />
+                              <div className="flex items-center gap-2 sm:justify-end">
+                                <Switch
+                                  id={`dc-req-${index}`}
+                                  checked={row.required}
+                                  onCheckedChange={(checked) => {
+                                    const next = dataConsentsRows.map((r, i) =>
+                                      i === index ? { ...r, required: checked } : r
+                                    )
+                                    commitDataConsentsOptions(next, dataConsentsAcceptAll, dataConsentsNext)
+                                  }}
+                                />
+                                <Label htmlFor={`dc-req-${index}`} className="text-xs cursor-pointer">
+                                  Required (blocks Next)
+                                </Label>
+                              </div>
+                            </div>
+                            <Input
+                              placeholder="Title *"
+                              value={row.title}
+                              onChange={(e) => {
+                                const next = dataConsentsRows.map((r, i) =>
+                                  i === index ? { ...r, title: e.target.value } : r
+                                )
+                                commitDataConsentsOptions(next, dataConsentsAcceptAll, dataConsentsNext)
+                              }}
+                            />
+                            <Textarea
+                              placeholder="Description (optional)"
+                              value={row.description}
+                              rows={2}
+                              className="text-sm"
+                              onChange={(e) => {
+                                const next = dataConsentsRows.map((r, i) =>
+                                  i === index ? { ...r, description: e.target.value } : r
+                                )
+                                commitDataConsentsOptions(next, dataConsentsAcceptAll, dataConsentsNext)
+                              }}
+                            />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <Input
+                                placeholder='Learn more label (default "Learn more")'
+                                value={row.learnMoreLabel}
+                                onChange={(e) => {
+                                  const next = dataConsentsRows.map((r, i) =>
+                                    i === index ? { ...r, learnMoreLabel: e.target.value } : r
+                                  )
+                                  commitDataConsentsOptions(next, dataConsentsAcceptAll, dataConsentsNext)
+                                }}
+                              />
+                              <Input
+                                placeholder="Learn more URL (https…)"
+                                value={row.learnMoreUrl}
+                                onChange={(e) => {
+                                  const next = dataConsentsRows.map((r, i) =>
+                                    i === index ? { ...r, learnMoreUrl: e.target.value } : r
+                                  )
+                                  commitDataConsentsOptions(next, dataConsentsAcceptAll, dataConsentsNext)
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

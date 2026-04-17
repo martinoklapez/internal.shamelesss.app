@@ -234,6 +234,53 @@
     "default_options": {}
   },
   {
+    "component_key": "data_consents",
+    "component_name": "Data consents",
+    "category": "conversion",
+    "description": "Post-onboarding consent checkboxes, Accept all row, and Next. Title/description from screen columns; list and CTA labels from options JSONB (single object, not an array).",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": true },
+      "options": {
+        "consents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "key": { "type": "string" },
+              "title": { "type": "string", "required": true },
+              "description": { "type": "string" },
+              "required": { "type": "boolean", "default": true },
+              "learn_more": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string" },
+                  "url": { "type": "string", "required": true }
+                }
+              }
+            }
+          }
+        },
+        "accept_all_label": { "type": "string" },
+        "next_button_label": { "type": "string" }
+      }
+    },
+    "default_options": {
+      "consents": [
+        {
+          "id": "privacy",
+          "title": "Privacy & data use",
+          "description": "Plain text body under the title.",
+          "required": true,
+          "learn_more": { "label": "Learn more", "url": "https://example.com/privacy" }
+        }
+      ],
+      "accept_all_label": "Accept All",
+      "next_button_label": "Next"
+    }
+  },
+  {
     "component_key": "quiz_results",
     "component_name": "Quiz Results Chart",
     "category": "conversion",
