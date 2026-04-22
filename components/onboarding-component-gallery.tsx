@@ -74,6 +74,14 @@ const SAMPLE_OPTIONS: Record<string, Record<string, unknown>> = {
   rate_app_blurred: { final_reviews: [] },
   rate_app_default: { final_reviews: [] },
   quiz_results: {},
+  profile_image: {
+    skipable: true,
+    testimonial_avatars: [
+      'https://i.pravatar.cc/100?img=12',
+      'https://i.pravatar.cc/100?img=33',
+      'https://i.pravatar.cc/100?img=47',
+    ],
+  },
   data_consents: {
     consents: [
       {

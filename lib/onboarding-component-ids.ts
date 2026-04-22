@@ -65,7 +65,11 @@ export const COMPONENT_DISPLAY: Record<
   age_input: { component_name: 'Age Input', description: 'Age number pad (14–120).' },
   age_input_scroll: { component_name: 'Age Input (Scroll)', description: 'Scrollable age picker (12–120).' },
   age_input_picker: { component_name: 'Age Input (Picker)', description: 'Native age picker (14–120). Conversion only.' },
-  profile_image: { component_name: 'Profile Image', description: 'Profile photo picker (skippable).' },
+  profile_image: {
+    component_name: 'Profile Image',
+    description:
+      'Profile photo picker (skippable). options jsonb: testimonial_avatars | avatars (http(s) URLs, max 8); show_testimonial_marquee (default true) or hide_testimonial_marquee (show_* wins if both set).',
+  },
   frequency_slider: { component_name: 'Frequency Slider', description: 'Slider "How often?" (1x–5x).' },
   satisfaction_slider: { component_name: 'Satisfaction Slider', description: 'Satisfaction slider with emojis.' },
   testimonial_loader: { component_name: 'Testimonial Loader', description: 'Auto-advancing testimonials.' },

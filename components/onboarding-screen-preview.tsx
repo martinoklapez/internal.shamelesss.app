@@ -4,6 +4,11 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 import { substitutePushMockupPlaceholders } from '@/lib/push-permission-mockup'
 import { getDataConsentsDisplayModel } from '@/lib/data-consents-options'
+import {
+  parseProfileImageFinalReviewAvatarUrls,
+  parseProfileImageShowTestimonialMarquee,
+  parseProfileImageTestimonialUrls,
+} from '@/lib/profile-image-testimonial-avatars'
 import { SiInstagram, SiTiktok, SiReddit, SiYoutube, SiX, SiFacebook, SiAppstore } from 'react-icons/si'
 import { Globe, Heart, Info, Upload } from 'lucide-react'
 import type { IconType } from 'react-icons'
@@ -919,12 +924,12 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   // Profile Image (Onboarding + Conversion)
   if (componentId === 'profile_image') {
     const skipable = options && typeof options === 'object' && 'skipable' in options && options.skipable === true
-    const avatarSources = (() => {
-      if (!options || typeof options !== 'object' || !('final_reviews' in options)) return []
-      const arr = (options as { final_reviews?: unknown[] }).final_reviews
-      return Array.isArray(arr) ? arr.slice(0, 3) : []
-    })()
-    const showAvatarRow = avatarSources.length > 0
+    const showMarqueeStrip = parseProfileImageShowTestimonialMarquee(options)
+    const testimonialUrls = parseProfileImageTestimonialUrls(options)
+    const reviewFallbackUrls = parseProfileImageFinalReviewAvatarUrls(options)
+    const displayAvatarUrls =
+      testimonialUrls.length > 0 ? testimonialUrls : reviewFallbackUrls
+    const showAvatarRow = showMarqueeStrip && displayAvatarUrls.length > 0
     const UPLOAD_SIZE = 100
     return (
       <div className="w-full h-full flex flex-col bg-white overflow-hidden">
@@ -1005,16 +1010,19 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
                 className="flex items-center"
                 style={{ height: 56, marginLeft: -9 }}
               >
-                {[0, 1, 2].map((i) => (
+                {displayAvatarUrls.map((src, i) => (
                   <div
-                    key={i}
-                    className="flex-shrink-0 rounded-full bg-gray-300 border-2 border-white"
+                    key={`${src}-${i}`}
+                    className="flex-shrink-0 rounded-full border-2 border-white overflow-hidden bg-gray-200"
                     style={{
                       width: 40,
                       height: 40,
                       marginLeft: i === 0 ? 0 : -9,
                     }}
-                  />
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                  </div>
                 ))}
               </div>
             </div>

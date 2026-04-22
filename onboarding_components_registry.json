@@ -128,23 +128,41 @@
   {
     "component_key": "profile_image",
     "component_name": "Profile Image Upload",
-    "category": "quiz",
-    "description": "Image picker component for uploading profile photo. Opens device photo library, allows cropping. Saves to user profile. Can be skipped.",
+    "category": "conversion",
+    "description": "Profile photo picker (skippable). options: JSON object — testimonial_avatars or avatars (http(s) URLs, max 8); show_testimonial_marquee (default true) or hide_testimonial_marquee to hide the marquee and skip final_reviews (show_* wins if both set). Not a radio-style options array.",
     "props_schema": {
       "title": { "type": "string", "required": true },
       "description": { "type": "string", "required": false },
       "options": {
-        "aspectRatio": { "type": "array", "default": [1, 1] },
-        "quality": { "type": "number", "default": 0.8 },
-        "allowsEditing": { "type": "boolean", "default": true },
+        "testimonial_avatars": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Preferred list of http(s) image URLs for scrolling heads (max 8 used)."
+        },
+        "avatars": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Alias of testimonial_avatars."
+        },
+        "show_testimonial_marquee": {
+          "type": "boolean",
+          "description": "If false, hide marquee and do not fetch final_reviews for this step. Default true if omitted."
+        },
+        "hide_testimonial_marquee": {
+          "type": "boolean",
+          "description": "If true, same as show_testimonial_marquee false. Ignored when show_testimonial_marquee is set as a boolean."
+        },
+        "final_reviews": { "type": "array" },
         "skipable": { "type": "boolean", "default": true }
       }
     },
     "default_options": {
-      "aspectRatio": [1, 1],
-      "quality": 0.8,
-      "allowsEditing": true,
-      "skipable": true
+      "skipable": true,
+      "testimonial_avatars": [
+        "https://i.pravatar.cc/100?img=12",
+        "https://i.pravatar.cc/100?img=33",
+        "https://i.pravatar.cc/100?img=47"
+      ]
     }
   },
   {

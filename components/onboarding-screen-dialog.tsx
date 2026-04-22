@@ -37,8 +37,16 @@ import {
   serializeDataConsentsOptions,
   type DataConsentEditorRow,
 } from '@/lib/data-consents-options'
+import {
+  applyProfileImageMarqueeFlagsToOptionsObject,
+  getProfileImageEditorUrlRowsFromOptionsJson,
+  parseProfileImageShowTestimonialMarquee,
+  parseProfileImageTestimonialUrls,
+  PROFILE_IMAGE_TESTIMONIAL_MAX_URLS,
+  serializeProfileImageOptionsWithTestimonialUrls,
+} from '@/lib/profile-image-testimonial-avatars'
 import { OnboardingScreenPreview } from './onboarding-screen-preview'
-import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X, Play } from 'lucide-react'
+import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X, Play, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAppDialogs } from '@/components/app-dialogs-provider'
 
@@ -169,6 +177,18 @@ export function OnboardingScreenDialog({
   const [dataConsentsAcceptAll, setDataConsentsAcceptAll] = useState('Accept All')
   const [dataConsentsNext, setDataConsentsNext] = useState('Next')
   const [dataConsentsJsonMode, setDataConsentsJsonMode] = useState(false)
+
+  const [profileImageUrlRows, setProfileImageUrlRows] = useState<string[]>([''])
+  const [profileImageJsonMode, setProfileImageJsonMode] = useState(false)
+  const [profileImageAvatarSource, setProfileImageAvatarSource] = useState<'direct' | 'profiles'>('direct')
+  const [profilePickerSearch, setProfilePickerSearch] = useState('')
+  const [profilePickerResults, setProfilePickerResults] = useState<
+    { user_id: string; name: string | null; username: string | null; profile_picture_url: string | null }[]
+  >([])
+  const [profilePickerLoading, setProfilePickerLoading] = useState(false)
+  const [profilePickerLoadingMore, setProfilePickerLoadingMore] = useState(false)
+  const [profilePickerTotal, setProfilePickerTotal] = useState<number | null>(null)
+  const [profileImageShowMarquee, setProfileImageShowMarquee] = useState(true)
 
   // Check if options is an array of objects with label/value structure
   const isOptionsArray = (): boolean => {
@@ -407,6 +427,76 @@ export function OnboardingScreenDialog({
     setDataConsentsNext(parsed.nextButtonLabel)
   }, [componentId, options, dataConsentsJsonMode])
 
+  // profile_image: testimonial_avatars / avatars URL list + marquee flags (visual editor)
+  useEffect(() => {
+    if (componentId !== 'profile_image' || profileImageJsonMode) return
+    setProfileImageUrlRows(getProfileImageEditorUrlRowsFromOptionsJson(options))
+    try {
+      const parsed = options.trim() ? JSON.parse(options) : {}
+      setProfileImageShowMarquee(parseProfileImageShowTestimonialMarquee(parsed))
+    } catch {
+      setProfileImageShowMarquee(true)
+    }
+  }, [componentId, options, profileImageJsonMode])
+
+  // profile_image: search profiles with avatars (profiles table)
+  useEffect(() => {
+    if (!open || componentId !== 'profile_image' || profileImageJsonMode) return
+    if (profileImageAvatarSource !== 'profiles') return
+    let cancelled = false
+    const handle = setTimeout(() => {
+      setProfilePickerLoading(true)
+      const params = new URLSearchParams()
+      if (profilePickerSearch.trim()) params.set('q', profilePickerSearch.trim())
+      // No text search: request a large first page so typical orgs see everyone with an avatar in one load (API max 500).
+      params.set('limit', profilePickerSearch.trim() ? '120' : '500')
+      params.set('offset', '0')
+      fetch(`/api/onboarding/profile-pictures-search?${params.toString()}`)
+        .then((r) => {
+          if (!r.ok) throw new Error('Request failed')
+          return r.json()
+        })
+        .then(
+          (data: {
+            profiles?: {
+              user_id: string
+              name: string | null
+              username: string | null
+              profile_picture_url: string | null
+            }[]
+            total?: number
+          }) => {
+          if (cancelled) return
+          setProfilePickerResults(Array.isArray(data.profiles) ? data.profiles : [])
+          setProfilePickerTotal(typeof data.total === 'number' ? data.total : null)
+        })
+        .catch(() => {
+          if (cancelled) return
+          setProfilePickerResults([])
+          setProfilePickerTotal(null)
+          toast({
+            title: 'Could not load profiles',
+            description: 'Check your connection and permissions, then try again.',
+            variant: 'destructive',
+          })
+        })
+        .finally(() => {
+          if (!cancelled) setProfilePickerLoading(false)
+        })
+    }, 350)
+    return () => {
+      cancelled = true
+      clearTimeout(handle)
+    }
+  }, [
+    open,
+    componentId,
+    profileImageJsonMode,
+    profileImageAvatarSource,
+    profilePickerSearch,
+    toast,
+  ])
+
   // Fetch available components when dialog opens and screenType is selected
   useEffect(() => {
     if (open && screenType) {
@@ -606,6 +696,44 @@ export function OnboardingScreenDialog({
           setLoading(false)
           return
         }
+      } else if (componentId === 'profile_image') {
+        if (profileImageJsonMode) {
+          try {
+            parsedOptions = options.trim() ? JSON.parse(options) : {}
+          } catch {
+            toast({
+              title: 'Invalid JSON',
+              description: 'Fix the options JSON or switch back to the testimonial URL editor.',
+              variant: 'destructive',
+            })
+            setLoading(false)
+            return
+          }
+          if (!parsedOptions || typeof parsedOptions !== 'object' || Array.isArray(parsedOptions)) {
+            toast({
+              title: 'Invalid profile image options',
+              description:
+                'options must be a JSON object (not a radio-style array). Use testimonial_avatars or avatars for HTTPS image URLs.',
+              variant: 'destructive',
+            })
+            setLoading(false)
+            return
+          }
+        } else {
+          try {
+            parsedOptions = JSON.parse(
+              serializeProfileImageOptionsWithTestimonialUrls(profileImageUrlRows, options)
+            )
+          } catch {
+            toast({
+              title: 'Invalid options',
+              description: 'Could not build profile image options.',
+              variant: 'destructive',
+            })
+            setLoading(false)
+            return
+          }
+        }
       } else if (options.trim()) {
         try {
           parsedOptions = JSON.parse(options)
@@ -753,6 +881,90 @@ export function OnboardingScreenDialog({
   const showScratchDatesOptionsField = componentId === 'scratchdates_preview'
   const showPushNotificationOptionsField = componentId === 'push_notification_permission'
   const showDataConsentsOptionsField = componentId === 'data_consents'
+  const showProfileImageOptionsField = componentId === 'profile_image'
+
+  const commitProfileImageUrlRows = (rows: string[]) => {
+    setProfileImageUrlRows(rows)
+    setOptions(serializeProfileImageOptionsWithTestimonialUrls(rows, options))
+  }
+
+  const appendProfilePictureUrlToTestimonialList = (rawUrl: string | null | undefined) => {
+    const trimmed = (rawUrl || '').trim()
+    if (!/^https?:\/\//i.test(trimmed)) {
+      toast({
+        title: 'Invalid image URL',
+        description: 'Only http(s) URLs from profiles can be added to testimonial_avatars.',
+        variant: 'destructive',
+      })
+      return
+    }
+    const existing = parseProfileImageTestimonialUrls({ testimonial_avatars: profileImageUrlRows })
+    if (existing.includes(trimmed)) {
+      toast({
+        title: 'Already in list',
+        description: 'That profile picture URL is already included.',
+      })
+      return
+    }
+    if (existing.length >= PROFILE_IMAGE_TESTIMONIAL_MAX_URLS) {
+      toast({
+        title: 'List full',
+        description: `At most ${PROFILE_IMAGE_TESTIMONIAL_MAX_URLS} URLs are stored.`,
+        variant: 'destructive',
+      })
+      return
+    }
+    commitProfileImageUrlRows([...existing, trimmed])
+  }
+
+  const commitProfileImageMarqueeOnly = (showMarquee: boolean) => {
+    setProfileImageShowMarquee(showMarquee)
+    let o: Record<string, unknown> = {}
+    try {
+      const p = options.trim() ? JSON.parse(options) : {}
+      if (p && typeof p === 'object' && !Array.isArray(p)) o = { ...p }
+    } catch {
+      o = {}
+    }
+    applyProfileImageMarqueeFlagsToOptionsObject(o, showMarquee)
+    setOptions(JSON.stringify(o, null, 2))
+  }
+
+  const loadMoreProfilePicker = async () => {
+    if (profilePickerTotal === null || profilePickerResults.length >= profilePickerTotal) return
+    if (profilePickerLoading || profilePickerLoadingMore) return
+    if (profilePickerSearch.trim()) return
+    setProfilePickerLoadingMore(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('limit', '500')
+      params.set('offset', String(profilePickerResults.length))
+      const r = await fetch(`/api/onboarding/profile-pictures-search?${params.toString()}`)
+      if (!r.ok) throw new Error('failed')
+      const data: { profiles?: typeof profilePickerResults; total?: number } = await r.json()
+      const incoming = Array.isArray(data.profiles) ? data.profiles : []
+      setProfilePickerResults((prev) => {
+        const seen = new Set(prev.map((p) => p.user_id))
+        const next = [...prev]
+        for (const p of incoming) {
+          if (!seen.has(p.user_id)) {
+            seen.add(p.user_id)
+            next.push(p)
+          }
+        }
+        return next
+      })
+      if (typeof data.total === 'number') setProfilePickerTotal(data.total)
+    } catch {
+      toast({
+        title: 'Could not load more',
+        description: 'Try again or narrow results with search.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProfilePickerLoadingMore(false)
+    }
+  }
 
   const commitDataConsentsOptions = (
     rows: DataConsentEditorRow[],
@@ -890,6 +1102,9 @@ export function OnboardingScreenDialog({
                         onClick={() => {
                           setComponentId(component.component_key)
                           setDataConsentsJsonMode(false)
+                          setProfileImageJsonMode(false)
+                          setProfileImageAvatarSource('direct')
+                          setProfilePickerSearch('')
                           if (component.default_options) {
                             setOptions(JSON.stringify(component.default_options, null, 2))
                             setShowJsonView(false)
@@ -1064,6 +1279,9 @@ export function OnboardingScreenDialog({
                     onValueChange={(value) => {
                       setComponentId(value)
                       setDataConsentsJsonMode(false)
+                      setProfileImageJsonMode(false)
+                      setProfileImageAvatarSource('direct')
+                      setProfilePickerSearch('')
                       const selectedComponent = availableComponents.find(c => c.component_key === value)
                       if (selectedComponent?.default_options) {
                         setOptions(JSON.stringify(selectedComponent.default_options, null, 2))
@@ -1615,6 +1833,302 @@ export function OnboardingScreenDialog({
                         ))}
                       </div>
                     </>
+                  )}
+                </div>
+              )}
+
+              {showProfileImageOptionsField && (
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                  <div>
+                    <Label>Testimonial avatars (options JSONB)</Label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Stored on the <code className="text-[11px]">profile_image</code> screen as a JSON{' '}
+                      <strong>object</strong> (not a radio-style array). Keys:{' '}
+                      <code className="text-[11px]">testimonial_avatars</code> (preferred) or{' '}
+                      <code className="text-[11px]">avatars</code> — HTTPS/HTTP URL strings only, max{' '}
+                      {PROFILE_IMAGE_TESTIMONIAL_MAX_URLS}, invalid entries dropped.{' '}
+                      <code className="text-[11px]">show_testimonial_marquee</code> (boolean, default true) or{' '}
+                      <code className="text-[11px]">hide_testimonial_marquee</code> (if true, hides strip); when both
+                      are set, <code className="text-[11px]">show_testimonial_marquee</code> wins. Use{' '}
+                      <strong>From profiles</strong> to pick <code className="text-[11px]">public.profiles</code> avatar
+                      URLs. If no valid remote URLs, the app may use <code className="text-[11px]">final_reviews</code> or
+                      bundled fallbacks when the marquee is shown. Other keys (e.g. skipable) are preserved on save.
+                    </p>
+                  </div>
+                  {!profileImageJsonMode ? (
+                    <div className="flex items-start gap-3 rounded-md border border-gray-200 bg-white px-3 py-2.5">
+                      <Switch
+                        id="profile_image_marquee"
+                        checked={profileImageShowMarquee}
+                        onCheckedChange={(c) => commitProfileImageMarqueeOnly(c)}
+                        className="mt-0.5"
+                      />
+                      <Label htmlFor="profile_image_marquee" className="text-xs text-gray-700 cursor-pointer leading-snug">
+                        Show testimonial marquee (&quot;Let them notice you&quot; + faces). Off writes{' '}
+                        <code className="text-[10px]">show_testimonial_marquee: false</code> and hides the strip without
+                        clearing URLs; the app skips <code className="text-[10px]">final_reviews</code> for that step.
+                      </Label>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-gray-600">
+                      Valid URLs in form:{' '}
+                      <span className="font-semibold text-gray-900">
+                        {parseProfileImageTestimonialUrls({ testimonial_avatars: profileImageUrlRows }).length}
+                      </span>{' '}
+                      / {PROFILE_IMAGE_TESTIMONIAL_MAX_URLS}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        if (profileImageJsonMode) {
+                          setProfileImageJsonMode(false)
+                        } else {
+                          setOptions(
+                            serializeProfileImageOptionsWithTestimonialUrls(profileImageUrlRows, options)
+                          )
+                          setProfileImageJsonMode(true)
+                        }
+                      }}
+                    >
+                      {profileImageJsonMode ? 'Back to URL list' : 'Edit raw JSON'}
+                    </Button>
+                  </div>
+                  {profileImageJsonMode ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={options}
+                        onChange={(e) => setOptions(e.target.value)}
+                        rows={12}
+                        className="font-mono text-sm"
+                        spellCheck={false}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex rounded-md border border-gray-200 p-0.5 bg-gray-100/80">
+                        <button
+                          type="button"
+                          onClick={() => setProfileImageAvatarSource('direct')}
+                          className={`flex-1 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                            profileImageAvatarSource === 'direct'
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          Direct URLs
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProfileImageAvatarSource('profiles')}
+                          className={`flex-1 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                            profileImageAvatarSource === 'profiles'
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          From profiles
+                        </button>
+                      </div>
+
+                      {profileImageAvatarSource === 'profiles' ? (
+                        <div className="space-y-3 rounded-md border border-gray-200 bg-white p-3">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-gray-600">Search by username or name</Label>
+                            <Input
+                              value={profilePickerSearch}
+                              onChange={(e) => setProfilePickerSearch(e.target.value)}
+                              placeholder="Type to filter…"
+                              className="text-sm"
+                            />
+                            <p className="text-[11px] text-gray-500">
+                              Uses <code className="text-[10px]">public.profiles</code> (rows with{' '}
+                              <code className="text-[10px]">profile_picture_url</code> starting with http). Click a
+                              face to append that URL to testimonial_avatars (max {PROFILE_IMAGE_TESTIMONIAL_MAX_URLS}).
+                            </p>
+                          </div>
+                          {profilePickerLoading ? (
+                            <div className="flex items-center justify-center py-10 text-gray-500">
+                              <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
+                            </div>
+                          ) : (
+                            <>
+                              {profilePickerTotal !== null ? (
+                                <p className="text-[11px] text-gray-500">
+                                  {profilePickerResults.length === profilePickerTotal
+                                    ? `${profilePickerResults.length} profile${
+                                        profilePickerResults.length === 1 ? '' : 's'
+                                      } with avatars`
+                                    : `Showing ${profilePickerResults.length} of ${profilePickerTotal} profiles with avatars`}
+                                  {profilePickerSearch.trim() ? ' (search)' : ''}
+                                </p>
+                              ) : null}
+                              {profilePickerResults.length === 0 ? (
+                                <p className="text-xs text-gray-500 py-4 text-center">
+                                  No profiles with http(s) avatars match this search.
+                                </p>
+                              ) : (
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                                  {profilePickerResults.map((p) => {
+                                    const src = (p.profile_picture_url || '').trim()
+                                    const label = p.username?.trim() || p.name?.trim() || p.user_id.slice(0, 8)
+                                    return (
+                                      <button
+                                        key={p.user_id}
+                                        type="button"
+                                        onClick={() => appendProfilePictureUrlToTestimonialList(src)}
+                                        className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 p-1.5 hover:bg-gray-50 hover:border-gray-300 transition-colors text-center"
+                                      >
+                                        <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                          <img src={src} alt="" className="h-full w-full object-cover" />
+                                        </div>
+                                        <span className="text-[10px] font-medium text-gray-800 leading-tight line-clamp-2 w-full">
+                                          {label}
+                                        </span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              {!profilePickerSearch.trim() &&
+                              profilePickerTotal !== null &&
+                              profilePickerResults.length < profilePickerTotal ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-xs"
+                                  disabled={profilePickerLoadingMore}
+                                  onClick={() => void loadMoreProfilePicker()}
+                                >
+                                  {profilePickerLoadingMore ? (
+                                    <span className="inline-flex items-center gap-2">
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" aria-hidden />
+                                      Loading…
+                                    </span>
+                                  ) : (
+                                    `Load more (${profilePickerTotal - profilePickerResults.length} remaining)`
+                                  )}
+                                </Button>
+                              ) : null}
+                            </>
+                          )}
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-gray-600">
+                          {profileImageAvatarSource === 'profiles'
+                            ? 'Current testimonial URLs (order = app order)'
+                            : 'URLs'}
+                        </Label>
+                        <div className="space-y-3">
+                          {profileImageUrlRows.map((url, index) => {
+                            const t = url.trim()
+                            const invalid = t.length > 0 && !/^https?:\/\//i.test(t)
+                            const showThumb = t.length > 0 && /^https?:\/\//i.test(t)
+                            return (
+                              <div key={index} className="space-y-1 rounded-md border border-gray-200 bg-white p-2">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div
+                                      className="h-10 w-10 shrink-0 rounded-md border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center"
+                                      title={showThumb ? 'Preview' : ''}
+                                    >
+                                      {showThumb ? (
+                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                        <img
+                                          src={t}
+                                          alt=""
+                                          className="h-full w-full object-cover"
+                                        />
+                                      ) : (
+                                        <span className="text-[10px] font-medium text-gray-300 select-none">—</span>
+                                      )}
+                                    </div>
+                                    <Input
+                                      placeholder="https://…"
+                                      value={url}
+                                      onChange={(e) => {
+                                        const next = profileImageUrlRows.map((u, i) =>
+                                          i === index ? e.target.value : u
+                                        )
+                                        commitProfileImageUrlRows(next)
+                                      }}
+                                      className={`min-w-0 flex-1 ${invalid ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 px-2"
+                                      disabled={index === 0}
+                                      onClick={() => {
+                                        const next = [...profileImageUrlRows]
+                                        ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+                                        commitProfileImageUrlRows(next)
+                                      }}
+                                      title="Move up"
+                                    >
+                                      ↑
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 px-2"
+                                      disabled={index === profileImageUrlRows.length - 1}
+                                      onClick={() => {
+                                        const next = [...profileImageUrlRows]
+                                        ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+                                        commitProfileImageUrlRows(next)
+                                      }}
+                                      title="Move down"
+                                    >
+                                      ↓
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 px-2 text-red-600"
+                                      disabled={profileImageUrlRows.length <= 1}
+                                      onClick={() => {
+                                        const next = profileImageUrlRows.filter((_, i) => i !== index)
+                                        commitProfileImageUrlRows(next.length ? next : [''])
+                                      }}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                {invalid ? (
+                                  <p className="text-[11px] text-red-600">URL must start with http:// or https://</p>
+                                ) : null}
+                              </div>
+                            )
+                          })}
+                          {profileImageAvatarSource === 'direct' ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={profileImageUrlRows.length >= 24}
+                              onClick={() => commitProfileImageUrlRows([...profileImageUrlRows, ''])}
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" />
+                              Add URL
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
