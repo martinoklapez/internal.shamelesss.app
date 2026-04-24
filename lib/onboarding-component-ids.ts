@@ -76,7 +76,11 @@ export const COMPONENT_DISPLAY: Record<
   rate_app: { component_name: 'Rate App', description: 'Triggers Store Review prompt. Quiz only.' },
   rate_app_blurred: { component_name: 'Rate App (Blurred)', description: 'In-app review with blur. Conversion only.' },
   rate_app_default: { component_name: 'Rate App (Default)', description: 'In-app review (no blur). Conversion only.' },
-  rate_app_stars: { component_name: 'Rate App (Stars)', description: 'Star rating with title, 5 stars box, Continue. Optional feedback modal for 1–3 stars.' },
+  rate_app_stars: {
+    component_name: 'Rate App (Stars)',
+    description:
+      'Star rating + Continue; 1–3★ opens feedback modal. options jsonb object: show_skip_button / hide_skip_button (hide wins), require_feedback_text / allow_empty_feedback_submit for empty Send.',
+  },
   push_notification_permission: {
     component_name: 'Push Notification Permission',
     description:

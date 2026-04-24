@@ -73,6 +73,7 @@ const SAMPLE_OPTIONS: Record<string, Record<string, unknown>> = {
   },
   rate_app_blurred: { final_reviews: [] },
   rate_app_default: { final_reviews: [] },
+  rate_app_stars: {},
   quiz_results: {},
   profile_image: {
     skipable: true,

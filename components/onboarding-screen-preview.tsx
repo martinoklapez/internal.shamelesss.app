@@ -9,6 +9,10 @@ import {
   parseProfileImageShowTestimonialMarquee,
   parseProfileImageTestimonialUrls,
 } from '@/lib/profile-image-testimonial-avatars'
+import {
+  parseRateAppStarsRequireFeedbackText,
+  parseRateAppStarsShowSkipButton,
+} from '@/lib/rate-app-stars-screen-options'
 import { SiInstagram, SiTiktok, SiReddit, SiYoutube, SiX, SiFacebook, SiAppstore } from 'react-icons/si'
 import { Globe, Heart, Info, Upload } from 'lucide-react'
 import type { IconType } from 'react-icons'
@@ -34,6 +38,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   const [rateAppStarsSelected, setRateAppStarsSelected] = useState<number>(0)
   const [rateAppStarsFeedbackOpen, setRateAppStarsFeedbackOpen] = useState(false)
   const [rateAppStarsFeedbackText, setRateAppStarsFeedbackText] = useState('')
+  const [rateAppStarsFeedbackHint, setRateAppStarsFeedbackHint] = useState('')
   const [scratchComplete, setScratchComplete] = useState(false)
 
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -2193,9 +2198,12 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
   // Rate App Stars – main screen + feedback modal (1–3 stars)
   if (componentId === 'rate_app_stars') {
     const starCount = 5
+    const showSkipInModal = parseRateAppStarsShowSkipButton(options)
+    const requireFeedbackText = parseRateAppStarsRequireFeedbackText(options)
     const handleStarClick = (value: number) => {
       setRateAppStarsSelected(value)
       if (value >= 1 && value <= 3) {
+        setRateAppStarsFeedbackHint('')
         setRateAppStarsFeedbackOpen(true)
       }
     }
@@ -2270,25 +2278,30 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
                 style={{ backgroundColor: '#E5E7EB', width: 40, height: 4, borderRadius: 2 }}
               />
               {/* Title row – title left, Skip right; smaller so it fits one row */}
-              <div className="flex items-center justify-between gap-3 mb-4 shrink-0">
+              <div
+                className={`flex items-center gap-3 mb-4 shrink-0 ${showSkipInModal ? 'justify-between' : 'justify-start'}`}
+              >
                 <span className="font-bold text-black shrink-0 whitespace-nowrap" style={{ fontSize: 10 }}>
                   What could we do better?
                 </span>
-                <button
-                  type="button"
-                  className="shrink-0 rounded-full font-bold text-black hover:opacity-80 transition-opacity leading-tight"
-                  style={{
-                    background: '#E5E7EB',
-                    padding: '2px 8px',
-                    fontSize: 10,
-                  }}
-                  onClick={() => {
-                    setRateAppStarsFeedbackOpen(false)
-                    setRateAppStarsFeedbackText('')
-                  }}
-                >
-                  Skip
-                </button>
+                {showSkipInModal ? (
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-full font-bold text-black hover:opacity-80 transition-opacity leading-tight"
+                    style={{
+                      background: '#E5E7EB',
+                      padding: '2px 8px',
+                      fontSize: 10,
+                    }}
+                    onClick={() => {
+                      setRateAppStarsFeedbackOpen(false)
+                      setRateAppStarsFeedbackText('')
+                      setRateAppStarsFeedbackHint('')
+                    }}
+                  >
+                    Skip
+                  </button>
+                ) : null}
               </div>
               {/* Input – white, light gray border, faint shadow */}
               <textarea
@@ -2296,7 +2309,10 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
                 style={{ padding: 12, fontSize: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
                 placeholder="Share your feedback..."
                 value={rateAppStarsFeedbackText}
-                onChange={(e) => setRateAppStarsFeedbackText(e.target.value)}
+                onChange={(e) => {
+                  setRateAppStarsFeedbackText(e.target.value)
+                  if (rateAppStarsFeedbackHint) setRateAppStarsFeedbackHint('')
+                }}
                 rows={4}
               />
               {/* Send Feedback – red-orange, bold black text, raised shadow */}
@@ -2305,12 +2321,23 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
                 className="w-full h-9 bg-[#FF5252] border-2 border-black rounded-[30px] font-black text-black text-sm hover:opacity-90 transition-opacity shrink-0"
                 style={{ boxShadow: '0 4px 0 #000' }}
                 onClick={() => {
+                  if (requireFeedbackText && !rateAppStarsFeedbackText.trim()) {
+                    setRateAppStarsFeedbackHint('Feedback required')
+                    window.setTimeout(() => setRateAppStarsFeedbackHint(''), 2500)
+                    return
+                  }
                   setRateAppStarsFeedbackOpen(false)
                   setRateAppStarsFeedbackText('')
+                  setRateAppStarsFeedbackHint('')
                 }}
               >
                 Send Feedback
               </button>
+              {rateAppStarsFeedbackHint ? (
+                <p className="text-center text-[10px] text-red-600 font-semibold mt-2 shrink-0">
+                  {rateAppStarsFeedbackHint}
+                </p>
+              ) : null}
             </div>
           </div>
         )}

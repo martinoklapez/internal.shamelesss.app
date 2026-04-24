@@ -353,6 +353,29 @@
     }
   },
   {
+    "component_key": "rate_app_stars",
+    "component_name": "Rate App (Stars)",
+    "category": "conversion",
+    "description": "Star rating + Continue; 1–3★ opens feedback modal. options: JSON object controlling Skip visibility and empty Send (not a radio array).",
+    "props_schema": {
+      "title": { "type": "string", "required": true },
+      "description": { "type": "string", "required": false },
+      "options": {
+        "show_skip_button": { "type": "boolean", "description": "false hides Skip; default true if omitted." },
+        "hide_skip_button": { "type": "boolean", "description": "true hides Skip; wins over show_skip_button when both set." },
+        "require_feedback_text": {
+          "type": "boolean",
+          "description": "true (default): empty Send shows alert. false: empty Send closes like Skip."
+        },
+        "allow_empty_feedback_submit": {
+          "type": "boolean",
+          "description": "true: same as require_feedback_text false."
+        }
+      }
+    },
+    "default_options": {}
+  },
+  {
     "component_key": "scratchdates_preview",
     "component_name": "ScratchDates Preview",
     "category": "quiz",

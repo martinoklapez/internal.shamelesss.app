@@ -45,6 +45,11 @@ import {
   PROFILE_IMAGE_TESTIMONIAL_MAX_URLS,
   serializeProfileImageOptionsWithTestimonialUrls,
 } from '@/lib/profile-image-testimonial-avatars'
+import {
+  parseRateAppStarsRequireFeedbackText,
+  parseRateAppStarsShowSkipButton,
+  serializeRateAppStarsScreenOptions,
+} from '@/lib/rate-app-stars-screen-options'
 import { OnboardingScreenPreview } from './onboarding-screen-preview'
 import { Trash2, ArrowLeft, ArrowRight, Plus, Pencil, X, Play, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -189,6 +194,10 @@ export function OnboardingScreenDialog({
   const [profilePickerLoadingMore, setProfilePickerLoadingMore] = useState(false)
   const [profilePickerTotal, setProfilePickerTotal] = useState<number | null>(null)
   const [profileImageShowMarquee, setProfileImageShowMarquee] = useState(true)
+
+  const [rateAppStarsJsonMode, setRateAppStarsJsonMode] = useState(false)
+  const [rateAppStarsShowSkip, setRateAppStarsShowSkip] = useState(true)
+  const [rateAppStarsRequireFeedback, setRateAppStarsRequireFeedback] = useState(true)
 
   // Check if options is an array of objects with label/value structure
   const isOptionsArray = (): boolean => {
@@ -438,6 +447,19 @@ export function OnboardingScreenDialog({
       setProfileImageShowMarquee(true)
     }
   }, [componentId, options, profileImageJsonMode])
+
+  // rate_app_stars: modal options (visual editor)
+  useEffect(() => {
+    if (componentId !== 'rate_app_stars' || rateAppStarsJsonMode) return
+    try {
+      const parsed = options.trim() ? JSON.parse(options) : {}
+      setRateAppStarsShowSkip(parseRateAppStarsShowSkipButton(parsed))
+      setRateAppStarsRequireFeedback(parseRateAppStarsRequireFeedbackText(parsed))
+    } catch {
+      setRateAppStarsShowSkip(true)
+      setRateAppStarsRequireFeedback(true)
+    }
+  }, [componentId, options, rateAppStarsJsonMode])
 
   // profile_image: search profiles with avatars (profiles table)
   useEffect(() => {
@@ -734,6 +756,43 @@ export function OnboardingScreenDialog({
             return
           }
         }
+      } else if (componentId === 'rate_app_stars') {
+        if (rateAppStarsJsonMode) {
+          try {
+            parsedOptions = options.trim() ? JSON.parse(options) : {}
+          } catch {
+            toast({
+              title: 'Invalid JSON',
+              description: 'Fix the options JSON or switch back to the form editor.',
+              variant: 'destructive',
+            })
+            setLoading(false)
+            return
+          }
+          if (!parsedOptions || typeof parsedOptions !== 'object' || Array.isArray(parsedOptions)) {
+            toast({
+              title: 'Invalid rate_app_stars options',
+              description: 'options must be a JSON object, not a radio-style array.',
+              variant: 'destructive',
+            })
+            setLoading(false)
+            return
+          }
+        } else {
+          try {
+            parsedOptions = JSON.parse(
+              serializeRateAppStarsScreenOptions(rateAppStarsShowSkip, rateAppStarsRequireFeedback, options)
+            )
+          } catch {
+            toast({
+              title: 'Invalid options',
+              description: 'Could not build rate_app_stars options.',
+              variant: 'destructive',
+            })
+            setLoading(false)
+            return
+          }
+        }
       } else if (options.trim()) {
         try {
           parsedOptions = JSON.parse(options)
@@ -881,7 +940,14 @@ export function OnboardingScreenDialog({
   const showScratchDatesOptionsField = componentId === 'scratchdates_preview'
   const showPushNotificationOptionsField = componentId === 'push_notification_permission'
   const showDataConsentsOptionsField = componentId === 'data_consents'
+  const showRateAppStarsOptionsField = componentId === 'rate_app_stars'
   const showProfileImageOptionsField = componentId === 'profile_image'
+
+  const commitRateAppStarsForm = (showSkip: boolean, requireFeedbackText: boolean) => {
+    setRateAppStarsShowSkip(showSkip)
+    setRateAppStarsRequireFeedback(requireFeedbackText)
+    setOptions(serializeRateAppStarsScreenOptions(showSkip, requireFeedbackText, options))
+  }
 
   const commitProfileImageUrlRows = (rows: string[]) => {
     setProfileImageUrlRows(rows)
@@ -1105,6 +1171,7 @@ export function OnboardingScreenDialog({
                           setProfileImageJsonMode(false)
                           setProfileImageAvatarSource('direct')
                           setProfilePickerSearch('')
+                          setRateAppStarsJsonMode(false)
                           if (component.default_options) {
                             setOptions(JSON.stringify(component.default_options, null, 2))
                             setShowJsonView(false)
@@ -1282,6 +1349,7 @@ export function OnboardingScreenDialog({
                       setProfileImageJsonMode(false)
                       setProfileImageAvatarSource('direct')
                       setProfilePickerSearch('')
+                      setRateAppStarsJsonMode(false)
                       const selectedComponent = availableComponents.find(c => c.component_key === value)
                       if (selectedComponent?.default_options) {
                         setOptions(JSON.stringify(selectedComponent.default_options, null, 2))
@@ -1833,6 +1901,89 @@ export function OnboardingScreenDialog({
                         ))}
                       </div>
                     </>
+                  )}
+                </div>
+              )}
+
+              {showRateAppStarsOptionsField && (
+                <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                  <div>
+                    <Label>Rate App (Stars) — feedback modal (options JSONB)</Label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Conversion only. <code className="text-[11px]">options</code> must be a JSON{' '}
+                      <strong>object</strong> (not the radio-style array). These flags only affect the{' '}
+                      <strong>1–3★ feedback modal</strong> (Skip chip and empty &quot;Send Feedback&quot;); star behavior
+                      is unchanged. <code className="text-[11px]">hide_skip_button: true</code> hides Skip; if both{' '}
+                      <code className="text-[11px]">show_skip_button</code> and{' '}
+                      <code className="text-[11px]">hide_skip_button</code> are set, <strong>hide wins</strong> for
+                      hiding Skip. <code className="text-[11px]">allow_empty_feedback_submit: true</code> matches{' '}
+                      <code className="text-[11px]">require_feedback_text: false</code> (empty send allowed). Non-empty
+                      feedback always saves text in the app.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        if (rateAppStarsJsonMode) {
+                          setRateAppStarsJsonMode(false)
+                        } else {
+                          setOptions(
+                            serializeRateAppStarsScreenOptions(
+                              rateAppStarsShowSkip,
+                              rateAppStarsRequireFeedback,
+                              options
+                            )
+                          )
+                          setRateAppStarsJsonMode(true)
+                        }
+                      }}
+                    >
+                      {rateAppStarsJsonMode ? 'Back to form' : 'Edit raw JSON'}
+                    </Button>
+                  </div>
+                  {rateAppStarsJsonMode ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={options}
+                        onChange={(e) => setOptions(e.target.value)}
+                        rows={8}
+                        className="font-mono text-sm"
+                        spellCheck={false}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-4 rounded-md border border-gray-200 bg-white p-3">
+                      <div className="flex items-start gap-3">
+                        <Switch
+                          id="rate_app_stars_skip"
+                          checked={rateAppStarsShowSkip}
+                          onCheckedChange={(c) => commitRateAppStarsForm(c, rateAppStarsRequireFeedback)}
+                          className="mt-0.5"
+                        />
+                        <Label htmlFor="rate_app_stars_skip" className="text-xs text-gray-700 cursor-pointer leading-snug">
+                          Show <strong>Skip</strong> in the low-rating modal
+                        </Label>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Switch
+                          id="rate_app_stars_require"
+                          checked={rateAppStarsRequireFeedback}
+                          onCheckedChange={(c) => commitRateAppStarsForm(rateAppStarsShowSkip, c)}
+                          className="mt-0.5"
+                        />
+                        <Label
+                          htmlFor="rate_app_stars_require"
+                          className="text-xs text-gray-700 cursor-pointer leading-snug"
+                        >
+                          Require feedback text before <strong>Send Feedback</strong> (empty send shows &quot;Feedback
+                          required&quot; in the app)
+                        </Label>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
