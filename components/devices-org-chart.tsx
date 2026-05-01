@@ -229,6 +229,20 @@ function DeviceNode({
               {device.iCloudProfile.alias || device.iCloudProfile.email}
             </p>
           )}
+          {(device.iCloudProfile?.country || device.proxy?.country) && (
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              {device.iCloudProfile?.country && (
+                <span className="rounded bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-600">
+                  iCloud: {device.iCloudProfile.country}
+                </span>
+              )}
+              {device.proxy?.country && (
+                <span className="rounded bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-600">
+                  Proxy: {device.proxy.country}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {canOpen && <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />}
       </div>
