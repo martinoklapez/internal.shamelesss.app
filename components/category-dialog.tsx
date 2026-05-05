@@ -13,6 +13,7 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { Switch } from './ui/switch'
 import { Trash2 } from 'lucide-react'
 import { useAppDialogs } from '@/components/app-dialogs-provider'
 import { notifyError } from '@/lib/notify'
@@ -40,6 +41,7 @@ export default function CategoryDialog({
   const [description, setDescription] = useState('')
   const [emoji, setEmoji] = useState('')
   const [sortOrder, setSortOrder] = useState(1)
+  const [requiresPro, setRequiresPro] = useState(false)
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,10 +54,12 @@ export default function CategoryDialog({
         setDescription(category.description)
         setEmoji(category.emoji)
         setSortOrder(category.sort_order)
+        setRequiresPro(Boolean(category.requires_pro))
       } else {
         setName('')
         setDescription('')
         setEmoji('')
+        setRequiresPro(false)
         // Calculate next sort_order based on existing categories
         const maxSortOrder = categories.length > 0
           ? Math.max(...categories.map(c => c.sort_order))
@@ -86,6 +90,7 @@ export default function CategoryDialog({
               name,
               description,
               emoji,
+              requires_pro: requiresPro,
             },
           }),
         })
@@ -106,6 +111,7 @@ export default function CategoryDialog({
             name,
             description,
             emoji,
+            requires_pro: requiresPro,
           }),
         })
 
@@ -210,6 +216,17 @@ export default function CategoryDialog({
                 placeholder="Category description"
                 required
               />
+            </div>
+            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="requires_pro" className="text-sm font-medium">
+                  Requires Pro
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When enabled, this category is restricted to Pro subscribers in the app.
+                </p>
+              </div>
+              <Switch id="requires_pro" checked={requiresPro} onCheckedChange={setRequiresPro} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="sort_order">Sort Order</Label>

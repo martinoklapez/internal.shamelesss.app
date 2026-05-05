@@ -84,7 +84,7 @@ export const COMPONENT_DISPLAY: Record<
   push_notification_permission: {
     component_name: 'Push Notification Permission',
     description:
-      'Push permission screen. Options (jsonb): template_source custom | notification_template, notification_type (when template), mockup_type (custom only; else derived from template), display_name, profile_image_url, title, body (placeholders), demo_user_id (demo account).',
+      'Conversion: full push mockup + next_cta_delay (instant | 1s | 2s | 3s; default 3s). Options jsonb object (never an array): mockup_type, profile_image_url, display_name, title, body, next_cta_delay; template_source / notification_type / demo_user_id for CMS template flow. Quiz: same keys may be stored; app shows title + Next only (mockup fields ignored).',
   },
   tracking_permission: { component_name: 'Tracking Permission', description: 'ATT mockup (Allow / Ask App Not to Track).' },
   quiz_results: { component_name: 'Quiz Results', description: 'Two-bar chart. Conversion only.' },

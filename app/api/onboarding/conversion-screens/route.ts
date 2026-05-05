@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/user-roles'
 import { isAllowedConversionComponent } from '@/lib/onboarding-component-ids'
+import { validatePushNotificationPermissionOptions } from '@/lib/push-notification-permission-options'
 
 function getAdminClient() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -91,13 +92,24 @@ export async function POST(request: Request) {
       )
     }
 
+    let optionsPayload: unknown = options
+    if (component_id === 'push_notification_permission') {
+      const v = validatePushNotificationPermissionOptions(options ?? {})
+      if (!v.ok) {
+        return NextResponse.json({ error: v.error }, { status: 400 })
+      }
+      optionsPayload = v.value
+    } else if (optionsPayload === undefined || optionsPayload === null) {
+      optionsPayload = []
+    }
+
     const adminSupabase = getAdminClient()
     const { data, error } = await adminSupabase
       .from('conversion_screens_staging')
       .insert({
         title,
         description,
-        options: options || [],
+        options: optionsPayload,
         order_position: order_position ?? 0,
         event_name: event_name || 'step',
         should_show: should_show ?? true,
@@ -161,7 +173,17 @@ export async function PUT(request: Request) {
     const updateData: any = {}
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description
-    if (options !== undefined) updateData.options = options
+    if (options !== undefined) {
+      if (body.component_id === 'push_notification_permission') {
+        const v = validatePushNotificationPermissionOptions(options)
+        if (!v.ok) {
+          return NextResponse.json({ error: v.error }, { status: 400 })
+        }
+        updateData.options = v.value
+      } else {
+        updateData.options = options
+      }
+    }
     if (order_position !== undefined) updateData.order_position = order_position
     if (event_name !== undefined) updateData.event_name = event_name
     if (should_show !== undefined) updateData.should_show = should_show

@@ -15,6 +15,7 @@ export type Category = {
   emoji: string
   is_active: boolean
   sort_order: number
+  requires_pro: boolean
   created_at: string
   updated_at: string
 }

@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { QuizScreen, ConversionScreen } from '@/types/onboarding'
 import { substitutePushMockupPlaceholders } from '@/lib/push-permission-mockup'
+import {
+  coerceNextCtaDelayToChoice,
+  describeNextCtaDelayChoice,
+} from '@/lib/push-notification-permission-options'
 import { getDataConsentsDisplayModel } from '@/lib/data-consents-options'
 import {
   parseProfileImageFinalReviewAvatarUrls,
@@ -1480,6 +1484,7 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
     const subVars = { displayName: displayName || 'Someone' }
     const titleShown = substitutePushMockupPlaceholders(notifTitleRaw, subVars)
     const bodyLine = substitutePushMockupPlaceholders(bodyRaw, subVars)
+    const nextCtaChoice = coerceNextCtaDelayToChoice(po.next_cta_delay)
 
     const displayTitle = title || "Don't miss a thing"
     const hintBody =
@@ -1608,6 +1613,13 @@ export function OnboardingScreenPreview({ screen, totalScreens }: ScreenPreviewP
           >
             Next
           </button>
+          <p
+            className="text-center text-[7px] text-gray-500 px-2 pt-1 leading-tight"
+            title={describeNextCtaDelayChoice(nextCtaChoice)}
+          >
+            <span className="font-medium text-gray-600">next_cta_delay:</span>{' '}
+            {nextCtaChoice === 'instant' ? 'instant' : nextCtaChoice}
+          </p>
         </div>
       </div>
     )

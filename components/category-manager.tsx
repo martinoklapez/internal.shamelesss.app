@@ -7,7 +7,7 @@ import { Switch } from './ui/switch'
 import { Label } from './ui/label'
 import { Button } from './ui/button'
 import CategoryDialog from './category-dialog'
-import { Pencil, Plus, Eye, List } from 'lucide-react'
+import { Eye, List, Lock, Pencil, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { notifyError } from '@/lib/notify'
 
@@ -141,6 +141,12 @@ export default function CategoryManager({ gameId, categories: initialCategories,
                   >
                     {category.is_active ? 'Active' : 'Inactive'}
                   </span>
+                  {category.requires_pro ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full shrink-0 bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200">
+                      <Lock className="h-3 w-3" aria-hidden />
+                      Pro
+                    </span>
+                  ) : null}
                 </div>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 break-words">
                   {category.description}

@@ -3,7 +3,9 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
-    const { gameId, name, description, emoji } = await request.json()
+    const body = await request.json()
+    const { gameId, name, description, emoji } = body
+    const requires_pro = Boolean(body.requires_pro)
 
     if (!gameId || !name || !description || !emoji) {
       return NextResponse.json(
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
         name,
         description,
         emoji,
+        requires_pro,
         sort_order: nextSortOrder,
         is_active: false, // Default to inactive
         created_at: new Date().toISOString(),

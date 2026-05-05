@@ -32,6 +32,13 @@ import {
   getMockupTypeForNotificationType,
 } from '@/lib/push-permission-mockup'
 import {
+  coerceNextCtaDelayToChoice,
+  describeNextCtaDelayChoice,
+  PUSH_NEXT_CTA_DELAY_CHOICES,
+  type PushNextCtaDelayChoice,
+  validatePushNotificationPermissionOptions,
+} from '@/lib/push-notification-permission-options'
+import {
   emptyDataConsentRow,
   parseDataConsentsOptionsJson,
   serializeDataConsentsOptions,
@@ -90,6 +97,7 @@ function buildPushNotificationOptionsJson(params: {
   body: string
   demo_user_id: string
   demoUsers: DemoUserRow[]
+  next_cta_delay: PushNextCtaDelayChoice
 }): string {
   const profile_image_url = params.demo_user_id.trim()
     ? params.demoUsers.find((u) => u.id === params.demo_user_id.trim())?.profile_picture_url?.trim() ?? ''
@@ -110,6 +118,7 @@ function buildPushNotificationOptionsJson(params: {
   if (params.demo_user_id.trim()) {
     o.demo_user_id = params.demo_user_id.trim()
   }
+  o.next_cta_delay = params.next_cta_delay
   return JSON.stringify(o, null, 2)
 }
 
@@ -177,6 +186,7 @@ export function OnboardingScreenDialog({
   const [pushNotifTemplateKey, setPushNotifTemplateKey] = useState<string>(PUSH_NOTIF_CUSTOM_KEY)
   const [pushNotifContentTemplates, setPushNotifContentTemplates] = useState<PushNotifContentTemplateRow[]>([])
   const [pushNotifTemplatesLoading, setPushNotifTemplatesLoading] = useState(false)
+  const [pushNotifNextCtaDelay, setPushNotifNextCtaDelay] = useState<PushNextCtaDelayChoice>('3s')
 
   const [dataConsentsRows, setDataConsentsRows] = useState<DataConsentEditorRow[]>([emptyDataConsentRow()])
   const [dataConsentsAcceptAll, setDataConsentsAcceptAll] = useState('Accept All')
@@ -363,6 +373,7 @@ export function OnboardingScreenDialog({
         setPushNotifNotifTitle(DEFAULT_PUSH_NOTIFICATION_OPTIONS.title)
         setPushNotifBody(DEFAULT_PUSH_NOTIFICATION_OPTIONS.body)
         setPushNotifDemoUserId('')
+        setPushNotifNextCtaDelay('3s')
         setOptions(
           buildPushNotificationOptionsJson({
             templateKey: PUSH_NOTIF_CUSTOM_KEY,
@@ -372,6 +383,7 @@ export function OnboardingScreenDialog({
             body: DEFAULT_PUSH_NOTIFICATION_OPTIONS.body,
             demo_user_id: '',
             demoUsers: pushNotifDemoUsers,
+            next_cta_delay: '3s',
           })
         )
         return
@@ -389,12 +401,14 @@ export function OnboardingScreenDialog({
       const notifTitle = typeof p.title === 'string' ? p.title : DEFAULT_PUSH_NOTIFICATION_OPTIONS.title
       const notifBody = typeof p.body === 'string' ? p.body : DEFAULT_PUSH_NOTIFICATION_OPTIONS.body
       const demo_user_id = typeof p.demo_user_id === 'string' ? p.demo_user_id : ''
+      const nextDelay = coerceNextCtaDelayToChoice(p.next_cta_delay)
       setPushNotifTemplateKey(templateKey)
       setPushNotifMockupType(mockup_type)
       setPushNotifDisplayName(display_name)
       setPushNotifNotifTitle(notifTitle)
       setPushNotifBody(notifBody)
       setPushNotifDemoUserId(demo_user_id)
+      setPushNotifNextCtaDelay(nextDelay)
       setOptions(
         buildPushNotificationOptionsJson({
           templateKey,
@@ -404,6 +418,7 @@ export function OnboardingScreenDialog({
           body: notifBody,
           demo_user_id,
           demoUsers: pushNotifDemoUsers,
+          next_cta_delay: nextDelay,
         })
       )
     } catch {
@@ -413,6 +428,7 @@ export function OnboardingScreenDialog({
       setPushNotifNotifTitle(DEFAULT_PUSH_NOTIFICATION_OPTIONS.title)
       setPushNotifBody(DEFAULT_PUSH_NOTIFICATION_OPTIONS.body)
       setPushNotifDemoUserId('')
+      setPushNotifNextCtaDelay('3s')
       setOptions(
         buildPushNotificationOptionsJson({
           templateKey: PUSH_NOTIF_CUSTOM_KEY,
@@ -422,6 +438,7 @@ export function OnboardingScreenDialog({
           body: DEFAULT_PUSH_NOTIFICATION_OPTIONS.body,
           demo_user_id: '',
           demoUsers: pushNotifDemoUsers,
+          next_cta_delay: '3s',
         })
       )
     }
@@ -793,6 +810,34 @@ export function OnboardingScreenDialog({
             return
           }
         }
+      } else if (componentId === 'push_notification_permission') {
+        try {
+          parsedOptions = options.trim() ? JSON.parse(options) : {}
+        } catch {
+          toast({
+            title: 'Invalid JSON',
+            description: 'Fix the options JSON for the push notification mockup.',
+            variant: 'destructive',
+          })
+          setLoading(false)
+          return
+        }
+        const validated = validatePushNotificationPermissionOptions(parsedOptions)
+        if (!validated.ok) {
+          toast({
+            title: 'Invalid push permission options',
+            description: validated.error,
+            variant: 'destructive',
+          })
+          setLoading(false)
+          return
+        }
+        parsedOptions = validated.value
+        if (screenType === 'quiz') {
+          if (!parsedOptions || typeof parsedOptions !== 'object' || Array.isArray(parsedOptions)) {
+            parsedOptions = {}
+          }
+        }
       } else if (options.trim()) {
         try {
           parsedOptions = JSON.parse(options)
@@ -1050,6 +1095,7 @@ export function OnboardingScreenDialog({
     title?: string
     body?: string
     demo_user_id?: string
+    next_cta_delay?: PushNextCtaDelayChoice
   }) => {
     const nextKey = patch.templateKey !== undefined ? patch.templateKey : pushNotifTemplateKey
     const mockup_type =
@@ -1060,12 +1106,14 @@ export function OnboardingScreenDialog({
     const title = patch.title ?? pushNotifNotifTitle
     const body = patch.body ?? pushNotifBody
     const demo_user_id = patch.demo_user_id !== undefined ? patch.demo_user_id : pushNotifDemoUserId
+    const next_cta_delay = patch.next_cta_delay ?? pushNotifNextCtaDelay
     if (patch.templateKey !== undefined) setPushNotifTemplateKey(patch.templateKey)
     setPushNotifMockupType(mockup_type)
     if (patch.display_name !== undefined) setPushNotifDisplayName(patch.display_name)
     if (patch.title !== undefined) setPushNotifNotifTitle(patch.title)
     if (patch.body !== undefined) setPushNotifBody(patch.body)
     if (patch.demo_user_id !== undefined) setPushNotifDemoUserId(patch.demo_user_id)
+    if (patch.next_cta_delay !== undefined) setPushNotifNextCtaDelay(patch.next_cta_delay)
     setOptions(
       buildPushNotificationOptionsJson({
         templateKey: nextKey,
@@ -1075,6 +1123,7 @@ export function OnboardingScreenDialog({
         body,
         demo_user_id,
         demoUsers: pushNotifDemoUsers,
+        next_cta_delay,
       })
     )
   }
@@ -1498,11 +1547,35 @@ export function OnboardingScreenDialog({
                   <div>
                     <Label>Push notification mockup (JSON options)</Label>
                     <p className="text-xs text-gray-500 mt-1">
-                      Choose a template from <strong>notification_content_templates</strong> (or Custom). Title and
-                      body drive the in-banner copy; mockup layout follows the template type unless you use Custom.
-                      Pick a <strong>demo</strong> user for display name and avatar when the layout uses a user
-                      avatar. Stored as <code className="text-[11px]">options</code> (jsonb).
+                      <strong>Conversion</strong> screens use the full mockup in the app. <strong>Quiz</strong> screens
+                      only show title + Next; you can still store the same <code className="text-[11px]">options</code>{' '}
+                      object for consistency — it must be a <strong>single JSON object</strong>, never a top-level array.
+                      Template picker writes <code className="text-[11px]">template_source</code> /{' '}
+                      <code className="text-[11px]">notification_type</code> when applicable;{' '}
+                      <code className="text-[11px]">next_cta_delay</code> controls how long the main Next CTA stays hidden
+                      after open (conversion only).
                     </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-gray-500">Next CTA delay (conversion)</Label>
+                    <Select
+                      value={pushNotifNextCtaDelay}
+                      onValueChange={(v) =>
+                        commitPushNotificationFields({ next_cta_delay: v as PushNextCtaDelayChoice })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PUSH_NEXT_CTA_DELAY_CHOICES.map((d) => (
+                          <SelectItem key={d} value={d}>
+                            {d === 'instant' ? 'Instant (no delay)' : d}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">{describeNextCtaDelayChoice(pushNotifNextCtaDelay)}</p>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs text-gray-500">Notification content template</Label>

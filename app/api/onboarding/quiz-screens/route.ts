@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/user-roles'
 import { isAllowedQuizComponent, QUIZ_COMPONENT_IDS } from '@/lib/onboarding-component-ids'
+import { validatePushNotificationPermissionOptions } from '@/lib/push-notification-permission-options'
 
 function getAdminClient() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -84,13 +85,22 @@ export async function POST(request: Request) {
       )
     }
 
+    let optionsPayload: unknown = options ?? null
+    if (component_id === 'push_notification_permission') {
+      const v = validatePushNotificationPermissionOptions(options ?? {})
+      if (!v.ok) {
+        return NextResponse.json({ error: v.error }, { status: 400 })
+      }
+      optionsPayload = v.value
+    }
+
     const adminSupabase = getAdminClient()
     const { data, error } = await adminSupabase
       .from('quiz_screens_staging')
       .insert({
         title: title || null,
         description: description || null,
-        options: options || null,
+        options: optionsPayload,
         order_position: order_position || null,
         event_name: event_name || null,
         should_show: should_show ?? true,
@@ -150,13 +160,26 @@ export async function PUT(request: Request) {
       )
     }
 
+    let optionsUpdateValue: unknown = null
+    if (options !== undefined) {
+      if (body.component_id === 'push_notification_permission') {
+        const v = validatePushNotificationPermissionOptions(options)
+        if (!v.ok) {
+          return NextResponse.json({ error: v.error }, { status: 400 })
+        }
+        optionsUpdateValue = v.value
+      } else {
+        optionsUpdateValue = options
+      }
+    }
+
     const adminSupabase = getAdminClient()
     const { data, error } = await adminSupabase
       .from('quiz_screens_staging')
       .update({
         title: title !== undefined ? title : null,
         description: description !== undefined ? description : null,
-        options: options !== undefined ? options : null,
+        options: options !== undefined ? optionsUpdateValue : null,
         order_position: order_position !== undefined ? order_position : null,
         event_name: event_name !== undefined ? event_name : null,
         should_show: should_show !== undefined ? should_show : null,
