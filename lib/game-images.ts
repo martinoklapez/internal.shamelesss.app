@@ -24,6 +24,7 @@ export function getGameImagePath(gameId: string): string {
     'never-have-i-ever': '/assets/games/never-have-i-ever.png',
     'role-play-generator': '/assets/games/roleplay-generator.png',
     'scratch-dates': '/assets/games/scratch-dates.png',
+    'truth-or-dare': '/assets/games/truth-or-dare.png',
     'would-you-rather': '/assets/games/would-you-rather.png',
   }
 
