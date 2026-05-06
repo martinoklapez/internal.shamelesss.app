@@ -76,6 +76,16 @@ export type MostLikelyToQuestion = {
   updated_at: string | null
 }
 
+export type TruthOrDarePrompt = {
+  id: string
+  kind: 'truth' | 'dare'
+  body: string
+  pack_ids: string[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export type Position = {
   id: string
   name: string

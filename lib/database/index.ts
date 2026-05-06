@@ -12,5 +12,6 @@ export * from './onboarding-components'
 export * from './positions'
 export * from './roleplay-scenarios'
 export * from './star-rating-feedback'
+export * from './truth-or-dare'
 export * from './would-you-rather'
 

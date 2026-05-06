@@ -7,6 +7,7 @@ import { getRoleplayScenariosByCategoryId } from '@/lib/database/roleplay-scenar
 import { getWouldYouRatherQuestionsByCategoryId } from '@/lib/database/would-you-rather'
 import { getNeverHaveIEverStatementsByCategoryId } from '@/lib/database/never-have-i-ever'
 import { getMostLikelyToQuestionsByCategoryId } from '@/lib/database/most-likely-to'
+import { getTruthOrDarePromptsByPackId } from '@/lib/database/truth-or-dare'
 import { getPositionsByCategoryId } from '@/lib/database/positions'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
@@ -15,6 +16,7 @@ import WouldYouRatherList from '@/components/would-you-rather-list'
 import NeverHaveIEverList from '@/components/never-have-i-ever-list'
 import MostLikelyToList from '@/components/most-likely-to-list'
 import PositionsList from '@/components/positions-list'
+import TruthOrDareList from '@/components/truth-or-dare-list'
 
 interface CategoryContentPageProps {
   params: {
@@ -53,6 +55,7 @@ export default async function CategoryContentPage({ params }: CategoryContentPag
   let statements: any[] = []
   let mostLikelyToQuestions: any[] = []
   let positions: any[] = []
+  let truthOrDarePrompts: any[] = []
   
   if (game.id === 'role-play-generator') {
     scenarios = await getRoleplayScenariosByCategoryId(params.categoryId)
@@ -64,6 +67,8 @@ export default async function CategoryContentPage({ params }: CategoryContentPag
     mostLikelyToQuestions = await getMostLikelyToQuestionsByCategoryId(params.categoryId)
   } else if (game.id === 'scratch-dates' || game.id === 'date-roulette') {
     positions = await getPositionsByCategoryId(params.categoryId, params.gameId)
+  } else if (game.id === 'truth-or-dare') {
+    truthOrDarePrompts = await getTruthOrDarePromptsByPackId(params.categoryId)
   }
 
   return (
@@ -91,6 +96,8 @@ export default async function CategoryContentPage({ params }: CategoryContentPag
                   ? `${mostLikelyToQuestions.length} questions`
                   : game.id === 'scratch-dates' || game.id === 'date-roulette'
                   ? `${positions.length} positions`
+                  : game.id === 'truth-or-dare'
+                  ? `${truthOrDarePrompts.length} prompts`
                   : '0 items'
               }
             </p>
@@ -128,6 +135,8 @@ export default async function CategoryContentPage({ params }: CategoryContentPag
               categoryId={params.categoryId}
               gameId={params.gameId}
             />
+          ) : game.id === 'truth-or-dare' ? (
+            <TruthOrDareList prompts={truthOrDarePrompts} categories={categories} />
           ) : (
             <p className="text-gray-500 dark:text-gray-400">
               Content management for this game type is not yet implemented.
