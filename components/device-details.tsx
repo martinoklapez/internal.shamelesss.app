@@ -1064,9 +1064,56 @@ export default function DeviceDetails({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="text-sm text-gray-600">
-              <span className="font-semibold text-gray-900">Account:</span>{' '}
-              {transferingAccount ? `@${transferingAccount.username}` : '—'}
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Account</span>
+              {transferingAccount ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-4">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                    <Badge
+                      className="h-5 shrink-0 pl-1.5 pr-1 gap-0.5 text-[10px] font-medium capitalize tabular-nums border-0 inline-flex items-center pointer-events-none"
+                      style={
+                        transferingAccount.status && transferingAccount.status in SOCIAL_STATUS_CHIP_STYLES
+                          ? {
+                              backgroundColor:
+                                SOCIAL_STATUS_CHIP_STYLES[
+                                  transferingAccount.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES
+                                ].bg,
+                              color:
+                                SOCIAL_STATUS_CHIP_STYLES[
+                                  transferingAccount.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES
+                                ].text,
+                            }
+                          : { backgroundColor: SOCIAL_STATUS_NONE_STYLE.bg, color: SOCIAL_STATUS_NONE_STYLE.text }
+                      }
+                    >
+                      <span>{transferingAccount.status ?? 'None'}</span>
+                    </Badge>
+                    <span className="text-sm font-medium text-gray-900 truncate">
+                      {transferingAccount.name || transferingAccount.username}
+                    </span>
+                    {transferingAccount.name &&
+                      transferingAccount.name !== transferingAccount.username && (
+                        <span className="text-xs text-gray-500 truncate">
+                          (@{transferingAccount.username})
+                        </span>
+                      )}
+                  </div>
+                  <div className="relative h-7 w-7 shrink-0">
+                    <Image
+                      src={getSocialPlatformImage(transferingAccount.platform)}
+                      alt={transferingAccount.platform}
+                      width={28}
+                      height={28}
+                      className="object-contain rounded-[22%]"
+                      unoptimized
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 text-center">
+                  —
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-900">Manager</label>
