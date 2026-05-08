@@ -29,7 +29,7 @@ import { getSocialPlatformImage } from '@/lib/social-platform-images'
 const PLATFORMS = ['TikTok', 'Instagram', 'Snapchat', 'Pinterest'] as const
 type Platform = (typeof PLATFORMS)[number]
 
-type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused'
+type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'banned'
 
 interface SocialAccount {
   id?: string
@@ -236,6 +236,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
                     <SelectItem value="warmup">Warmup</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="paused">Paused</SelectItem>
+                    <SelectItem value="banned">Banned</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

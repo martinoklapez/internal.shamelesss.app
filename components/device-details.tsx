@@ -19,13 +19,14 @@ import { AddProxyDialog } from './add-proxy-dialog'
 import { useAppDialogs } from '@/components/app-dialogs-provider'
 import { notifyError } from '@/lib/notify'
 
-type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'archived'
+type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'banned' | 'archived'
 
 const SOCIAL_STATUS_CHIP_STYLES: Record<Exclude<SocialAccountStatus, 'archived'>, { bg: string; text: string }> = {
   planned: { bg: '#F1F1EF', text: '#787774' },   // Gray
   warmup:  { bg: '#FAF3DD', text: '#C29343' },  // Yellow
   active:  { bg: '#EEF3ED', text: '#548164' },  // Green
   paused:  { bg: '#F8ECDF', text: '#CC782F' },  // Orange
+  banned:  { bg: '#FEE2E2', text: '#991B1B' },  // Red — platform-banned account
 }
 // Display style when no status is set (not a choosable value in the modal)
 const SOCIAL_STATUS_NONE_STYLE = { bg: '#F1F1EF', text: '#787774' } // Gray, same as planned
@@ -810,7 +811,7 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="bg-white border border-gray-200 shadow-lg">
-                          {(['planned', 'warmup', 'active', 'paused'] as const).map((s) => (
+                          {(['planned', 'warmup', 'active', 'paused', 'banned'] as const).map((s) => (
                             <DropdownMenuItem
                               key={s}
                               onClick={() => handleSocialAccountStatusChange(account, s)}

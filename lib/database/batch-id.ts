@@ -43,7 +43,7 @@ export async function getOrCreateBatchId(deviceId: number): Promise<string> {
     .from('social_accounts')
     .select('batch_id')
     .eq('device_id', deviceId)
-    .in('status', ['planned', 'warmup', 'active', 'paused'])
+    .in('status', ['planned', 'warmup', 'active', 'paused']) // excludes banned/archived from batch_id source
     .order('created_at', { ascending: false })
     .limit(1)
     .single()

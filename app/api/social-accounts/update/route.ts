@@ -23,10 +23,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const allowedStatuses = ['planned', 'warmup', 'active', 'paused']
+    const allowedStatuses = ['planned', 'warmup', 'active', 'paused', 'banned']
     if (status !== undefined && (typeof status !== 'string' || !allowedStatuses.includes(status))) {
       return NextResponse.json(
-        { error: 'status must be one of: planned, warmup, active, paused' },
+        { error: 'status must be one of: planned, warmup, active, paused, banned' },
         { status: 400 }
       )
     }

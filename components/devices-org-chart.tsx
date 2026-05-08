@@ -15,13 +15,14 @@ import {
 import { getSocialPlatformImage } from '@/lib/social-platform-images'
 import { notifyError } from '@/lib/notify'
 
-type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'archived'
+type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'banned' | 'archived'
 
 const SOCIAL_STATUS_CHIP_STYLES: Record<Exclude<SocialAccountStatus, 'archived'>, { bg: string; text: string }> = {
   planned: { bg: '#F1F1EF', text: '#787774' },
   warmup: { bg: '#FAF3DD', text: '#C29343' },
   active: { bg: '#EEF3ED', text: '#548164' },
   paused: { bg: '#F8ECDF', text: '#CC782F' },
+  banned: { bg: '#FEE2E2', text: '#991B1B' },
 }
 const SOCIAL_STATUS_NONE_STYLE = { bg: '#F1F1EF', text: '#787774' }
 
@@ -331,7 +332,7 @@ function SocialAccountCard({ account }: { account: SocialAccount }) {
           className="bg-white border border-gray-200 shadow-lg"
           onClick={(e) => e.stopPropagation()}
         >
-          {(['planned', 'warmup', 'active', 'paused'] as const).map((s) => (
+          {(['planned', 'warmup', 'active', 'paused', 'banned'] as const).map((s) => (
             <DropdownMenuItem
               key={s}
               onClick={(e) => {

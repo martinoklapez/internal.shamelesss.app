@@ -26,7 +26,7 @@ export interface ICloudProfile {
   updated_at: string
 }
 
-export type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'archived'
+export type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'banned' | 'archived'
 
 export interface SocialAccount {
   id: string
