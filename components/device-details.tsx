@@ -1,17 +1,52 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { Mail, Lock, Eye, EyeOff, Smartphone, Tablet, Calendar, MapPin, Globe, Copy, Check, Network, Plus, Archive, ChevronDown, ChevronUp, FileText, Pencil } from 'lucide-react'
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Smartphone,
+  Tablet,
+  Calendar,
+  MapPin,
+  Globe,
+  Copy,
+  Check,
+  Network,
+  Plus,
+  Archive,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Pencil,
+  ArrowRightLeft,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { getSocialPlatformImage } from '@/lib/social-platform-images'
 import { AddICloudProfileDialog } from './add-icloud-profile-dialog'
 import { AddSocialAccountDialog } from './add-social-account-dialog'
@@ -93,15 +128,36 @@ interface Device {
 interface DeviceDetailsProps {
   device: Device
   currentUserId: string
+  transferDeviceOptions: Array<{
+    id: string
+    name: string
+    managerId: string | null
+    managerName: string
+    managerProfilePicture: string | null
+    iCloudAlias: string | null
+    iCloudCountry: string | null
+    proxyCountry: string | null
+  }>
 }
 
 
-export default function DeviceDetails({ device, currentUserId }: DeviceDetailsProps) {
+export default function DeviceDetails({
+  device,
+  currentUserId,
+  transferDeviceOptions,
+}: DeviceDetailsProps) {
   const { confirm } = useAppDialogs()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [visibleCredentials, setVisibleCredentials] = useState<Set<string>>(new Set())
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [expandedArchivedProfiles, setExpandedArchivedProfiles] = useState<Set<string>>(new Set())
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false)
+  const [transferingAccount, setTransferingAccount] = useState<SocialAccount | null>(null)
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('unassigned')
+  const [transferTargetDeviceId, setTransferTargetDeviceId] = useState<string>('')
+  const [isTransferLoading, setIsTransferLoading] = useState(false)
+  const [highlightedSocialAccountId, setHighlightedSocialAccountId] = useState<string | null>(null)
 
   const toggleCredentials = (id: string) => {
     const newVisible = new Set(visibleCredentials)
@@ -245,6 +301,82 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
     } catch (error) {
       console.error('Error updating social account status:', error)
       notifyError(error instanceof Error ? error.message : 'Failed to update status')
+    }
+  }
+
+  const managerOptions = Array.from(
+    new Map(
+      transferDeviceOptions.map((item) => [
+        item.managerId ?? 'unassigned',
+        {
+          name: item.managerName || 'Unassigned',
+          profilePicture: item.managerProfilePicture ?? null,
+        },
+      ])
+    ).entries()
+  ).map(([id, meta]) => ({ id, ...meta }))
+
+  const filteredTransferDevices = transferDeviceOptions.filter(
+    (item) => (item.managerId ?? 'unassigned') === selectedManagerId
+  )
+
+  useEffect(() => {
+    const accountId = searchParams.get('highlightSocialAccountId')
+    if (!accountId) return
+    if (!device.socialAccounts.some((account) => account.id === accountId)) return
+
+    setHighlightedSocialAccountId(accountId)
+    const timeout = setTimeout(() => {
+      setHighlightedSocialAccountId(null)
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('highlightSocialAccountId')
+      const nextQuery = params.toString()
+      router.replace(nextQuery ? `/devices/${device.id}?${nextQuery}` : `/devices/${device.id}`, {
+        scroll: false,
+      })
+    }, 1000)
+
+    return () => clearTimeout(timeout)
+  }, [searchParams, device.id, device.socialAccounts, router])
+
+  const openTransferDialog = (account: SocialAccount) => {
+    const currentManagerId = device.managerId ?? 'unassigned'
+    setTransferingAccount(account)
+    setSelectedManagerId(currentManagerId)
+    setTransferTargetDeviceId(device.id)
+    setTransferDialogOpen(true)
+  }
+
+  const handleTransferSocialAccount = async () => {
+    if (!transferingAccount || !transferTargetDeviceId || transferTargetDeviceId === device.id) {
+      return
+    }
+
+    setIsTransferLoading(true)
+    try {
+      const response = await fetch('/api/social-accounts/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: transferingAccount.id,
+          targetDeviceId: transferTargetDeviceId,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error || 'Failed to transfer social account')
+      }
+
+      setTransferDialogOpen(false)
+      router.push(
+        `/devices/${transferTargetDeviceId}?highlightSocialAccountId=${encodeURIComponent(transferingAccount.id)}`
+      )
+    } catch (error) {
+      console.error('Error transferring social account:', error)
+      notifyError(error instanceof Error ? error.message : 'Failed to transfer social account')
+    } finally {
+      setIsTransferLoading(false)
     }
   }
 
@@ -786,7 +918,11 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
             device.socialAccounts.map((account) => (
               <div
                 key={account.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${
+                  highlightedSocialAccountId === account.id
+                    ? 'border-[#FF5252] bg-[#FFF1F1] shadow-[0_0_0_2px_rgba(255,82,82,0.12)]'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex-1 min-w-0">
@@ -888,6 +1024,15 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
                     variant="ghost"
                     size="sm"
                     className="h-6 w-6 p-0"
+                    onClick={() => openTransferDialog(account)}
+                    title="Transfer to another device"
+                  >
+                    <ArrowRightLeft className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
                     onClick={() => handleArchiveSocialAccount(account.id)}
                   >
                     <Archive className="h-3 w-3" />
@@ -899,6 +1044,140 @@ export default function DeviceDetails({ device, currentUserId }: DeviceDetailsPr
         </div>
       </div>
       </div>
+
+      <Dialog
+        open={transferDialogOpen}
+        onOpenChange={(open) => {
+          setTransferDialogOpen(open)
+          if (!open) {
+            setTransferingAccount(null)
+            setSelectedManagerId(device.managerId ?? 'unassigned')
+            setTransferTargetDeviceId('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transfer social account</DialogTitle>
+            <DialogDescription>
+              Move this account to another device. It will disappear from this device after transfer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm text-gray-600">
+              <span className="font-semibold text-gray-900">Account:</span>{' '}
+              {transferingAccount ? `@${transferingAccount.username}` : '—'}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-900">Manager</label>
+              <Select
+                value={selectedManagerId}
+                onValueChange={(value) => {
+                  setSelectedManagerId(value)
+                  setTransferTargetDeviceId(device.id)
+                }}
+              >
+                <SelectTrigger className="[&>span]:flex [&>span]:min-w-0 [&>span]:flex-1 [&>span]:items-center [&>span]:gap-2">
+                  <SelectValue placeholder="Select a manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  {managerOptions.map((manager) => (
+                    <SelectItem key={manager.id} value={manager.id}>
+                      <span className="flex items-center gap-2">
+                        {manager.profilePicture ? (
+                          <Image
+                            src={manager.profilePicture}
+                            alt={manager.name}
+                            width={20}
+                            height={20}
+                            className="rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-700">
+                            {manager.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <span className="truncate">{manager.name}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-900">Target device</label>
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                {filteredTransferDevices.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 p-3 text-xs text-gray-500">
+                    No devices found for this manager.
+                  </div>
+                ) : (
+                  filteredTransferDevices.map((item) => {
+                    const isSelected = transferTargetDeviceId === item.id
+                    const isCurrent = item.id === device.id
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setTransferTargetDeviceId(item.id)}
+                        className={`w-full rounded-md border p-3 text-left transition-colors ${
+                          isSelected
+                            ? 'border-[#FF5252] bg-[#FFF1F1]'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {`Device ${item.id}${isCurrent ? ' (current)' : ''}`}
+                          </div>
+                          {isSelected ? (
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#FFE5E5] text-[#B42318]">
+                              Selected
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">{item.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          iCloud: {item.iCloudAlias || 'none'} ({item.iCloudCountry || 'n/a'})
+                        </div>
+                        <div className="text-xs text-gray-500">Proxy country: {item.proxyCountry || 'n/a'}</div>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+              {transferTargetDeviceId === device.id ? (
+                <p className="text-xs text-gray-500">Pick a different device to complete transfer.</p>
+              ) : null}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTransferDialogOpen(false)
+                setTransferingAccount(null)
+                setSelectedManagerId(device.managerId ?? 'unassigned')
+                setTransferTargetDeviceId('')
+              }}
+              disabled={isTransferLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleTransferSocialAccount}
+              disabled={
+                !transferingAccount ||
+                !transferTargetDeviceId ||
+                transferTargetDeviceId === device.id ||
+                isTransferLoading
+              }
+            >
+              {isTransferLoading ? 'Transferring...' : 'Transfer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Burned Accounts Documentation Section - Full Width */}
       {(device.archivedICloudProfiles.length > 0 || device.archivedSocialAccounts.length > 0 || (device.archivedProxies && device.archivedProxies.length > 0)) && (
