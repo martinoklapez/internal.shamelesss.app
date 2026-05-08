@@ -23,6 +23,7 @@ import {
   FileText,
   Pencil,
   ArrowRightLeft,
+  RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -244,6 +245,34 @@ export default function DeviceDetails({
     } catch (error) {
       console.error('Error archiving proxy:', error)
       notifyError(error instanceof Error ? error.message : 'Failed to archive proxy')
+    }
+  }
+
+  const handleRestoreSocialAccount = async (accountId: string) => {
+    const ok = await confirm({
+      title: 'Restore this social account?',
+      description:
+        'It will appear again under Social Accounts as Planned and its batch_id will align with this device’s current grouping.',
+      confirmLabel: 'Restore',
+    })
+    if (!ok) return
+
+    try {
+      const response = await fetch('/api/social-accounts/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error || 'Failed to restore social account')
+      }
+
+      router.refresh()
+    } catch (error) {
+      console.error('Error restoring social account:', error)
+      notifyError(error instanceof Error ? error.message : 'Failed to restore social account')
     }
   }
 
@@ -1413,6 +1442,15 @@ export default function DeviceDetails({
                                         ) : (
                                           <Eye className="h-3 w-3 text-gray-400" />
                                         )}
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 text-green-700 hover:text-green-800 hover:bg-green-50"
+                                        title="Restore from archive"
+                                        onClick={() => handleRestoreSocialAccount(account.id)}
+                                      >
+                                        <RotateCcw className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </div>
