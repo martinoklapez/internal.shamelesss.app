@@ -26,8 +26,9 @@ export default async function ProfilesCleanupPage() {
             Profiles cleanup
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-            List all rows in <code className="text-xs bg-gray-100 px-1 rounded">profiles</code>,
-            select accounts to remove (profile, roles, and auth user).
+            List rows in <code className="text-xs bg-gray-100 px-1 rounded">profiles</code>, filter by
+            demo role, back up demo users to JSON, restore later, or remove accounts (profile, roles,
+            and auth user — storage untouched).
           </p>
         </div>
 
