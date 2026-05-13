@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Category } from '@/types/database'
+import type { Category, WouldYouRatherQuestion } from '@/types/database'
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ interface AddWouldYouRatherDialogProps {
   categoryId?: string
   categories?: Category[]
   onSuccess: () => void
+  editingQuestion?: WouldYouRatherQuestion | null
 }
 
 export default function AddWouldYouRatherDialog({
@@ -38,8 +39,10 @@ export default function AddWouldYouRatherDialog({
   categoryId,
   categories = [],
   onSuccess,
+  editingQuestion = null,
 }: AddWouldYouRatherDialogProps) {
   const router = useRouter()
+  const isEditing = Boolean(editingQuestion)
   const [question, setQuestion] = useState('')
   const [optionA, setOptionA] = useState('')
   const [optionB, setOptionB] = useState('')
@@ -49,15 +52,22 @@ export default function AddWouldYouRatherDialog({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (editingQuestion) {
+      setQuestion(editingQuestion.question)
+      setOptionA(editingQuestion.option_a)
+      setOptionB(editingQuestion.option_b)
+      setSelectedCategoryId(editingQuestion.category_id || categoryId || '')
+      setDifficultyLevel((editingQuestion.difficulty_level as 'easy' | 'medium' | 'hard') || 'medium')
+    } else {
       setSelectedCategoryId(categoryId || '')
       setQuestion('')
       setOptionA('')
       setOptionB('')
       setDifficultyLevel('medium')
-      setError(null)
     }
-  }, [open, categoryId])
+    setError(null)
+  }, [open, categoryId, editingQuestion])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,30 +75,42 @@ export default function AddWouldYouRatherDialog({
     setLoading(true)
 
     try {
-      const response = await fetch('/api/content/would-you-rather/create', {
+      const url = isEditing ? '/api/content/would-you-rather/update' : '/api/content/would-you-rather/create'
+      const payload = isEditing
+        ? {
+            id: editingQuestion!.id,
+            question,
+            option_a: optionA,
+            option_b: optionB,
+            category_id: selectedCategoryId || null,
+            difficulty_level: difficultyLevel,
+          }
+        : {
+            question,
+            option_a: optionA,
+            option_b: optionB,
+            category_id: selectedCategoryId || null,
+            difficulty_level: difficultyLevel,
+          }
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          question,
-          option_a: optionA,
-          option_b: optionB,
-          category_id: selectedCategoryId || null,
-          difficulty_level: difficultyLevel,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create question')
+        throw new Error(errorData.error || `Failed to ${isEditing ? 'update' : 'create'} question`)
       }
 
       onSuccess()
       router.refresh()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create question')
+      setError(err instanceof Error ? err.message : `Failed to ${isEditing ? 'update' : 'create'} question`)
     } finally {
       setLoading(false)
     }
@@ -98,9 +120,11 @@ export default function AddWouldYouRatherDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Would You Rather Question</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Would You Rather Question' : 'Add Would You Rather Question'}</DialogTitle>
           <DialogDescription>
-            Create a new &quot;Would You Rather&quot; question for this game.
+            {isEditing
+              ? 'Update this question for the game.'
+              : 'Create a new &quot;Would You Rather&quot; question for this game.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -196,7 +220,7 @@ export default function AddWouldYouRatherDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Question'}
+              {loading ? (isEditing ? 'Saving...' : 'Creating...') : isEditing ? 'Save changes' : 'Create Question'}
             </Button>
           </DialogFooter>
         </form>

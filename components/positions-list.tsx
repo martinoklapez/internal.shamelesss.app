@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from './ui/button'
 import { formatDate } from '@/lib/utils/date'
-import { Trash2, Plus } from 'lucide-react'
+import { Trash2, Plus, Pencil } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +41,7 @@ export default function PositionsList({
   const [itemToDelete, setItemToDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [editingPosition, setEditingPosition] = useState<Position | null>(null)
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
@@ -82,24 +83,32 @@ export default function PositionsList({
     return category ? `${category.emoji} ${category.name}` : null
   }
 
-  if (positions.length === 0 && !addDialogOpen) {
+  if (positions.length === 0 && !addDialogOpen && !editingPosition) {
     return (
       <>
         <div className="text-center py-8">
           <p className="text-gray-500 dark:text-gray-400 mb-4">
             {showCategory ? 'No positions found for this game.' : 'No positions found for this category.'}
           </p>
-          <Button onClick={() => setAddDialogOpen(true)} size="sm" variant="ghost" className="h-8 w-8 p-0">
+          <Button onClick={() => { setEditingPosition(null); setAddDialogOpen(true) }} size="sm" variant="ghost" className="h-8 w-8 p-0">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
         <AddPositionDialog
-          open={addDialogOpen}
-          onOpenChange={setAddDialogOpen}
+          open={addDialogOpen || Boolean(editingPosition)}
+          onOpenChange={(open) => {
+            if (!open) setEditingPosition(null)
+            setAddDialogOpen(open)
+          }}
           gameId={gameId}
           categoryId={categoryId || undefined}
           categories={categories}
-          onSuccess={() => router.refresh()}
+          editingPosition={editingPosition}
+          onSuccess={() => {
+            router.refresh()
+            setEditingPosition(null)
+            setAddDialogOpen(false)
+          }}
         />
       </>
     )
@@ -112,7 +121,7 @@ export default function PositionsList({
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Positions ({positions.length})
           </h2>
-          <Button onClick={() => setAddDialogOpen(true)} size="sm" variant="ghost" className="h-8 w-8 p-0">
+          <Button onClick={() => { setEditingPosition(null); setAddDialogOpen(true) }} size="sm" variant="ghost" className="h-8 w-8 p-0">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
@@ -180,6 +189,19 @@ export default function PositionsList({
                   >
                     {expandedId === position.id ? 'Hide' : 'Details'}
                   </button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setAddDialogOpen(false)
+                      setEditingPosition(position)
+                    }}
+                    className="h-6 w-6 p-0 text-gray-600 hover:text-gray-900"
+                    title="Edit"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -189,6 +211,7 @@ export default function PositionsList({
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
+                </div>
               </div>
             </div>
           ))}
@@ -196,12 +219,20 @@ export default function PositionsList({
       </div>
 
       <AddPositionDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        open={addDialogOpen || Boolean(editingPosition)}
+        onOpenChange={(open) => {
+          if (!open) setEditingPosition(null)
+          setAddDialogOpen(open)
+        }}
         gameId={gameId}
         categoryId={categoryId || undefined}
         categories={categories}
-        onSuccess={() => router.refresh()}
+        editingPosition={editingPosition}
+        onSuccess={() => {
+          router.refresh()
+          setEditingPosition(null)
+          setAddDialogOpen(false)
+        }}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

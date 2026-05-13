@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from './ui/button'
 import { formatDate } from '@/lib/utils/date'
-import { Trash2, Plus } from 'lucide-react'
+import { Trash2, Plus, Pencil } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +40,7 @@ export default function NeverHaveIEverList({
   const [itemToDelete, setItemToDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [editingStatement, setEditingStatement] = useState<NeverHaveIEverStatement | null>(null)
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
@@ -81,24 +82,32 @@ export default function NeverHaveIEverList({
     return category ? `${category.emoji} ${category.name}` : null
   }
 
-  if (statements.length === 0 && !addDialogOpen) {
+  if (statements.length === 0 && !addDialogOpen && !editingStatement) {
     return (
       <>
         <div className="text-center py-8">
           <p className="text-gray-500 dark:text-gray-400 mb-4">
             {showCategory ? 'No statements found for this game.' : 'No statements found for this category.'}
           </p>
-          <Button onClick={() => setAddDialogOpen(true)} size="sm" variant="ghost" className="h-8 w-8 p-0">
+          <Button onClick={() => { setEditingStatement(null); setAddDialogOpen(true) }} size="sm" variant="ghost" className="h-8 w-8 p-0">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
         <AddNeverHaveIEverDialog
-          open={addDialogOpen}
-          onOpenChange={setAddDialogOpen}
+          open={addDialogOpen || Boolean(editingStatement)}
+          onOpenChange={(open) => {
+            if (!open) setEditingStatement(null)
+            setAddDialogOpen(open)
+          }}
           gameId={gameId}
           categoryId={categoryId || undefined}
           categories={categories}
-          onSuccess={() => router.refresh()}
+          editingStatement={editingStatement}
+          onSuccess={() => {
+            router.refresh()
+            setEditingStatement(null)
+            setAddDialogOpen(false)
+          }}
         />
       </>
     )
@@ -111,7 +120,7 @@ export default function NeverHaveIEverList({
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Statements ({statements.length})
           </h2>
-          <Button onClick={() => setAddDialogOpen(true)} size="sm" variant="ghost" className="h-8 w-8 p-0">
+          <Button onClick={() => { setEditingStatement(null); setAddDialogOpen(true) }} size="sm" variant="ghost" className="h-8 w-8 p-0">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
@@ -174,6 +183,18 @@ export default function NeverHaveIEverList({
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => {
+                      setAddDialogOpen(false)
+                      setEditingStatement(statement)
+                    }}
+                    className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900"
+                    title="Edit"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleDeleteClick(statement.id)}
                     className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
@@ -187,12 +208,20 @@ export default function NeverHaveIEverList({
       </div>
 
       <AddNeverHaveIEverDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        open={addDialogOpen || Boolean(editingStatement)}
+        onOpenChange={(open) => {
+          if (!open) setEditingStatement(null)
+          setAddDialogOpen(open)
+        }}
         gameId={gameId}
         categoryId={categoryId || undefined}
         categories={categories}
-        onSuccess={() => router.refresh()}
+        editingStatement={editingStatement}
+        onSuccess={() => {
+          router.refresh()
+          setEditingStatement(null)
+          setAddDialogOpen(false)
+        }}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

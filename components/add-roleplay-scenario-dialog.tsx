@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Category } from '@/types/database'
+import type { Category, RoleplayScenario } from '@/types/database'
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ interface AddRoleplayScenarioDialogProps {
   categoryId?: string
   categories?: Category[]
   onSuccess: () => void
+  editingScenario?: RoleplayScenario | null
 }
 
 export default function AddRoleplayScenarioDialog({
@@ -38,8 +39,10 @@ export default function AddRoleplayScenarioDialog({
   categoryId,
   categories = [],
   onSuccess,
+  editingScenario = null,
 }: AddRoleplayScenarioDialogProps) {
   const router = useRouter()
+  const isEditing = Boolean(editingScenario)
   const [title, setTitle] = useState('')
   const [sharedDescription, setSharedDescription] = useState('')
   const [media, setMedia] = useState('')
@@ -57,7 +60,22 @@ export default function AddRoleplayScenarioDialog({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (editingScenario) {
+      setTitle(editingScenario.title)
+      setSharedDescription(editingScenario.shared_description || '')
+      setMedia(editingScenario.media || '')
+      setSelectedCategoryId(editingScenario.category_id || categoryId || '')
+      setDifficultyLevel((editingScenario.difficulty_level as 'easy' | 'medium' | 'hard') || 'medium')
+      setPlayer1RoleTitle(editingScenario.player1_role_title || '')
+      setPlayer1Twist(editingScenario.player1_twist || '')
+      setPlayer2RoleTitle(editingScenario.player2_role_title || '')
+      setPlayer2Twist(editingScenario.player2_twist || '')
+      setPlayer3RoleTitle(editingScenario.player3_role_title || '')
+      setPlayer3Twist(editingScenario.player3_twist || '')
+      setPlayer4RoleTitle(editingScenario.player4_role_title || '')
+      setPlayer4Twist(editingScenario.player4_twist || '')
+    } else {
       setSelectedCategoryId(categoryId || '')
       setTitle('')
       setSharedDescription('')
@@ -71,9 +89,9 @@ export default function AddRoleplayScenarioDialog({
       setPlayer3Twist('')
       setPlayer4RoleTitle('')
       setPlayer4Twist('')
-      setError(null)
     }
-  }, [open, categoryId])
+    setError(null)
+  }, [open, categoryId, editingScenario])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -81,38 +99,42 @@ export default function AddRoleplayScenarioDialog({
     setLoading(true)
 
     try {
-      const response = await fetch('/api/content/roleplay-scenarios/create', {
+      const url = isEditing ? '/api/content/roleplay-scenarios/update' : '/api/content/roleplay-scenarios/create'
+      const base = {
+        title,
+        shared_description: sharedDescription || null,
+        media: media || null,
+        category_id: selectedCategoryId || null,
+        difficulty_level: difficultyLevel,
+        player1_role_title: player1RoleTitle || null,
+        player1_twist: player1Twist || null,
+        player2_role_title: player2RoleTitle || null,
+        player2_twist: player2Twist || null,
+        player3_role_title: player3RoleTitle || null,
+        player3_twist: player3Twist || null,
+        player4_role_title: player4RoleTitle || null,
+        player4_twist: player4Twist || null,
+      }
+      const body = isEditing ? { id: editingScenario!.id, ...base } : base
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title,
-          shared_description: sharedDescription || null,
-          media: media || null,
-          category_id: selectedCategoryId || null,
-          difficulty_level: difficultyLevel,
-          player1_role_title: player1RoleTitle || null,
-          player1_twist: player1Twist || null,
-          player2_role_title: player2RoleTitle || null,
-          player2_twist: player2Twist || null,
-          player3_role_title: player3RoleTitle || null,
-          player3_twist: player3Twist || null,
-          player4_role_title: player4RoleTitle || null,
-          player4_twist: player4Twist || null,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create scenario')
+        throw new Error(errorData.error || `Failed to ${isEditing ? 'update' : 'create'} scenario`)
       }
 
       onSuccess()
       router.refresh()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create scenario')
+      setError(err instanceof Error ? err.message : `Failed to ${isEditing ? 'update' : 'create'} scenario`)
     } finally {
       setLoading(false)
     }
@@ -122,9 +144,9 @@ export default function AddRoleplayScenarioDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Roleplay Scenario</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Roleplay Scenario' : 'Add Roleplay Scenario'}</DialogTitle>
           <DialogDescription>
-            Create a new roleplay scenario for this game.
+            {isEditing ? 'Update this scenario for the game.' : 'Create a new roleplay scenario for this game.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -300,7 +322,7 @@ export default function AddRoleplayScenarioDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Scenario'}
+              {loading ? (isEditing ? 'Saving...' : 'Creating...') : isEditing ? 'Save changes' : 'Create Scenario'}
             </Button>
           </DialogFooter>
         </form>

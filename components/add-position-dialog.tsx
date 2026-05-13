@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Category } from '@/types/database'
+import type { Category, Position } from '@/types/database'
 import { Upload } from 'lucide-react'
 import {
   Dialog,
@@ -30,6 +30,7 @@ interface AddPositionDialogProps {
   categoryId?: string
   categories?: Category[]
   onSuccess: () => void
+  editingPosition?: Position | null
 }
 
 export default function AddPositionDialog({
@@ -39,8 +40,10 @@ export default function AddPositionDialog({
   categoryId,
   categories = [],
   onSuccess,
+  editingPosition = null,
 }: AddPositionDialogProps) {
   const router = useRouter()
+  const isEditing = Boolean(editingPosition)
   const [name, setName] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categoryId || '')
@@ -50,16 +53,21 @@ export default function AddPositionDialog({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (editingPosition) {
+      setName(editingPosition.name)
+      setImageUrl(editingPosition.image_url || '')
+      setSelectedCategoryId(editingPosition.category_id || categoryId || '')
+    } else {
       setSelectedCategoryId(categoryId || '')
       setName('')
       setImageUrl('')
-      setError(null)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
     }
-  }, [open, categoryId])
+    setError(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }, [open, categoryId, editingPosition])
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -102,36 +110,47 @@ export default function AddPositionDialog({
     setError(null)
     
     if (!imageUrl) {
-      setError('Please upload an image or provide an image URL')
+      setError(isEditing ? 'Image URL is missing' : 'Please upload an image or provide an image URL')
       return
     }
 
     setLoading(true)
 
     try {
-      const response = await fetch('/api/content/positions/create', {
+      const url = isEditing ? '/api/content/positions/update' : '/api/content/positions/create'
+      const body = isEditing
+        ? {
+            id: editingPosition!.id,
+            game_id: gameId,
+            name,
+            image_url: imageUrl,
+            category_id: selectedCategoryId || null,
+          }
+        : {
+            name,
+            image_url: imageUrl,
+            category_id: selectedCategoryId || null,
+            game_id: gameId,
+          }
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name,
-          image_url: imageUrl,
-          category_id: selectedCategoryId || null,
-          game_id: gameId,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create position')
+        throw new Error(errorData.error || `Failed to ${isEditing ? 'update' : 'create'} position`)
       }
 
       onSuccess()
       router.refresh()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create position')
+      setError(err instanceof Error ? err.message : `Failed to ${isEditing ? 'update' : 'create'} position`)
     } finally {
       setLoading(false)
     }
@@ -141,9 +160,9 @@ export default function AddPositionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Position</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Position' : 'Add Position'}</DialogTitle>
           <DialogDescription>
-            Create a new position for this game.
+            {isEditing ? 'Update this position for the game.' : 'Create a new position for this game.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -236,7 +255,7 @@ export default function AddPositionDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Position'}
+              {loading ? (isEditing ? 'Saving...' : 'Creating...') : isEditing ? 'Save changes' : 'Create Position'}
             </Button>
           </DialogFooter>
         </form>

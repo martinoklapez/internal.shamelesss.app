@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Category } from '@/types/database'
+import type { Category, NeverHaveIEverStatement } from '@/types/database'
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ interface AddNeverHaveIEverDialogProps {
   categoryId?: string
   categories?: Category[]
   onSuccess: () => void
+  editingStatement?: NeverHaveIEverStatement | null
 }
 
 export default function AddNeverHaveIEverDialog({
@@ -38,8 +39,10 @@ export default function AddNeverHaveIEverDialog({
   categoryId,
   categories = [],
   onSuccess,
+  editingStatement = null,
 }: AddNeverHaveIEverDialogProps) {
   const router = useRouter()
+  const isEditing = Boolean(editingStatement)
   const [statement, setStatement] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categoryId || '')
   const [difficultyLevel, setDifficultyLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
@@ -47,13 +50,18 @@ export default function AddNeverHaveIEverDialog({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (editingStatement) {
+      setStatement(editingStatement.statement)
+      setSelectedCategoryId(editingStatement.category_id || categoryId || '')
+      setDifficultyLevel((editingStatement.difficulty_level as 'easy' | 'medium' | 'hard') || 'medium')
+    } else {
       setSelectedCategoryId(categoryId || '')
       setStatement('')
       setDifficultyLevel('medium')
-      setError(null)
     }
-  }, [open, categoryId])
+    setError(null)
+  }, [open, categoryId, editingStatement])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,28 +69,38 @@ export default function AddNeverHaveIEverDialog({
     setLoading(true)
 
     try {
-      const response = await fetch('/api/content/never-have-i-ever/create', {
+      const url = isEditing ? '/api/content/never-have-i-ever/update' : '/api/content/never-have-i-ever/create'
+      const payload = isEditing
+        ? {
+            id: editingStatement!.id,
+            statement,
+            category_id: selectedCategoryId || null,
+            difficulty_level: difficultyLevel,
+          }
+        : {
+            statement,
+            category_id: selectedCategoryId || null,
+            difficulty_level: difficultyLevel,
+          }
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          statement,
-          category_id: selectedCategoryId || null,
-          difficulty_level: difficultyLevel,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create statement')
+        throw new Error(errorData.error || `Failed to ${isEditing ? 'update' : 'create'} statement`)
       }
 
       onSuccess()
       router.refresh()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create statement')
+      setError(err instanceof Error ? err.message : `Failed to ${isEditing ? 'update' : 'create'} statement`)
     } finally {
       setLoading(false)
     }
@@ -92,9 +110,11 @@ export default function AddNeverHaveIEverDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Never Have I Ever Statement</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Never Have I Ever Statement' : 'Add Never Have I Ever Statement'}</DialogTitle>
           <DialogDescription>
-            Create a new &quot;Never Have I Ever&quot; statement for this game.
+            {isEditing
+              ? 'Update this statement for the game.'
+              : 'Create a new &quot;Never Have I Ever&quot; statement for this game.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -168,7 +188,7 @@ export default function AddNeverHaveIEverDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Statement'}
+              {loading ? (isEditing ? 'Saving...' : 'Creating...') : isEditing ? 'Save changes' : 'Create Statement'}
             </Button>
           </DialogFooter>
         </form>
