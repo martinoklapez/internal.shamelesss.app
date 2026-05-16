@@ -898,7 +898,7 @@ export default function ProfilesCleanupPanel() {
                 />
               )}
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="flex w-full flex-row justify-between gap-4 sm:space-x-0">
               <Button
                 type="button"
                 variant="outline"
