@@ -236,6 +236,8 @@ export default function ProfilesCleanupPanel() {
   const otpInputRef = useRef<React.ElementRef<typeof InputOTP>>(null)
   const passcodeFallbackInputRef = useRef<HTMLInputElement>(null)
   const [backupPasscodeRequired, setBackupPasscodeRequired] = useState(false)
+  /** True after list API succeeds so we never treat unknown as "passcode disabled". */
+  const [backupPasscodeConfiguredResolved, setBackupPasscodeConfiguredResolved] = useState(false)
   const [backupPasscodeSlotCount, setBackupPasscodeSlotCount] = useState<number | null>(null)
   const [passcodeDialogOpen, setPasscodeDialogOpen] = useState(false)
   const [passcodeDraft, setPasscodeDraft] = useState('')
@@ -264,6 +266,7 @@ export default function ProfilesCleanupPanel() {
       }
       setProfiles(data.profiles || [])
       setBackupPasscodeRequired(Boolean(data.backup_passcode_configured))
+      setBackupPasscodeConfiguredResolved(true)
       const plen =
         typeof data.backup_passcode_length === 'number' &&
         Number.isFinite(data.backup_passcode_length)
@@ -570,6 +573,14 @@ export default function ProfilesCleanupPanel() {
       return
     }
 
+    if (!backupPasscodeConfiguredResolved) {
+      toast({
+        title: 'Still loading',
+        description: 'Wait until the profiles list finishes loading, then open backup tools.',
+      })
+      return
+    }
+
     if (!backupPasscodeRequired) {
       revealBackupChrome()
       return
@@ -831,7 +842,7 @@ export default function ProfilesCleanupPanel() {
             passcodeSubmitting ? evt.preventDefault() : undefined
           }
         >
-          <form onSubmit={submitBackupPasscode}>
+          <form className="w-full min-w-0" onSubmit={submitBackupPasscode}>
             <DialogHeader className="sm:text-center">
               <DialogTitle>Unlock backup & restore</DialogTitle>
               <DialogDescription className="text-center text-gray-600">
@@ -898,16 +909,18 @@ export default function ProfilesCleanupPanel() {
                 />
               )}
             </div>
-            <DialogFooter className="flex w-full flex-row justify-between gap-4 sm:space-x-0">
+            <DialogFooter className="mt-6 !flex-row w-full min-w-0 flex-nowrap items-center justify-start gap-4 p-0 sm:space-x-0">
               <Button
                 type="button"
                 variant="outline"
+                className="shrink-0"
                 disabled={passcodeSubmitting}
                 onClick={() => setPasscodeDialogOpen(false)}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={passcodeSubmitting}>
+              <span className="flex-1" aria-hidden />
+              <Button type="submit" className="shrink-0" disabled={passcodeSubmitting}>
                 {passcodeSubmitting ? 'Checking…' : 'Unlock'}
               </Button>
             </DialogFooter>
@@ -1078,9 +1091,19 @@ export default function ProfilesCleanupPanel() {
               variant={backupPanelOpen ? 'secondary' : 'ghost'}
               size="icon"
               className={`h-9 w-9 shrink-0 ${backupPanelOpen ? '' : 'text-gray-600'}`}
+              disabled={!backupPanelOpen && !backupPasscodeConfiguredResolved}
               onClick={handleArchiveToolbarClick}
-              title={backupPanelOpen ? 'Hide backup & restore' : 'Show backup & restore'}
+              title={
+                backupPanelOpen
+                  ? 'Hide backup & restore'
+                  : backupPasscodeConfiguredResolved
+                    ? 'Show backup & restore'
+                    : 'Loading profiles — backup settings load with the table'
+              }
               aria-expanded={backupPanelOpen}
+              aria-busy={
+                !backupPasscodeConfiguredResolved && !backupPanelOpen ? true : undefined
+              }
               aria-label={
                 backupPanelOpen
                   ? 'Hide backup and restore panel'
