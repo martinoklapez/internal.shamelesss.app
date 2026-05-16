@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { formatRelativeCreated } from '@/lib/utils/date'
 import {
   Dialog,
   DialogContent,
@@ -1662,13 +1663,19 @@ export default function ProfilesCleanupPanel() {
                         {p.gender?.trim() || '—'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 align-middle text-gray-600 text-xs hidden xl:table-cell whitespace-nowrap">
-                      {p.created_at
-                        ? new Date(p.created_at).toLocaleString(undefined, {
-                            dateStyle: 'short',
-                            timeStyle: 'short',
-                          })
-                        : '—'}
+                    <td
+                      suppressHydrationWarning
+                      title={
+                        p.created_at
+                          ? new Date(p.created_at).toLocaleString(undefined, {
+                              dateStyle: 'full',
+                              timeStyle: 'short',
+                            })
+                          : undefined
+                      }
+                      className="px-3 py-2 align-middle text-gray-600 text-xs hidden xl:table-cell whitespace-nowrap"
+                    >
+                      {p.created_at ? formatRelativeCreated(p.created_at) : '—'}
                     </td>
                   </tr>
                 ))}
