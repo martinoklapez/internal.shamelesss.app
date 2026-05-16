@@ -6,7 +6,7 @@ import {
   RefreshCw,
   Download,
   Upload,
-  ArchiveRestore,
+  DatabaseBackup,
   ListFilter,
   ChevronDown,
 } from 'lucide-react'
@@ -1111,7 +1111,7 @@ export default function ProfilesCleanupPanel() {
                   : 'Show backup and restore panel'
               }
             >
-              <ArchiveRestore className="h-4 w-4" />
+              <DatabaseBackup className="h-4 w-4" />
             </Button>
             {backupPanelOpen && (
               <Button
