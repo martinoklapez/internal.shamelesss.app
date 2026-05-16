@@ -2,8 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/user-roles'
+import { isProfilesBackupPasscodeConfigured, getProfilesBackupPasscodeMeta } from '@/lib/profiles-backup-passcode-server'
 
 export const dynamic = 'force-dynamic'
+
+/** Supabase REST builds very long URLs for `.in()`; chunked requests avoid fetch failures at scale. */
+const USER_ID_IN_CHUNK = 100
+
+function chunkIds(ids: string[]): string[][] {
+  const uniq = [...new Set(ids.map((id) => String(id)).filter(Boolean))]
+  const out: string[][] = []
+  for (let i = 0; i < uniq.length; i += USER_ID_IN_CHUNK) {
+    out.push(uniq.slice(i, i + USER_ID_IN_CHUNK))
+  }
+  return out
+}
 
 export async function GET(request: Request) {
   try {
@@ -53,50 +66,96 @@ export async function GET(request: Request) {
       }
       demoUserIds = [...new Set((roleRows || []).map((r) => String(r.user_id)).filter(Boolean))]
       if (demoUserIds.length === 0) {
-        return NextResponse.json({ profiles: [], demo_only: true }, { status: 200 })
+        return NextResponse.json(
+          {
+            profiles: [],
+            demo_only: true,
+            backup_passcode_configured: isProfilesBackupPasscodeConfigured(),
+            backup_passcode_length: getProfilesBackupPasscodeMeta().length,
+          },
+          { status: 200 }
+        )
       }
     }
 
-    let query = admin
-      .from('profiles')
-      .select(
-        'user_id, name, username, profile_picture_url, age, country_code, gender, instagram_handle, snapchat_handle, connection_count, created_at, updated_at'
-      )
-      .order('created_at', { ascending: false })
+    const PROFILE_SELECT =
+      'user_id, name, username, profile_picture_url, age, country_code, gender, instagram_handle, snapchat_handle, connection_count, created_at, updated_at'
 
-    if (demoUserIds) {
-      query = query.in('user_id', demoUserIds)
-    }
+    let rows: {
+      user_id: string
+      name: string | null
+      username: string | null
+      profile_picture_url: string | null
+      age: number | null
+      country_code: string | null
+      gender: string | null
+      instagram_handle: string | null
+      snapchat_handle: string | null
+      connection_count: number | null
+      created_at: string | null
+      updated_at: string | null
+    }[] = []
 
-    const { data: profiles, error } = await query
+    if (demoUserIds && demoUserIds.length > 0) {
+      for (const slice of chunkIds(demoUserIds)) {
+        const { data: chunk, error: chunkErr } = await admin
+          .from('profiles')
+          .select(PROFILE_SELECT)
+          .in('user_id', slice)
 
-    if (error) {
-      console.error('profiles-cleanup list:', error)
-      return NextResponse.json(
-        { error: `Failed to load profiles: ${error.message}` },
-        { status: 500 }
-      )
-    }
+        if (chunkErr) {
+          console.error('profiles-cleanup list profiles chunk:', chunkErr)
+          return NextResponse.json(
+            { error: `Failed to load profiles: ${chunkErr.message}` },
+            { status: 500 }
+          )
+        }
+        rows.push(...(chunk ?? []))
+      }
+      rows.sort((a, b) => {
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+        return tb - ta
+      })
+    } else {
+      const { data: profiles, error } = await admin
+        .from('profiles')
+        .select(PROFILE_SELECT)
+        .order('created_at', { ascending: false })
 
-    const rows = profiles ?? []
-    const ids = rows.map((p) => p.user_id)
-    const roleByUserId = new Map<string, string>()
-    if (ids.length > 0) {
-      const { data: roleRows, error: rolesErr } = await admin
-        .from('user_roles')
-        .select('user_id, role')
-        .in('user_id', ids)
-
-      if (rolesErr) {
-        console.error('profiles-cleanup list roles:', rolesErr)
+      if (error) {
+        console.error('profiles-cleanup list:', error)
         return NextResponse.json(
-          { error: `Failed to load roles: ${rolesErr.message}` },
+          { error: `Failed to load profiles: ${error.message}` },
           { status: 500 }
         )
       }
-      for (const r of roleRows || []) {
-        roleByUserId.set(String(r.user_id), String(r.role))
+      rows = profiles ?? []
+    }
+    const ids = rows.map((p) => p.user_id)
+    const roleByUserId = new Map<string, string>()
+    try {
+      for (const slice of chunkIds(ids)) {
+        const { data: roleRows, error: rolesErr } = await admin
+          .from('user_roles')
+          .select('user_id, role')
+          .in('user_id', slice)
+
+        if (rolesErr) {
+          console.error('profiles-cleanup list roles chunk:', rolesErr)
+          return NextResponse.json(
+            { error: `Failed to load roles: ${rolesErr.message}` },
+            { status: 500 }
+          )
+        }
+        for (const r of roleRows || []) {
+          roleByUserId.set(String(r.user_id), String(r.role))
+        }
       }
+    } catch (loadRolesErr: unknown) {
+      const msg = loadRolesErr instanceof Error ? loadRolesErr.message : String(loadRolesErr)
+      console.error('profiles-cleanup list roles:', loadRolesErr)
+      return NextResponse.json({ error: `Failed to load roles: ${msg}` }, { status: 500 })
     }
 
     const profilesWithRoles = rows.map((p) => ({
@@ -104,8 +163,15 @@ export async function GET(request: Request) {
       role: roleByUserId.get(p.user_id) ?? null,
     }))
 
+    const backupMeta = getProfilesBackupPasscodeMeta()
+
     return NextResponse.json(
-      { profiles: profilesWithRoles, demo_only: demoOnly || undefined },
+      {
+        profiles: profilesWithRoles,
+        demo_only: demoOnly || undefined,
+        backup_passcode_configured: backupMeta.configured,
+        backup_passcode_length: backupMeta.length,
+      },
       { status: 200 }
     )
   } catch (e) {

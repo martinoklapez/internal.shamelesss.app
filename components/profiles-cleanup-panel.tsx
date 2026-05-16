@@ -1,13 +1,29 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
-import { Trash2, RefreshCw, Download, Upload } from 'lucide-react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Trash2, RefreshCw, Download, Upload, ArchiveRestore } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { ProfileCountryDisplay, getRegionDisplayName } from '@/lib/country-display'
+import { PROFILES_BACKUP_PASSCODE_HEADER } from '@/lib/profiles-backup-passcode-constants'
 import { Input } from '@/components/ui/input'
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from '@/components/ui/input-otp'
 import { useToast } from '@/hooks/use-toast'
 import {
   AlertDialog,
@@ -55,6 +71,20 @@ export type CleanupProfileRow = {
   updated_at: string | null
 }
 
+/** Extra protection on export / delete / restore when `PROFILES_BACKUP_PASSCODE` is server-set. */
+function buildBackupProtectedInit(body: unknown, secret: string | null | undefined): RequestInit {
+  const headers = new Headers({ 'Content-Type': 'application/json' })
+  const s = typeof secret === 'string' ? secret.trim() : ''
+  if (s.length > 0) {
+    headers.set(PROFILES_BACKUP_PASSCODE_HEADER, s)
+  }
+  return {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  }
+}
+
 function downloadJson(filename: string, obj: unknown) {
   const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -79,6 +109,26 @@ export default function ProfilesCleanupPanel() {
   const [exporting, setExporting] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const restoreInputRef = useRef<HTMLInputElement>(null)
+  const [backupPanelOpen, setBackupPanelOpen] = useState(false)
+  const backupSecretRef = useRef<string | null>(null)
+  const otpInputRef = useRef<React.ElementRef<typeof InputOTP>>(null)
+  const passcodeFallbackInputRef = useRef<HTMLInputElement>(null)
+  const [backupPasscodeRequired, setBackupPasscodeRequired] = useState(false)
+  const [backupPasscodeSlotCount, setBackupPasscodeSlotCount] = useState<number | null>(null)
+  const [passcodeDialogOpen, setPasscodeDialogOpen] = useState(false)
+  const [passcodeDraft, setPasscodeDraft] = useState('')
+  const [passcodeSubmitting, setPasscodeSubmitting] = useState(false)
+  const [passcodeInvalid, setPasscodeInvalid] = useState(false)
+
+  const invalidateBackupSession = useCallback(() => {
+    backupSecretRef.current = null
+    setBackupPanelOpen(false)
+    setSelected(new Set())
+    setDemoOnlyList(false)
+    setConfirmOpen(false)
+    setExportDeleteOpen(false)
+    setAllowDeleteStaff(false)
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -90,6 +140,13 @@ export default function ProfilesCleanupPanel() {
         throw new Error(data.error || 'Failed to load profiles')
       }
       setProfiles(data.profiles || [])
+      setBackupPasscodeRequired(Boolean(data.backup_passcode_configured))
+      const plen =
+        typeof data.backup_passcode_length === 'number' &&
+        Number.isFinite(data.backup_passcode_length)
+          ? data.backup_passcode_length
+          : null
+      setBackupPasscodeSlotCount(plen !== null && plen > 0 ? plen : null)
       setSelected(new Set())
     } catch (e) {
       toast({
@@ -106,16 +163,48 @@ export default function ProfilesCleanupPanel() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (passcodeDialogOpen) {
+      setPasscodeDraft('')
+      setPasscodeInvalid(false)
+      const id = window.setTimeout(() => {
+        if (backupPasscodeSlotCount !== null && backupPasscodeSlotCount > 0) {
+          otpInputRef.current?.focus()
+        } else {
+          passcodeFallbackInputRef.current?.focus()
+        }
+      }, 50)
+      return () => window.clearTimeout(id)
+    }
+  }, [passcodeDialogOpen, backupPasscodeSlotCount])
+
+  const otpIndexGroups = useMemo(() => {
+    if (!backupPasscodeSlotCount || backupPasscodeSlotCount <= 0) return []
+    const groups: number[][] = []
+    for (let i = 0; i < backupPasscodeSlotCount; i += 2) {
+      groups.push(
+        i + 1 < backupPasscodeSlotCount ? [i, i + 1] : [i]
+      )
+    }
+    return groups
+  }, [backupPasscodeSlotCount])
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return profiles
     return profiles.filter((p) => {
+      const cc = p.country_code?.trim()
+      const countrySearch =
+        cc && /^[A-Za-z]{2}$/.test(cc)
+          ? getRegionDisplayName(cc).toLowerCase()
+          : ''
       const hay = [
         p.user_id,
         p.name ?? '',
         p.username ?? '',
         p.role ?? '',
         p.country_code ?? '',
+        countrySearch,
         p.gender ?? '',
       ]
         .join(' ')
@@ -148,17 +237,87 @@ export default function ProfilesCleanupPanel() {
     })
   }
 
+  const revealBackupChrome = () => setBackupPanelOpen(true)
+
+  const submitBackupPasscode = async (e?: React.FormEvent, valueOverride?: string) => {
+    e?.preventDefault()
+    const raw = valueOverride ?? passcodeDraft
+    const trimmed = typeof raw === 'string' ? raw.trim() : ''
+    if (!trimmed) {
+      setPasscodeInvalid(true)
+      toast({ title: 'Enter passcode', variant: 'destructive' })
+      return
+    }
+    setPasscodeSubmitting(true)
+    setPasscodeInvalid(false)
+    try {
+      const res = await fetch('/api/profiles-cleanup/backup-passcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: trimmed }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Verification failed')
+      }
+      backupSecretRef.current = trimmed
+      setPasscodeDialogOpen(false)
+      setPasscodeInvalid(false)
+      revealBackupChrome()
+      toast({
+        title: 'Backup tools unlocked',
+        description: data.required ? 'Secret applied for this browser session.' : undefined,
+      })
+    } catch (err) {
+      setPasscodeInvalid(true)
+      toast({
+        title: 'Could not unlock',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      })
+    } finally {
+      setPasscodeSubmitting(false)
+    }
+  }
+
+  const handleArchiveToolbarClick = () => {
+    if (backupPanelOpen) {
+      setBackupPanelOpen(false)
+      setSelected(new Set())
+      setDemoOnlyList(false)
+      setConfirmOpen(false)
+      setExportDeleteOpen(false)
+      setAllowDeleteStaff(false)
+      return
+    }
+
+    if (!backupPasscodeRequired) {
+      revealBackupChrome()
+      return
+    }
+
+    if (backupSecretRef.current?.trim()) {
+      revealBackupChrome()
+      return
+    }
+
+    setPasscodeDialogOpen(true)
+  }
+
   const runDelete = async () => {
     const ids = Array.from(selected)
     if (ids.length === 0) return
     setDeleting(true)
     try {
-      const res = await fetch('/api/profiles-cleanup/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_ids: ids, allow_staff: allowDeleteStaff }),
-      })
+      const res = await fetch(
+        '/api/profiles-cleanup/delete',
+        buildBackupProtectedInit({ user_ids: ids, allow_staff: allowDeleteStaff }, backupSecretRef.current)
+      )
       const data = await res.json()
+      if (res.status === 401 && backupPasscodeRequired) {
+        invalidateBackupSession()
+        throw new Error(data.error || 'Backup passcode required or expired. Unlock again.')
+      }
       if (!res.ok) {
         throw new Error(data.error || 'Delete failed')
       }
@@ -198,12 +357,15 @@ export default function ProfilesCleanupPanel() {
     if (ids.length === 0) return
     setExporting(true)
     try {
-      const res = await fetch('/api/profiles-cleanup/demo-export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_ids: ids }),
-      })
+      const res = await fetch(
+        '/api/profiles-cleanup/demo-export',
+        buildBackupProtectedInit({ user_ids: ids }, backupSecretRef.current)
+      )
       const data = await res.json()
+      if (res.status === 401 && backupPasscodeRequired) {
+        invalidateBackupSession()
+        throw new Error(data.error || 'Backup passcode required or expired. Unlock again.')
+      }
       if (!res.ok) {
         throw new Error(data.error || 'Export failed')
       }
@@ -227,12 +389,15 @@ export default function ProfilesCleanupPanel() {
   const runExportAllDemo = async () => {
     setExporting(true)
     try {
-      const res = await fetch('/api/profiles-cleanup/demo-export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ all_demo: true }),
-      })
+      const res = await fetch(
+        '/api/profiles-cleanup/demo-export',
+        buildBackupProtectedInit({ all_demo: true }, backupSecretRef.current)
+      )
       const data = await res.json()
+      if (res.status === 401 && backupPasscodeRequired) {
+        invalidateBackupSession()
+        throw new Error(data.error || 'Backup passcode required or expired. Unlock again.')
+      }
       if (!res.ok) {
         throw new Error(data.error || 'Export failed')
       }
@@ -258,24 +423,30 @@ export default function ProfilesCleanupPanel() {
     if (ids.length === 0) return
     setDeleting(true)
     try {
-      const ex = await fetch('/api/profiles-cleanup/demo-export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_ids: ids }),
-      })
+      const ex = await fetch(
+        '/api/profiles-cleanup/demo-export',
+        buildBackupProtectedInit({ user_ids: ids }, backupSecretRef.current)
+      )
       const exData = await ex.json()
+      if (ex.status === 401 && backupPasscodeRequired) {
+        invalidateBackupSession()
+        throw new Error(exData.error || 'Backup passcode required or expired.')
+      }
       if (!ex.ok) {
         throw new Error(exData.error || 'Export failed — nothing deleted')
       }
       const stamp = new Date().toISOString().slice(0, 10)
       downloadJson(`demo-users-backup-${stamp}.json`, exData.backup)
 
-      const del = await fetch('/api/profiles-cleanup/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_ids: ids, allow_staff: allowDeleteStaff }),
-      })
+      const del = await fetch(
+        '/api/profiles-cleanup/delete',
+        buildBackupProtectedInit({ user_ids: ids, allow_staff: allowDeleteStaff }, backupSecretRef.current)
+      )
       const delData = await del.json()
+      if (del.status === 401 && backupPasscodeRequired) {
+        invalidateBackupSession()
+        throw new Error(delData.error || 'Backup passcode required or expired.')
+      }
       if (!del.ok) {
         throw new Error(delData.error || 'Delete failed (backup file was still downloaded)')
       }
@@ -324,12 +495,15 @@ export default function ProfilesCleanupPanel() {
       } catch {
         throw new Error('Invalid JSON file')
       }
-      const res = await fetch('/api/profiles-cleanup/demo-restore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ backup: parsed }),
-      })
+      const res = await fetch(
+        '/api/profiles-cleanup/demo-restore',
+        buildBackupProtectedInit({ backup: parsed }, backupSecretRef.current)
+      )
       const data = await res.json()
+      if (res.status === 401 && backupPasscodeRequired) {
+        invalidateBackupSession()
+        throw new Error(data.error || 'Backup passcode required or expired. Unlock again.')
+      }
       if (!res.ok) {
         throw new Error(data.error || 'Restore failed')
       }
@@ -362,7 +536,108 @@ export default function ProfilesCleanupPanel() {
 
   return (
     <>
-      <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-3 sm:px-5 sm:py-4 mb-6 space-y-3">
+      <Dialog
+        open={passcodeDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && passcodeSubmitting) return
+          setPasscodeDialogOpen(open)
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(evt) =>
+            passcodeSubmitting ? evt.preventDefault() : undefined
+          }
+          onEscapeKeyDown={(evt) =>
+            passcodeSubmitting ? evt.preventDefault() : undefined
+          }
+        >
+          <form onSubmit={submitBackupPasscode}>
+            <DialogHeader className="sm:text-center">
+              <DialogTitle>Unlock backup & restore</DialogTitle>
+              <DialogDescription className="text-center text-gray-600">
+                Enter the backup passcode from the{' '}
+                <code className="text-xs bg-gray-100 px-1 rounded">PROFILES_BACKUP_PASSCODE</code>{' '}
+                server variable.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid justify-items-center gap-4 py-8">
+              <Label
+                htmlFor="profiles-backup-passcode"
+                className="block w-full text-center"
+              >
+                Passcode
+              </Label>
+              {backupPasscodeSlotCount !== null && backupPasscodeSlotCount > 0 ? (
+                <InputOTP
+                  key={`otp-${backupPasscodeSlotCount}`}
+                  ref={otpInputRef}
+                  id="profiles-backup-passcode"
+                  maxLength={backupPasscodeSlotCount}
+                  inputMode="text"
+                  autoComplete="off"
+                  value={passcodeDraft}
+                  onChange={(v) => {
+                    setPasscodeInvalid(false)
+                    setPasscodeDraft(v)
+                  }}
+                  onComplete={(full) => void submitBackupPasscode(undefined, full)}
+                  disabled={passcodeSubmitting}
+                  containerClassName={cn(
+                    'flex flex-wrap justify-center gap-2',
+                    backupPasscodeSlotCount > 16 && 'gap-1.5'
+                  )}
+                >
+                  {otpIndexGroups.map((group, gi) => (
+                    <Fragment key={gi}>
+                      {gi > 0 ? <InputOTPSeparator /> : null}
+                      <InputOTPGroup>
+                        {group.map((slotIndex) => (
+                          <InputOTPSlot
+                            key={slotIndex}
+                            index={slotIndex}
+                            aria-invalid={passcodeInvalid || undefined}
+                            className={cn(
+                              backupPasscodeSlotCount > 16 && 'h-8 w-7 text-xs shadow-sm'
+                            )}
+                          />
+                        ))}
+                      </InputOTPGroup>
+                    </Fragment>
+                  ))}
+                </InputOTP>
+              ) : (
+                <Input
+                  id="profiles-backup-passcode"
+                  ref={passcodeFallbackInputRef}
+                  type="password"
+                  autoComplete="off"
+                  value={passcodeDraft}
+                  onChange={(evt) => setPasscodeDraft(evt.target.value)}
+                  disabled={passcodeSubmitting}
+                  className="h-10 w-full max-w-xs"
+                />
+              )}
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={passcodeSubmitting}
+                onClick={() => setPasscodeDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={passcodeSubmitting}>
+                {passcodeSubmitting ? 'Checking…' : 'Unlock'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {backupPanelOpen && (
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-3 sm:px-5 sm:py-4 mb-6 space-y-3">
         <div className="font-medium text-gray-900">Demo users — backup & restore</div>
         <p className="text-sm text-gray-600">
           Export includes email, the current <code className="text-xs bg-white px-1 rounded border">user_roles</code>{' '}
@@ -432,7 +707,8 @@ export default function ProfilesCleanupPanel() {
           <code className="bg-white px-0.5 rounded border">profiles</code>; use &quot;Download all demo
           users&quot; if you need demo accounts that have no profile row yet.
         </p>
-      </div>
+        </div>
+      )}
 
       <div className="rounded-lg border border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
@@ -443,34 +719,56 @@ export default function ProfilesCleanupPanel() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-md h-9 text-sm"
             />
-            <label className="flex items-center gap-2 text-xs text-gray-600 shrink-0 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={demoOnlyList}
-                onChange={(e) => setDemoOnlyList(e.target.checked)}
-              />
-              Demo role only
-            </label>
-            <span className="text-xs text-gray-500 shrink-0">
-              {filtered.length === profiles.length
-                ? `${profiles.length} profiles`
-                : `${filtered.length} of ${profiles.length}`}
-              {selected.size > 0 ? ` · ${selected.size} selected` : ''}
-            </span>
+            {backupPanelOpen && (
+              <>
+                <label className="flex items-center gap-2 text-xs text-gray-600 shrink-0 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300"
+                    checked={demoOnlyList}
+                    onChange={(e) => setDemoOnlyList(e.target.checked)}
+                  />
+                  Demo role only
+                </label>
+                <span className="text-xs text-gray-500 shrink-0">
+                  {filtered.length === profiles.length
+                    ? `${profiles.length} profiles`
+                    : `${filtered.length} of ${profiles.length}`}
+                  {selected.size > 0 ? ` · ${selected.size} selected` : ''}
+                </span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button
               type="button"
-              variant="secondary"
-              size="sm"
-              className="h-9"
-              disabled={loading || filtered.length === 0}
-              onClick={() => toggleAllFiltered()}
-              title="Select or clear all visible rows"
+              variant={backupPanelOpen ? 'secondary' : 'ghost'}
+              size="icon"
+              className={`h-9 w-9 shrink-0 ${backupPanelOpen ? '' : 'text-gray-600'}`}
+              onClick={handleArchiveToolbarClick}
+              title={backupPanelOpen ? 'Hide backup & restore' : 'Show backup & restore'}
+              aria-expanded={backupPanelOpen}
+              aria-label={
+                backupPanelOpen
+                  ? 'Hide backup and restore panel'
+                  : 'Show backup and restore panel'
+              }
             >
-              {allFilteredSelected ? 'Clear visible' : 'Select all visible'}
+              <ArchiveRestore className="h-4 w-4" />
             </Button>
+            {backupPanelOpen && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-9"
+                disabled={loading || filtered.length === 0}
+                onClick={() => toggleAllFiltered()}
+                title="Select or clear all visible rows"
+              >
+                {allFilteredSelected ? 'Clear visible' : 'Select all visible'}
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -482,17 +780,19 @@ export default function ProfilesCleanupPanel() {
               <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              className="h-9"
-              disabled={selected.size === 0 || deleting || loading}
-              onClick={() => setConfirmOpen(true)}
-            >
-              <Trash2 className="h-4 w-4 mr-1.5" />
-              Delete selected
-            </Button>
+            {backupPanelOpen && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="h-9"
+                disabled={selected.size === 0 || deleting || loading}
+                onClick={() => setConfirmOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                Delete selected
+              </Button>
+            )}
           </div>
         </div>
 
@@ -507,15 +807,17 @@ export default function ProfilesCleanupPanel() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
                 <tr>
-                  <th className="w-10 px-3 py-2 text-left">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300"
-                      checked={allFilteredSelected}
-                      onChange={toggleAllFiltered}
-                      aria-label="Select all visible"
-                    />
-                  </th>
+                  {backupPanelOpen && (
+                    <th className="w-10 px-3 py-2 text-left">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300"
+                        checked={allFilteredSelected}
+                        onChange={toggleAllFiltered}
+                        aria-label="Select all visible"
+                      />
+                    </th>
+                  )}
                   <th className="px-3 py-2 text-left font-medium text-gray-700">User</th>
                   <th className="px-3 py-2 text-left font-medium text-gray-700 hidden lg:table-cell">
                     Username
@@ -531,15 +833,17 @@ export default function ProfilesCleanupPanel() {
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((p) => (
                   <tr key={p.user_id} className="hover:bg-gray-50/80">
-                    <td className="px-3 py-2 align-middle">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300"
-                        checked={selected.has(p.user_id)}
-                        onChange={() => toggle(p.user_id)}
-                        aria-label={`Select ${p.user_id}`}
-                      />
-                    </td>
+                    {backupPanelOpen && (
+                      <td className="px-3 py-2 align-middle">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300"
+                          checked={selected.has(p.user_id)}
+                          onChange={() => toggle(p.user_id)}
+                          aria-label={`Select ${p.user_id}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-3 py-2 align-middle">
                       <div className="flex items-center gap-2 min-w-0">
                         <Avatar className="h-8 w-8 shrink-0">
@@ -586,7 +890,7 @@ export default function ProfilesCleanupPanel() {
                       {p.username || '—'}
                     </td>
                     <td className="px-3 py-2 align-middle text-gray-600 hidden md:table-cell">
-                      {p.country_code || '—'}
+                      <ProfileCountryDisplay code={p.country_code} />
                     </td>
                     <td className="px-3 py-2 align-middle text-gray-600 text-xs hidden xl:table-cell whitespace-nowrap">
                       {p.created_at
@@ -711,13 +1015,6 @@ export default function ProfilesCleanupPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <p className="mt-4 text-xs text-gray-500">
-        Temporary cleanup page — remove when finished.{' '}
-        <Link href="/home" className="text-blue-600 hover:underline">
-          Back to home
-        </Link>
-      </p>
     </>
   )
 }

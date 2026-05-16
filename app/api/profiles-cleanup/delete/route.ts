@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/user-roles'
+import { rejectIfProfilesBackupPasscodeMismatch } from '@/lib/profiles-backup-passcode-server'
 
 /**
  * Roles we refuse to delete. Must match DB enum `user_role_type` — `dev` exists in
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
+
+    const backupGate = rejectIfProfilesBackupPasscodeMismatch(request)
+    if (backupGate) return backupGate
 
     const body = await request.json()
     const rawIds = body?.user_ids

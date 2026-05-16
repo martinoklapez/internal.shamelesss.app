@@ -61,8 +61,8 @@ const developerMenuItems = [
     roles: ['admin', 'dev', 'developer'] as const,
   },
   {
-    title: 'Profiles cleanup',
-    url: '/profiles-cleanup',
+    title: 'Profiles',
+    url: '/profiles',
     icon: Eraser,
     roles: ['admin', 'dev', 'developer'] as const,
   },

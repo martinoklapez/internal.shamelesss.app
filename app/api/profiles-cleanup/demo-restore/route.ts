@@ -7,6 +7,7 @@ import {
   syntheticEmailForNoIdentifier,
 } from '@/lib/demo-users-backup'
 import { getUserRole } from '@/lib/user-roles'
+import { rejectIfProfilesBackupPasscodeMismatch } from '@/lib/profiles-backup-passcode-server'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -33,6 +34,9 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
+
+    const backupGate = rejectIfProfilesBackupPasscodeMismatch(request)
+    if (backupGate) return backupGate
 
     const body = await request.json()
     const backup = body?.backup
