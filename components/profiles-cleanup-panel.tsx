@@ -54,6 +54,9 @@ const FILTER_NO_ROLE = '__profiles_filter_no_role__'
 const FILTER_NO_COUNTRY = '__profiles_filter_no_country__'
 const FILTER_NO_GENDER = '__profiles_filter_no_gender__'
 
+/** Structured filter: active Expo push token (see `has_active_push_token`). */
+type FilterPushChoice = '' | 'yes' | 'no'
+
 function normalizeGenderFacet(g: string | null | undefined): string {
   return (g ?? '').trim().toLowerCase()
 }
@@ -97,6 +100,8 @@ export type CleanupProfileRow = {
   instagram_handle: string | null
   snapchat_handle: string | null
   connection_count: number | null
+  /** At least one active row in `push_tokens` with a non-empty Expo token. */
+  has_active_push_token: boolean
   created_at: string | null
   updated_at: string | null
 }
@@ -217,6 +222,7 @@ export default function ProfilesCleanupPanel() {
   const [filterRoles, setFilterRoles] = useState<Set<string>>(() => new Set())
   const [filterCountries, setFilterCountries] = useState<Set<string>>(() => new Set())
   const [filterGenders, setFilterGenders] = useState<Set<string>>(() => new Set())
+  const [filterPush, setFilterPush] = useState<FilterPushChoice>('')
   const [ageMinInput, setAgeMinInput] = useState('')
   const [ageMaxInput, setAgeMaxInput] = useState('')
   const [connMinInput, setConnMinInput] = useState('')
@@ -265,7 +271,12 @@ export default function ProfilesCleanupPanel() {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to load profiles')
       }
-      setProfiles(data.profiles || [])
+      setProfiles(
+        (data.profiles || []).map((p: CleanupProfileRow) => ({
+          ...p,
+          has_active_push_token: Boolean(p.has_active_push_token),
+        }))
+      )
       setBackupPasscodeRequired(Boolean(data.backup_passcode_configured))
       setBackupPasscodeConfiguredResolved(true)
       const plen =
@@ -373,6 +384,7 @@ export default function ProfilesCleanupPanel() {
     filterRoles.size > 0 ||
     filterCountries.size > 0 ||
     filterGenders.size > 0 ||
+    filterPush !== '' ||
     ageMinInput.trim() !== '' ||
     ageMaxInput.trim() !== '' ||
     connMinInput.trim() !== '' ||
@@ -384,6 +396,8 @@ export default function ProfilesCleanupPanel() {
     filterCountries.size > 0 &&
       `${filterCountries.size} countr${filterCountries.size === 1 ? 'y' : 'ies'}`,
     filterGenders.size > 0 && `${filterGenders.size} gender${filterGenders.size === 1 ? '' : 's'}`,
+    filterPush === 'yes' && 'push: reachable',
+    filterPush === 'no' && 'push: no token',
     (ageMinInput.trim() !== '' || ageMaxInput.trim() !== '') && 'age range',
     (connMinInput.trim() !== '' || connMaxInput.trim() !== '') && 'connections',
     presenceFilterActiveCount > 0 &&
@@ -429,6 +443,9 @@ export default function ProfilesCleanupPanel() {
         if (!filterGenders.has(gk)) return false
       }
 
+      if (filterPush === 'yes' && !p.has_active_push_token) return false
+      if (filterPush === 'no' && p.has_active_push_token) return false
+
       if (amin !== undefined || amax !== undefined) {
         if (p.age == null) return false
         if (amin !== undefined && p.age < amin) return false
@@ -466,6 +483,7 @@ export default function ProfilesCleanupPanel() {
         p.connection_count != null ? String(p.connection_count) : '',
         p.instagram_handle ?? '',
         p.snapchat_handle ?? '',
+        p.has_active_push_token ? 'push token notifications yes' : 'push token no',
       ]
         .join(' ')
         .toLowerCase()
@@ -478,6 +496,7 @@ export default function ProfilesCleanupPanel() {
     filterRoles,
     filterCountries,
     filterGenders,
+    filterPush,
     ageMinInput,
     ageMaxInput,
     connMinInput,
@@ -489,6 +508,7 @@ export default function ProfilesCleanupPanel() {
     setFilterRoles(new Set())
     setFilterCountries(new Set())
     setFilterGenders(new Set())
+    setFilterPush('')
     setAgeMinInput('')
     setAgeMaxInput('')
     setConnMinInput('')
@@ -1008,7 +1028,7 @@ export default function ProfilesCleanupPanel() {
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
               <Input
-                placeholder="Search id, names, handles, country, gender, age…"
+                placeholder="Search id, names, handles, country, gender, push, age…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="max-w-md min-w-[10rem] h-9 text-sm"
@@ -1417,6 +1437,62 @@ export default function ProfilesCleanupPanel() {
                   size="sm"
                   className={cn(
                     'h-8 gap-1.5 px-2.5 bg-white border-gray-200',
+                    filterPush !== '' && 'border-indigo-300 bg-indigo-50/50'
+                  )}
+                >
+                  Push
+                  {filterPush === 'yes' ? (
+                    <Badge variant="secondary" className="h-5 px-1 tabular-nums">
+                      Yes
+                    </Badge>
+                  ) : filterPush === 'no' ? (
+                    <Badge variant="secondary" className="h-5 px-1 tabular-nums">
+                      No
+                    </Badge>
+                  ) : (
+                    <span className="text-[10px] text-gray-400 font-normal ml-0.5">
+                      Any
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-72 py-3">
+                <p className="text-xs font-medium text-gray-500 px-3 pb-2">
+                  Active Expo token in <code className="text-[11px] bg-gray-100 px-0.5 rounded">push_tokens</code>{' '}
+                  (same signal as the Push column). Combined as AND with other filters.
+                </p>
+                <div className="space-y-0.5 px-1">
+                  {(
+                    [
+                      { value: '' as const, label: 'Any' },
+                      { value: 'yes' as const, label: 'Yes — can receive push' },
+                      { value: 'no' as const, label: 'No — no active token' },
+                    ] as const
+                  ).map(({ value, label }) => (
+                    <button
+                      key={value || 'any'}
+                      type="button"
+                      className={cn(
+                        'w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-gray-50',
+                        filterPush === value && 'bg-indigo-50 text-indigo-950 font-medium'
+                      )}
+                      onClick={() => setFilterPush(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    'h-8 gap-1.5 px-2.5 bg-white border-gray-200',
                     presenceFilterActiveCount > 0 && 'border-indigo-300 bg-indigo-50/50'
                   )}
                 >
@@ -1438,7 +1514,7 @@ export default function ProfilesCleanupPanel() {
               >
                 <p className="text-xs font-medium text-gray-500 px-0.5 pb-2">
                   Require rows to have a value (or explicitly be empty). Combined as AND with role,
-                  country, gender, ranges, and search.
+                  country, gender, push, ranges, and search.
                 </p>
                 <div className="space-y-2">
                   {PROFILE_PRESENCE_ROWS.map(({ field, label }) => (
@@ -1588,6 +1664,12 @@ export default function ProfilesCleanupPanel() {
                   <th className="px-3 py-2 text-left font-medium text-gray-700 hidden md:table-cell">
                     Gender
                   </th>
+                  <th
+                    className="px-3 py-2 text-left font-medium text-gray-700 hidden sm:table-cell w-[4.5rem]"
+                    title="Active Expo push token registered (can receive push notifications)"
+                  >
+                    Push
+                  </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-700 hidden xl:table-cell">
                     Created
                   </th>
@@ -1662,6 +1744,25 @@ export default function ProfilesCleanupPanel() {
                       <span className="capitalize">
                         {p.gender?.trim() || '—'}
                       </span>
+                    </td>
+                    <td className="px-3 py-2 align-middle hidden sm:table-cell">
+                      {p.has_active_push_token ? (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] font-normal tabular-nums border-emerald-300/80 bg-emerald-50 text-emerald-950"
+                          title="At least one active Expo push token — reachable by push"
+                        >
+                          Yes
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-normal tabular-nums text-gray-500 border-gray-200"
+                          title="No active push token on file"
+                        >
+                          No
+                        </Badge>
+                      )}
                     </td>
                     <td
                       suppressHydrationWarning

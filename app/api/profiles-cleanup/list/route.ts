@@ -158,9 +158,41 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: `Failed to load roles: ${msg}` }, { status: 500 })
     }
 
+    /** Users with at least one active Expo push token (`push_tokens` in Supabase). */
+    const pushReachableUserIds = new Set<string>()
+    if (ids.length > 0) {
+      try {
+        for (const slice of chunkIds(ids)) {
+          const { data: tokRows, error: tokErr } = await admin
+            .from('push_tokens')
+            .select('user_id, expo_push_token')
+            .in('user_id', slice)
+            .eq('is_active', true)
+
+          if (tokErr) {
+            console.error('profiles-cleanup list push_tokens chunk:', tokErr)
+            return NextResponse.json(
+              { error: `Failed to load push tokens: ${tokErr.message}` },
+              { status: 500 }
+            )
+          }
+          for (const t of tokRows ?? []) {
+            const raw = t.expo_push_token
+            const token = typeof raw === 'string' ? raw.trim() : ''
+            if (token.length > 0) pushReachableUserIds.add(String(t.user_id))
+          }
+        }
+      } catch (pushErr: unknown) {
+        const msg = pushErr instanceof Error ? pushErr.message : String(pushErr)
+        console.error('profiles-cleanup list push_tokens:', pushErr)
+        return NextResponse.json({ error: `Failed to load push tokens: ${msg}` }, { status: 500 })
+      }
+    }
+
     const profilesWithRoles = rows.map((p) => ({
       ...p,
       role: roleByUserId.get(p.user_id) ?? null,
+      has_active_push_token: pushReachableUserIds.has(p.user_id),
     }))
 
     const backupMeta = getProfilesBackupPasscodeMeta()
