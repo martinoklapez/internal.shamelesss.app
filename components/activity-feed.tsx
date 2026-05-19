@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   RefreshCw,
   MessageCircle,
@@ -88,6 +88,22 @@ function displayName(p: ActivityProfileMini | null | undefined, fallbackId: stri
   const u = p?.username?.trim()
   if (u) return `@${u}`
   return fallbackId.slice(0, 8) + '…'
+}
+
+/** Matches Support Chat message timestamps (short month/day + time). */
+function formatChatBubbleTime(iso: string | null): string {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  } catch {
+    return ''
+  }
 }
 
 function ProfileCell({
@@ -204,8 +220,28 @@ function ConnectionChatMessagesDialog({
   const [detail, setDetail] = useState<ActivityConnectionChatPayload | null>(null)
   const [loadingChat, setLoadingChat] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
 
   const connectionId = connectionSummary?.id
+
+  /** Open scrolled to newest messages (bottom); API returns oldest-first. */
+  useEffect(() => {
+    if (!open || loadingChat || !detail?.messages.length) return
+    const el = chatScrollRef.current
+    if (!el) return
+
+    const scrollToBottom = () => {
+      el.scrollTop = el.scrollHeight
+    }
+
+    scrollToBottom()
+    requestAnimationFrame(() => {
+      scrollToBottom()
+      requestAnimationFrame(scrollToBottom)
+    })
+    const timeoutId = window.setTimeout(scrollToBottom, 120)
+    return () => window.clearTimeout(timeoutId)
+  }, [open, loadingChat, detail])
 
   useEffect(() => {
     if (!open || !connectionId) {
@@ -291,11 +327,19 @@ function ConnectionChatMessagesDialog({
               No messages in this conversation yet.
             </div>
           ) : detail ? (
-            <ul className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            <div
+              ref={chatScrollRef}
+              className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain bg-[#f5f5f7] p-4 space-y-3"
+            >
               {detail.messages.map((m) => (
-                <ChatMessageItem key={m.id} msg={m} onOpenUserProfile={onOpenUserProfile} />
+                <ChatMessageItem
+                  key={m.id}
+                  msg={m}
+                  connection={detail.connection}
+                  onOpenUserProfile={onOpenUserProfile}
+                />
               ))}
-            </ul>
+            </div>
           ) : null}
         </div>
       </DialogContent>
@@ -305,14 +349,19 @@ function ConnectionChatMessagesDialog({
 
 function ChatMessageItem({
   msg,
+  connection,
   onOpenUserProfile,
 }: {
   msg: ActivityConnectionChatMessageRow
+  connection: ActivityConnectionChatPayload['connection']
   onOpenUserProfile?: (userId: string) => void
 }) {
-  const when = msg.created_at
-    ? new Date(msg.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-    : '—'
+  const sid = msg.sender_id?.trim().toLowerCase() ?? ''
+  const uid2 = connection.user_id_2?.trim().toLowerCase() ?? ''
+  /** Same bubble physics as Support Chat: one participant right-aligned gradient, the other left white. */
+  const fromRight = Boolean(uid2 && sid === uid2)
+
+  const when = formatChatBubbleTime(msg.created_at)
 
   const trimmedLegacyUrl = typeof msg.image_url === 'string' ? msg.image_url.trim() : ''
   const legacyHttpUrl =
@@ -332,82 +381,123 @@ function ChatMessageItem({
   const senderLabel = displayName(msg.sender, msg.sender_id || 'unknown')
   const senderId = msg.sender_id?.trim() || ''
 
-  const avatarBlock = (
-    <Avatar className="h-9 w-9 shrink-0 mt-0.5">
-      <AvatarImage src={msg.sender?.profile_picture_url || undefined} alt="" />
-      <AvatarFallback className="text-[10px]">
-        {(senderLabel.slice(0, 2) || '?').toUpperCase()}
-      </AvatarFallback>
-    </Avatar>
-  )
+  const nameBtnClass = fromRight
+    ? 'text-left text-xs font-semibold text-white hover:underline decoration-white/70'
+    : 'text-left text-xs font-semibold text-gray-900 hover:underline decoration-gray-400'
 
   return (
-    <li className="rounded-lg border border-gray-100 bg-gray-50/80 p-3 text-sm">
-      <div className="flex gap-3">
-        {onOpenUserProfile && senderId ? (
-          <button
-            type="button"
-            className="shrink-0 rounded-full cursor-pointer border-0 bg-transparent p-0 mt-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-400"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onOpenUserProfile(senderId)
-            }}
-            aria-label={`Open profile: ${senderLabel}`}
-          >
-            {avatarBlock}
-          </button>
-        ) : (
-          avatarBlock
+    <div className={cn('flex', fromRight ? 'justify-end' : 'justify-start')}>
+      <div
+        className={cn(
+          'max-w-[85%] rounded-2xl px-3 py-2 shadow-sm',
+          fromRight
+            ? 'rounded-br-md bg-gradient-to-br from-sky-400 to-blue-500 text-white'
+            : 'rounded-bl-md border border-gray-200 bg-white text-gray-900'
         )}
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-            <span className="font-medium text-gray-900">{senderLabel}</span>
-            <span className="text-[11px] text-gray-400 tabular-nums">{when}</span>
-            {msg.is_read === true ? (
-              <Badge variant="outline" className="text-[10px] h-5 font-normal">
-                Read
-              </Badge>
-            ) : msg.is_read === false ? (
-              <Badge variant="secondary" className="text-[10px] h-5 font-normal">
-                Unread
-              </Badge>
-            ) : null}
-          </div>
-          {msg.content?.trim() ? (
-            <p className="text-gray-800 whitespace-pre-wrap break-words">{msg.content}</p>
-          ) : null}
-
-          {displayImageUrl ? (
-            <div className="space-y-1 mt-1">
-              <img
-                src={displayImageUrl}
-                alt="Chat attachment"
-                className="max-h-64 max-w-full rounded-md border border-gray-200 object-contain"
-              />
-              {hasPrivateStorage && msg.storage_bucket ? (
-                <p className="text-[10px] text-gray-500">
-                  Bucket: <span className="font-mono">{msg.storage_bucket}</span>
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {signFailedPrivate ? (
-            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-1">
-              Could not sign image URL (check storage policies / path).{' '}
-              <span className="font-mono block mt-0.5 text-[11px]">
-                {msg.storage_bucket} / {msg.storage_path}
-              </span>
-            </p>
-          ) : null}
-
-          {!displayImageUrl && !signFailedPrivate && trimmedLegacyUrl && !legacyHttpUrl ? (
-            <p className="text-xs text-gray-500 mt-1">{trimmedLegacyUrl}</p>
+      >
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          {onOpenUserProfile && senderId ? (
+            <button
+              type="button"
+              className={cn(nameBtnClass, 'min-w-0 truncate')}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onOpenUserProfile(senderId)
+              }}
+            >
+              {senderLabel}
+            </button>
+          ) : (
+            <span
+              className={cn(
+                'min-w-0 truncate text-xs font-semibold',
+                fromRight ? 'text-white' : 'text-gray-900'
+              )}
+            >
+              {senderLabel}
+            </span>
+          )}
+          {msg.is_read === true ? (
+            <span
+              className={cn(
+                'shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]',
+                fromRight
+                  ? 'border-white/35 text-white/85'
+                  : 'border-gray-200 bg-gray-50 text-gray-500'
+              )}
+            >
+              Read
+            </span>
+          ) : msg.is_read === false ? (
+            <span
+              className={cn(
+                'shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]',
+                fromRight ? 'border-white/35 bg-white/10 text-white/85' : 'border-gray-200 bg-gray-50 text-gray-600'
+              )}
+            >
+              Unread
+            </span>
           ) : null}
         </div>
+
+        {msg.content?.trim() ? (
+          <p
+            className={cn(
+              'mt-1 break-words text-sm whitespace-pre-wrap',
+              fromRight ? 'text-white' : 'text-gray-800'
+            )}
+          >
+            {msg.content}
+          </p>
+        ) : null}
+
+        {displayImageUrl ? (
+          <div className={cn('mt-2 space-y-1', msg.content?.trim() ? '' : 'mt-1')}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- signed/external URLs */}
+            <img
+              src={displayImageUrl}
+              alt="Chat attachment"
+              className={cn(
+                'max-h-64 max-w-full rounded-md object-contain',
+                fromRight ? 'border border-white/25' : 'border border-gray-200'
+              )}
+            />
+            {hasPrivateStorage && msg.storage_bucket ? (
+              <p className={cn('text-[10px]', fromRight ? 'text-white/75' : 'text-gray-500')}>
+                Bucket: <span className="font-mono">{msg.storage_bucket}</span>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {signFailedPrivate ? (
+          <p
+            className={cn(
+              'mt-2 rounded border px-2 py-1.5 text-xs',
+              fromRight
+                ? 'border-amber-200/60 bg-amber-950/30 text-amber-50'
+                : 'border border-amber-200 bg-amber-50 text-amber-900'
+            )}
+          >
+            Could not sign image URL (check storage policies / path).{' '}
+            <span className="mt-0.5 block font-mono text-[11px]">
+              {msg.storage_bucket} / {msg.storage_path}
+            </span>
+          </p>
+        ) : null}
+
+        {!displayImageUrl && !signFailedPrivate && trimmedLegacyUrl && !legacyHttpUrl ? (
+          <p className={cn('mt-2 text-xs', fromRight ? 'text-white/80' : 'text-gray-500')}>
+            {trimmedLegacyUrl}
+          </p>
+        ) : null}
+
+        <p className={cn('mt-1 text-right text-[10px]', fromRight ? 'text-white/80' : 'text-gray-400')}>
+          {when || '—'}
+        </p>
       </div>
-    </li>
+    </div>
   )
 }
 
