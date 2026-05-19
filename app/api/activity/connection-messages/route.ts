@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAdminUser } from '@/lib/api/admin-auth'
 import { signedImageUrlsByMessageId } from '@/lib/signed-message-image-urls'
+import { activityConnectionTouchesHiddenUser } from '@/lib/activity-hidden-users'
 import type {
   ActivityConnectionChatMessageRow,
   ActivityConnectionChatPayload,
@@ -65,6 +66,10 @@ export async function GET(request: Request) {
     user_id_2: string | null
     status: string | null
     created_at: string | null
+  }
+
+  if (activityConnectionTouchesHiddenUser(c.user_id_1, c.user_id_2)) {
+    return NextResponse.json({ error: 'Connection not found' }, { status: 404 })
   }
 
   const { data: msgRows, error: msgErr } = await admin

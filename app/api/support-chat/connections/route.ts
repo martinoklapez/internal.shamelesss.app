@@ -4,6 +4,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireAdminUser } from '@/lib/api/admin-auth'
 import type { ActivityProfileMini } from '@/lib/activity-feed-types'
 import { getSupportChatUserId } from '@/lib/support-chat-config'
+import {
+  activityConnectionTouchesHiddenUser,
+  isActivityHiddenUserId,
+} from '@/lib/activity-hidden-users'
 
 export const dynamic = 'force-dynamic'
 
@@ -114,10 +118,16 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
+  const normalizedSubject = subject.trim().toLowerCase()
+
+  if (isActivityHiddenUserId(normalizedSubject)) {
+    return NextResponse.json({ connections: [], subject_user_id: subject })
+  }
+
   const { data: rows, error } = await admin
     .from('connections')
     .select('id,user_id_1,user_id_2,status,created_at')
-    .or(`user_id_1.eq.${subject},user_id_2.eq.${subject}`)
+    .or(`user_id_1.eq.${normalizedSubject},user_id_2.eq.${normalizedSubject}`)
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -126,9 +136,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  const filteredRows = (rows ?? []).filter((row) => {
+    const r = row as { user_id_1?: string | null; user_id_2?: string | null }
+    return !activityConnectionTouchesHiddenUser(r.user_id_1, r.user_id_2)
+  })
+
   const peerIds = new Set<string>()
-  const normalizedSubject = subject
-  for (const row of rows ?? []) {
+  for (const row of filteredRows) {
     const r = row as { user_id_1?: string | null; user_id_2?: string | null }
     const u1 = r.user_id_1 ? String(r.user_id_1).toLowerCase() : ''
     const u2 = r.user_id_2 ? String(r.user_id_2).toLowerCase() : ''
@@ -160,33 +174,32 @@ export async function GET(request: Request) {
     }
   }
 
-  const connectionsBase: Omit<SupportChatConnectionRow, 'last_message_at' | 'last_message_preview'>[] = (
-    rows ?? []
-  ).map((row) => {
-    const r = row as {
-      id: string
-      user_id_1: string | null
-      user_id_2: string | null
-      status: string | null
-      created_at: string | null
-    }
-    const u1 = r.user_id_1 ? String(r.user_id_1).toLowerCase() : ''
-    const u2 = r.user_id_2 ? String(r.user_id_2).toLowerCase() : ''
-    let peerUserId: string | null = null
-    if (u1 === normalizedSubject) peerUserId = r.user_id_2 ? String(r.user_id_2) : null
-    else if (u2 === normalizedSubject) peerUserId = r.user_id_1 ? String(r.user_id_1) : null
+  const connectionsBase: Omit<SupportChatConnectionRow, 'last_message_at' | 'last_message_preview'>[] =
+    filteredRows.map((row) => {
+      const r = row as {
+        id: string
+        user_id_1: string | null
+        user_id_2: string | null
+        status: string | null
+        created_at: string | null
+      }
+      const u1 = r.user_id_1 ? String(r.user_id_1).toLowerCase() : ''
+      const u2 = r.user_id_2 ? String(r.user_id_2).toLowerCase() : ''
+      let peerUserId: string | null = null
+      if (u1 === normalizedSubject) peerUserId = r.user_id_2 ? String(r.user_id_2) : null
+      else if (u2 === normalizedSubject) peerUserId = r.user_id_1 ? String(r.user_id_1) : null
 
-    const peerKey = peerUserId ? peerUserId.toLowerCase() : ''
-    const peer = peerUserId ? profileByUserId.get(peerKey) ?? null : null
+      const peerKey = peerUserId ? peerUserId.toLowerCase() : ''
+      const peer = peerUserId ? profileByUserId.get(peerKey) ?? null : null
 
-    return {
-      id: r.id,
-      status: r.status,
-      created_at: r.created_at,
-      peer_user_id: peerUserId,
-      peer,
-    }
-  })
+      return {
+        id: r.id,
+        status: r.status,
+        created_at: r.created_at,
+        peer_user_id: peerUserId,
+        peer,
+      }
+    })
 
   const ids = connectionsBase.map((c) => c.id)
   const latestMap = await fetchLatestMessageByConnectionIds(admin, ids)

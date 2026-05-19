@@ -11,6 +11,10 @@ import type {
   ActivityProfileViewRow,
   ActivityUploadRow,
 } from '@/lib/activity-feed-types'
+import {
+  ACTIVITY_HIDDEN_USER_IDS,
+  hasActivityHiddenUsers,
+} from '@/lib/activity-hidden-users'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +27,63 @@ function chunkIds(ids: string[]): string[][] {
     out.push(uniq.slice(i, i + USER_ID_CHUNK))
   }
   return out
+}
+
+async function fetchConnectionIdsTouchingHiddenUsers(admin: any): Promise<string[]> {
+  if (!hasActivityHiddenUsers()) return []
+  const orParts = ACTIVITY_HIDDEN_USER_IDS.flatMap((h) => [`user_id_1.eq.${h}`, `user_id_2.eq.${h}`])
+  const { data, error } = await admin.from('connections').select('id').or(orParts.join(',')).limit(50000)
+  if (error) {
+    console.error('activity hidden-touch connections:', error)
+    return []
+  }
+  const rows = (data ?? []) as { id: string }[]
+  return [...new Set(rows.map((r) => String(r.id)))]
+}
+
+type FilterableQuery = any
+
+function filterConnectionsHidden(q: FilterableQuery): FilterableQuery {
+  let x = q
+  for (const h of ACTIVITY_HIDDEN_USER_IDS) {
+    x = x.neq('user_id_1', h).neq('user_id_2', h)
+  }
+  return x
+}
+
+function filterFriendRequestsHidden(q: FilterableQuery): FilterableQuery {
+  let x = q
+  for (const h of ACTIVITY_HIDDEN_USER_IDS) {
+    x = x.neq('from_user_id', h).neq('to_user_id', h)
+  }
+  return x
+}
+
+function filterProfileViewsHidden(q: FilterableQuery): FilterableQuery {
+  let x = q
+  for (const h of ACTIVITY_HIDDEN_USER_IDS) {
+    x = x.neq('viewer_id', h).neq('viewed_user_id', h)
+  }
+  return x
+}
+
+function filterExplicitPhotosHidden(q: FilterableQuery): FilterableQuery {
+  let x = q
+  for (const h of ACTIVITY_HIDDEN_USER_IDS) {
+    x = x.neq('user_id', h)
+  }
+  return x
+}
+
+function filterMessagesHidden(q: FilterableQuery, excludedConnectionIds: string[]): FilterableQuery {
+  let x = q
+  for (const h of ACTIVITY_HIDDEN_USER_IDS) {
+    x = x.neq('sender_id', h)
+  }
+  if (excludedConnectionIds.length > 0) {
+    x = x.not('connection_id', 'in', `(${excludedConnectionIds.join(',')})`)
+  }
+  return x
 }
 
 const EXPLICIT_PHOTOS_BUCKET = 'explicit-photos'
@@ -154,6 +215,8 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    const excludedConnIdsHiddenUsers = await fetchConnectionIdsTouchingHiddenUsers(admin)
+
     const [
       connCountRes,
       frCountRes,
@@ -161,11 +224,14 @@ export async function GET(request: Request) {
       pvCountRes,
       uploadCountRes,
     ] = await Promise.all([
-      admin.from('connections').select('id', { count: 'exact', head: true }),
-      admin.from('friend_requests').select('id', { count: 'exact', head: true }),
-      admin.from('messages').select('id', { count: 'exact', head: true }),
-      admin.from('profile_views').select('id', { count: 'exact', head: true }),
-      admin.from('explicit_photos').select('id', { count: 'exact', head: true }),
+      filterConnectionsHidden(admin.from('connections').select('id', { count: 'exact', head: true })),
+      filterFriendRequestsHidden(admin.from('friend_requests').select('id', { count: 'exact', head: true })),
+      filterMessagesHidden(
+        admin.from('messages').select('id', { count: 'exact', head: true }),
+        excludedConnIdsHiddenUsers
+      ),
+      filterProfileViewsHidden(admin.from('profile_views').select('id', { count: 'exact', head: true })),
+      filterExplicitPhotosHidden(admin.from('explicit_photos').select('id', { count: 'exact', head: true })),
     ])
 
     if (connCountRes.error) {
@@ -214,9 +280,9 @@ export async function GET(request: Request) {
 
     switch (section) {
       case 'connections':
-        connRes = await admin
-          .from('connections')
-          .select('id,user_id_1,user_id_2,status,created_at')
+        connRes = await filterConnectionsHidden(
+          admin.from('connections').select('id,user_id_1,user_id_2,status,created_at')
+        )
           .order('created_at', { ascending: false })
           .range(offset, rangeEnd)
         frRes = empty
@@ -226,7 +292,9 @@ export async function GET(request: Request) {
         break
       case 'friend_requests':
         connRes = empty
-        frRes = await admin.from('friend_requests').select('*').order('created_at', { ascending: false }).range(offset, rangeEnd)
+        frRes = await filterFriendRequestsHidden(admin.from('friend_requests').select('*'))
+          .order('created_at', { ascending: false })
+          .range(offset, rangeEnd)
         msgRes = empty
         pvRes = empty
         uploadRes = empty
@@ -234,9 +302,14 @@ export async function GET(request: Request) {
       case 'messages':
         connRes = empty
         frRes = empty
-        msgRes = await admin
-          .from('messages')
-          .select('id,connection_id,sender_id,content,image_url,storage_path,storage_bucket,created_at')
+        msgRes = await filterMessagesHidden(
+          admin
+            .from('messages')
+            .select(
+              'id,connection_id,sender_id,content,image_url,storage_path,storage_bucket,created_at'
+            ),
+          excludedConnIdsHiddenUsers
+        )
           .order('created_at', { ascending: false })
           .range(offset, rangeEnd)
         pvRes = empty
@@ -246,7 +319,9 @@ export async function GET(request: Request) {
         connRes = empty
         frRes = empty
         msgRes = empty
-        pvRes = await admin.from('profile_views').select('*').order('viewed_at', { ascending: false }).range(offset, rangeEnd)
+        pvRes = await filterProfileViewsHidden(admin.from('profile_views').select('*'))
+          .order('viewed_at', { ascending: false })
+          .range(offset, rangeEnd)
         uploadRes = empty
         break
       case 'uploads':
@@ -254,9 +329,13 @@ export async function GET(request: Request) {
         frRes = empty
         msgRes = empty
         pvRes = empty
-        uploadRes = await admin
-          .from('explicit_photos')
-          .select('id,user_id,storage_path,file_size,content_type,is_revealed,revealed_at,created_at')
+        uploadRes = await filterExplicitPhotosHidden(
+          admin
+            .from('explicit_photos')
+            .select(
+              'id,user_id,storage_path,file_size,content_type,is_revealed,revealed_at,created_at'
+            )
+        )
           .order('created_at', { ascending: false })
           .range(offset, rangeEnd)
         break

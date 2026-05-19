@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAdminUser } from '@/lib/api/admin-auth'
+import { activityConnectionTouchesHiddenUser } from '@/lib/activity-hidden-users'
 import { getSupportChatUserId } from '@/lib/support-chat-config'
 
 export const dynamic = 'force-dynamic'
@@ -72,6 +73,10 @@ export async function POST(request: Request) {
   }
 
   const c = connRow as { user_id_1: string | null; user_id_2: string | null }
+  if (activityConnectionTouchesHiddenUser(c.user_id_1, c.user_id_2)) {
+    return NextResponse.json({ error: 'Connection not found' }, { status: 404 })
+  }
+
   const u1 = c.user_id_1 ? String(c.user_id_1).toLowerCase() : ''
   const u2 = c.user_id_2 ? String(c.user_id_2).toLowerCase() : ''
   if (u1 !== subjectUserId && u2 !== subjectUserId) {
