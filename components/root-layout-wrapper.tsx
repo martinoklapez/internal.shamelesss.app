@@ -7,6 +7,7 @@ import { BreadcrumbWrapper } from './breadcrumb-wrapper'
 import { SidebarContent } from './sidebar-content'
 import { Toaster } from './ui/toaster'
 import { AppDialogsProvider } from './app-dialogs-provider'
+import { cn } from '@/lib/utils'
 
 export function RootLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -26,11 +27,21 @@ export function RootLayoutWrapper({ children }: { children: React.ReactNode }) {
       <Toaster />
       <SidebarProvider>
         <SidebarContent />
-        <SidebarInset>
+        <SidebarInset
+          className={cn(
+            pathname?.startsWith('/support-chat') && 'h-svh max-h-svh min-h-0 overflow-hidden'
+          )}
+        >
           <Suspense fallback={<header className="h-16 shrink-0 border-b border-gray-200 bg-white" />}>
             <BreadcrumbWrapper />
           </Suspense>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+          <div
+            className={
+              pathname?.startsWith('/support-chat')
+                ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden'
+                : 'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto'
+            }
+          >
             {children}
           </div>
         </SidebarInset>

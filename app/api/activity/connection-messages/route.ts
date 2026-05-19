@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAdminUser } from '@/lib/api/admin-auth'
+import { signedImageUrlsByMessageId } from '@/lib/signed-message-image-urls'
 import type {
   ActivityConnectionChatMessageRow,
   ActivityConnectionChatPayload,
@@ -80,6 +81,7 @@ export async function GET(request: Request) {
   }
 
   const msgs = msgRows ?? []
+  const signedByMsgId = await signedImageUrlsByMessageId(admin, msgs as Record<string, unknown>[])
   const senderIds = new Set<string>()
   for (const m of msgs) {
     const s = (m as { sender_id?: string | null }).sender_id
@@ -108,7 +110,17 @@ export async function GET(request: Request) {
   }
 
   const messages: ActivityConnectionChatMessageRow[] = msgs.map((row) => {
-    const r = row as ActivityConnectionChatMessageRow
+    const r = row as {
+      id: string
+      connection_id: string | null
+      sender_id: string | null
+      content: string | null
+      image_url: string | null
+      storage_path: string | null
+      storage_bucket: string | null
+      created_at: string | null
+      is_read: boolean | null
+    }
     const sid = r.sender_id
     return {
       id: r.id,
@@ -118,6 +130,7 @@ export async function GET(request: Request) {
       image_url: r.image_url,
       storage_path: r.storage_path,
       storage_bucket: r.storage_bucket ?? null,
+      signed_image_url: signedByMsgId.get(r.id) ?? null,
       created_at: r.created_at,
       is_read: r.is_read ?? null,
       sender: sid ? profileByUserId.get(String(sid)) ?? null : null,

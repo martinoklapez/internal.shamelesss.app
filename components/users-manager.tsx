@@ -36,10 +36,12 @@ interface UsersManagerProps {
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
+  dev: 'Dev',
   developer: 'Developer',
   promoter: 'Promoter',
   tester: 'Tester',
   demo: 'Demo',
+  user: 'App user',
 }
 
 const ALL_ROLES_VALUE = '__all__'

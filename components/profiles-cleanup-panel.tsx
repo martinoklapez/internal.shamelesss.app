@@ -30,6 +30,7 @@ import {
   getRegionDisplayName,
 } from '@/lib/country-display'
 import { PROFILES_BACKUP_PASSCODE_HEADER } from '@/lib/profiles-backup-passcode-constants'
+import { profileGenderEmoji } from '@/lib/profile-gender-emoji'
 import { Input } from '@/components/ui/input'
 import {
   InputOTP,
@@ -1676,7 +1677,9 @@ export default function ProfilesCleanupPanel() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((p) => (
+                {filtered.map((p) => {
+                  const photoUrl = (p.profile_picture_url ?? '').trim()
+                  return (
                   <tr key={p.user_id} className="hover:bg-gray-50/80">
                     {backupPanelOpen && (
                       <td className="px-3 py-2 align-middle">
@@ -1692,9 +1695,11 @@ export default function ProfilesCleanupPanel() {
                     <td className="px-3 py-2 align-middle">
                       <div className="flex items-center gap-2 min-w-0">
                         <Avatar className="h-8 w-8 shrink-0">
-                          <AvatarImage src={p.profile_picture_url || undefined} alt="" />
-                          <AvatarFallback className="text-[10px]">
-                            {(p.name || p.username || '?').slice(0, 2).toUpperCase()}
+                          {photoUrl ? (
+                            <AvatarImage src={photoUrl} alt="" />
+                          ) : null}
+                          <AvatarFallback className="bg-[#eef2f7] text-lg leading-none">
+                            {profileGenderEmoji(p.gender)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
@@ -1779,7 +1784,8 @@ export default function ProfilesCleanupPanel() {
                       {p.created_at ? formatRelativeCreated(p.created_at) : '—'}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           )}

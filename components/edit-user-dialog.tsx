@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Dialog,
   DialogContent,
@@ -25,15 +24,18 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { COUNTRIES, getCountryName, getFlagEmoji } from '@/lib/countries'
 import { formatDate } from '@/lib/utils/date'
+import { ShamelessProfileAvatarChrome } from '@/components/shameless-profile-blocks'
 
 const COUNTRY_NONE = '__none__'
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'admin', label: 'Admin' },
+  { value: 'dev', label: 'Dev' },
   { value: 'developer', label: 'Developer' },
   { value: 'promoter', label: 'Promoter' },
   { value: 'tester', label: 'Tester' },
   { value: 'demo', label: 'Demo' },
+  { value: 'user', label: 'App user' },
 ]
 
 /** Same shape as ManagedUser in users-manager - used to avoid circular dependency */
@@ -59,9 +61,11 @@ interface UserDialogProps {
   onOpenChange: (open: boolean) => void
   /** null = create mode; set = edit mode */
   user: UserDialogUser | null
+  /** Called after a successful update (not create); use to refresh external previews. */
+  onUserSaved?: () => void | Promise<void>
 }
 
-export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
+export function UserDialog({ open, onOpenChange, user, onUserSaved }: UserDialogProps) {
   const isCreate = user === null
   const router = useRouter()
   const { toast } = useToast()
@@ -133,7 +137,7 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
       setProfilePictureUrl(user!.profile_picture_url || '')
       setAge(user!.age != null ? String(user!.age) : '')
       setCountryCode(user!.country_code || COUNTRY_NONE)
-      setRole(ROLE_OPTIONS.some((o) => o.value === user!.role) ? user!.role : ROLE_OPTIONS[0].value)
+      setRole(ROLE_OPTIONS.some((o) => o.value === user!.role) ? user!.role : 'user')
       setGender(
         user!.gender && ['male', 'female'].includes(user!.gender.toLowerCase())
           ? user!.gender.toLowerCase()
@@ -344,6 +348,7 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update user')
       toast({ title: 'User updated', description: 'The user details have been updated successfully.' })
+      await Promise.resolve(onUserSaved?.())
       onOpenChange(false)
       setPassword('')
       router.refresh()
@@ -360,6 +365,23 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
 
   const formId = `user-dialog-${isCreate ? 'create' : user!.id}`
 
+  const parsedAge =
+    age.trim() === ''
+      ? null
+      : (() => {
+          const n = parseInt(age, 10)
+          return Number.isFinite(n) ? n : null
+        })()
+
+  const badgeCountryCode = countryCode !== COUNTRY_NONE ? countryCode : null
+
+  const badgeConnectionCount =
+    !isCreate && user
+      ? role === 'demo'
+        ? Math.min(1_000_000, Math.max(0, Math.floor(Number(connectionCount)) || 0))
+        : user.connection_count ?? 0
+      : 0
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg gap-0 p-4 sm:p-5">
@@ -371,8 +393,8 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
         </DialogHeader>
         <form onSubmit={isCreate ? handleCreate : handleUpdate}>
           <div className="grid gap-3 py-2 max-h-[60vh] overflow-y-auto">
-            {/* Row: Avatar + Name/Username | Gender/Age — same for add and edit; avatar upload disabled in create */}
-            <div className="flex gap-3">
+            {/* Row: Shameless avatar chrome + Name/Username | Gender/Age */}
+            <div className="flex gap-3 border-b border-gray-100 pb-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -381,28 +403,22 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
                 onChange={handleProfileImageChange}
                 disabled={isUploadingImage}
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingImage}
-                className="relative h-[62px] w-[62px] shrink-0 rounded-full ring-offset-2 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Upload photo"
-              >
-                <Avatar className="h-full w-full cursor-pointer border-2 border-transparent hover:border-gray-300 transition-colors">
-                  {profilePictureUrl ? (
-                    <AvatarImage src={profilePictureUrl} alt="Profile" />
-                  ) : null}
-                  <AvatarFallback className="text-xs">
-                    {(name || username || 'U').charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                {isUploadingImage && (
-                  <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-xs text-white">
-                    …
-                  </span>
-                )}
-              </button>
-              <div className="grid flex-1 grid-cols-2 gap-2 min-w-0">
+              <ShamelessProfileAvatarChrome
+                sizePx={112}
+                profile_picture_url={profilePictureUrl || null}
+                name={name || null}
+                username={username || null}
+                userId={isCreate ? 'new-user' : user!.id}
+                age={parsedAge}
+                country_code={badgeCountryCode}
+                connection_count={badgeConnectionCount}
+                avatarUpload={{
+                  onClick: () => fileInputRef.current?.click(),
+                  uploading: isUploadingImage,
+                  disabled: isUploadingImage,
+                }}
+              />
+              <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
                 <div className="space-y-1.5">
                   <Input
                     id={`name-${formId}`}

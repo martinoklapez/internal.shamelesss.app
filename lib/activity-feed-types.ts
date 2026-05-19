@@ -25,6 +25,8 @@ export type ActivityConnectionChatMessageRow = {
   image_url: string | null
   storage_path: string | null
   storage_bucket: string | null
+  /** Service-role signed URL for private bucket images (~1h). Refetch by reopening chat. */
+  signed_image_url: string | null
   created_at: string | null
   is_read: boolean | null
   sender: ActivityProfileMini | null
@@ -62,6 +64,10 @@ export type ActivityMessageRow = {
   sender_id: string | null
   content_preview: string | null
   has_image: boolean
+  /** Legacy / public image URL when present. */
+  image_url: string | null
+  /** Service-role signed URL for private bucket images (~1h). */
+  signed_image_url: string | null
   created_at: string | null
   sender: ActivityProfileMini | null
   other_user: ActivityProfileMini | null
@@ -74,4 +80,18 @@ export type ActivityProfileViewRow = {
   viewed_at: string
   viewer: ActivityProfileMini | null
   viewed_user: ActivityProfileMini | null
+}
+
+/** Latest rows from `explicit_photos` (Upload screen); images signed from `explicit-photos` bucket. */
+export type ActivityUploadRow = {
+  id: string
+  user_id: string
+  storage_path: string
+  file_size: number | null
+  content_type: string | null
+  is_revealed: boolean | null
+  revealed_at: string | null
+  created_at: string | null
+  user: ActivityProfileMini | null
+  signed_image_url: string | null
 }

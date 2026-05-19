@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     }
 
     // Update role in user_roles if provided
-    const allowedRoles = ['tester', 'demo', 'promoter', 'developer', 'admin']
+    const allowedRoles = ['tester', 'demo', 'promoter', 'developer', 'admin', 'user', 'dev']
     if (role !== undefined && role !== null && role !== '') {
       if (!allowedRoles.includes(role)) {
         return NextResponse.json({ error: 'Invalid role' }, { status: 400 })

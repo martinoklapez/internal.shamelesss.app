@@ -126,6 +126,7 @@ export function BreadcrumbWrapper() {
     if (segment === 'characters') return 'Characters'
     if (segment === 'reengagement') return 'Reengagement'
     if (segment === 'activity') return 'Activity'
+    if (segment === 'support-chat') return 'Support Chat'
     if (segment === 'star-rating-feedback') return 'Star Rating Feedback'
 
     // Nested routes

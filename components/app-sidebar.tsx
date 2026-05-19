@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles, FlagTriangleRight, Ticket, Receipt, Star, Bell, Eraser, Activity } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles, FlagTriangleRight, Ticket, Receipt, Star, Bell, Eraser, Activity, MessagesSquare } from 'lucide-react'
 import { Button } from './ui/button'
 import SignOutButton from './sign-out-button'
 
@@ -123,6 +123,12 @@ const supportModerationMenuItems: Array<{
     title: 'Support Tickets',
     url: '/support-tickets',
     icon: Ticket,
+    roles: ['admin', 'dev', 'developer'] as const,
+  },
+  {
+    title: 'Support Chat',
+    url: '/support-chat',
+    icon: MessagesSquare,
     roles: ['admin', 'dev', 'developer'] as const,
   },
   {
