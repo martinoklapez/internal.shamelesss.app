@@ -589,9 +589,11 @@ export default function ActivityFeed() {
             </div>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="h-9 shrink-0 -mb-px"
+              className={cn(
+                'shrink-0 -mb-px gap-1.5 rounded-t-md rounded-b-none px-3 font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              )}
               onClick={() => load()}
               disabled={loading}
             >
