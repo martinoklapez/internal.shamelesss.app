@@ -19,10 +19,10 @@ export default async function ActivityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Activity</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">Activity</h1>
         </div>
 
         <ActivityFeed />

@@ -39,10 +39,17 @@ export type SupportChatConnectionRow = {
   last_message_at: string | null
   /** Truncated text, or "Photo" for image-only; null when no messages */
   last_message_preview: string | null
+  /** Peer messages after the last outbound support message (WhatsApp-style backlog). */
+  unread_message_count: number
+  /** Derived: `unread_message_count > 0` (backlog badge) */
+  unread: boolean
+  /** Latest message exists and was sent by the peer, not support (needs a reply — independent of read receipts). */
+  unreplied: boolean
 }
 
 type LatestMsgRow = {
   connection_id: string
+  sender_id: string | null
   content: string | null
   image_url: string | null
   storage_path: string | null
@@ -63,8 +70,16 @@ function previewFromMessage(m: LatestMsgRow): string {
 async function fetchLatestMessageByConnectionIds(
   admin: SupabaseClient,
   connectionIds: string[]
-): Promise<Map<string, { preview: string; created_at: string | null }>> {
-  const out = new Map<string, { preview: string; created_at: string | null }>()
+): Promise<
+  Map<
+    string,
+    { preview: string; created_at: string | null; sender_id: string | null }
+  >
+> {
+  const out = new Map<
+    string,
+    { preview: string; created_at: string | null; sender_id: string | null }
+  >()
   const chunkSize = 40
   for (let i = 0; i < connectionIds.length; i += chunkSize) {
     const chunk = connectionIds.slice(i, i + chunkSize)
@@ -72,7 +87,7 @@ async function fetchLatestMessageByConnectionIds(
       chunk.map(async (cid) => {
         const { data, error } = await admin
           .from('messages')
-          .select('connection_id,content,image_url,storage_path,created_at')
+          .select('connection_id,sender_id,content,image_url,storage_path,created_at')
           .eq('connection_id', cid)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -82,7 +97,52 @@ async function fetchLatestMessageByConnectionIds(
         out.set(cid, {
           preview: previewFromMessage(r),
           created_at: r.created_at ?? null,
+          sender_id: r.sender_id ? String(r.sender_id).trim().toLowerCase() : null,
         })
+      })
+    )
+  }
+  return out
+}
+
+/** Count peer messages sent strictly after the last message from the support inbox user. */
+async function fetchUnreadCountsForSupport(
+  admin: SupabaseClient,
+  connectionIds: string[],
+  supportUserIdNorm: string
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  const chunkSize = 40
+  for (let i = 0; i < connectionIds.length; i += chunkSize) {
+    const chunk = connectionIds.slice(i, i + chunkSize)
+    await Promise.all(
+      chunk.map(async (cid) => {
+        const { data: lastOut, error: lastErr } = await admin
+          .from('messages')
+          .select('created_at')
+          .eq('connection_id', cid)
+          .eq('sender_id', supportUserIdNorm)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (lastErr) {
+          console.error('support-chat last support message:', lastErr.message, cid)
+        }
+        const after = (lastOut as { created_at?: string | null } | null)?.created_at ?? null
+        let q = admin
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('connection_id', cid)
+          .neq('sender_id', supportUserIdNorm)
+        if (after) {
+          q = q.gt('created_at', after)
+        }
+        const { count, error: cErr } = await q
+        if (cErr) {
+          console.error('support-chat unread count:', cErr.message, cid)
+          return
+        }
+        out.set(cid, count ?? 0)
       })
     )
   }
@@ -174,7 +234,14 @@ export async function GET(request: Request) {
     }
   }
 
-  const connectionsBase: Omit<SupportChatConnectionRow, 'last_message_at' | 'last_message_preview'>[] =
+  const connectionsBase: Omit<
+    SupportChatConnectionRow,
+    | 'last_message_at'
+    | 'last_message_preview'
+    | 'unread'
+    | 'unread_message_count'
+    | 'unreplied'
+  >[] =
     filteredRows.map((row) => {
       const r = row as {
         id: string
@@ -202,14 +269,24 @@ export async function GET(request: Request) {
     })
 
   const ids = connectionsBase.map((c) => c.id)
-  const latestMap = await fetchLatestMessageByConnectionIds(admin, ids)
+  const [latestMap, unreadCountMap] = await Promise.all([
+    fetchLatestMessageByConnectionIds(admin, ids),
+    fetchUnreadCountsForSupport(admin, ids, normalizedSubject),
+  ])
 
   const connections: SupportChatConnectionRow[] = connectionsBase.map((c) => {
     const lm = latestMap.get(c.id)
+    const unread_message_count = unreadCountMap.get(c.id) ?? 0
+    const senderNorm = lm?.sender_id ?? ''
+    const unreplied =
+      Boolean(lm?.created_at) && senderNorm !== '' && senderNorm !== normalizedSubject
     return {
       ...c,
       last_message_at: lm?.created_at ?? null,
       last_message_preview: lm?.preview ?? null,
+      unread_message_count,
+      unread: unread_message_count > 0,
+      unreplied,
     }
   })
 

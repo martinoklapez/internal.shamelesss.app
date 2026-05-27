@@ -61,6 +61,9 @@ export type ActivityFriendRequestRow = {
 export type ActivityMessageRow = {
   id: string
   connection_id: string | null
+  /** Matches `connections.user_id_1` / `user_id_2` when `connection_id` is present (chat bubble alignment). */
+  connection_user_id_1: string | null
+  connection_user_id_2: string | null
   sender_id: string | null
   content_preview: string | null
   has_image: boolean
@@ -92,6 +95,41 @@ export type ActivityUploadRow = {
   is_revealed: boolean | null
   revealed_at: string | null
   created_at: string | null
+  user: ActivityProfileMini | null
+  signed_image_url: string | null
+}
+
+/** Rows from `position_diary`. Image priority in UI: legacy column → gallery (`diary_memory_images`) → catalog (`positions.image_url`). */
+export type ActivityPositionDiaryRow = {
+  id: string
+  user_id: string
+  position_id: string
+  rating: number | null
+  feeling_for_her: string | null
+  feeling_for_him: string | null
+  notes: string | null
+  worth_repeat: boolean | null
+  memory_image_path: string | null
+  created_at: string | null
+  updated_at: string | null
+  user: ActivityProfileMini | null
+  /** Deprecated column `position_diary.memory_image_path` when signed. */
+  signed_memory_image_url: string | null
+  /** Latest row in `diary_memory_images` for this entry (same signing as Memory photos table). */
+  entry_memory_preview_url: string | null
+  /** Catalog art from `positions` / `date_roulette_positions` (`image_url`). */
+  position_image_url: string | null
+}
+
+/** Rows from `diary_memory_images`; `memory_image_path` is object key in private `memories` bucket (service-role signed URL in Activity API). */
+export type ActivityDiaryMemoryImageRow = {
+  id: string
+  diary_entry_id: string
+  user_id: string
+  memory_image_path: string
+  created_at: string | null
+  is_visible: boolean
+  position_id: string | null
   user: ActivityProfileMini | null
   signed_image_url: string | null
 }

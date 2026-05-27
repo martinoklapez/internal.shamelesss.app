@@ -5,8 +5,10 @@ import { getUserRole } from '@/lib/user-roles'
 import { signedImageUrlsByMessageId } from '@/lib/signed-message-image-urls'
 import type {
   ActivityConnectionRow,
+  ActivityDiaryMemoryImageRow,
   ActivityFriendRequestRow,
   ActivityMessageRow,
+  ActivityPositionDiaryRow,
   ActivityProfileMini,
   ActivityProfileViewRow,
   ActivityUploadRow,
@@ -75,6 +77,22 @@ function filterExplicitPhotosHidden(q: FilterableQuery): FilterableQuery {
   return x
 }
 
+function filterPositionDiaryHidden(q: FilterableQuery): FilterableQuery {
+  let x = q
+  for (const h of ACTIVITY_HIDDEN_USER_IDS) {
+    x = x.neq('user_id', h)
+  }
+  return x
+}
+
+function filterDiaryMemoryImagesHidden(q: FilterableQuery): FilterableQuery {
+  let x = q
+  for (const h of ACTIVITY_HIDDEN_USER_IDS) {
+    x = x.neq('user_id', h)
+  }
+  return x
+}
+
 function filterMessagesHidden(q: FilterableQuery, excludedConnectionIds: string[]): FilterableQuery {
   let x = q
   for (const h of ACTIVITY_HIDDEN_USER_IDS) {
@@ -87,6 +105,23 @@ function filterMessagesHidden(q: FilterableQuery, excludedConnectionIds: string[
 }
 
 const EXPLICIT_PHOTOS_BUCKET = 'explicit-photos'
+/**
+ * Private bucket for diary memory uploads (`diary_memory_images.memory_image_path`).
+ * Matches mobile/web MemoriesService — paths look like `{userId}/{filename}.jpg`.
+ */
+const MEMORIES_BUCKET = 'memories'
+/** Buckets tried when resolving diary memory paths (includes legacy names). */
+const DIARY_MEMORY_SIGN_BUCKETS = [
+  MEMORIES_BUCKET,
+  'diary-memory-images',
+  EXPLICIT_PHOTOS_BUCKET,
+  'chat-images',
+  'poses',
+  'date-roulette-poses',
+  'profiles',
+] as const
+
+const KNOWN_BUCKET_PREFIXES = new Set<string>(DIARY_MEMORY_SIGN_BUCKETS)
 const SIGNED_UPLOAD_TTL_SEC = 3600
 const SIGNED_PATH_CHUNK = 50
 
@@ -116,6 +151,164 @@ async function signedUrlsInBucket(
     }
   }
   return out
+}
+
+/** Paths saved without leading slashes (matches Supabase object keys). */
+function normalizeDiaryMemoryStoragePath(raw: string): string {
+  return String(raw).trim().replace(/^\/+/, '')
+}
+
+/** Extract bucket + object key from Supabase render URLs (sign when bucket is private). */
+function parseSupabaseStorageObjectUrl(rawUrl: string): { bucket: string; path: string } | null {
+  try {
+    const u = new URL(rawUrl.trim())
+    const m = u.pathname.match(/\/storage\/v1\/object\/(?:public|authenticated|sign)\/([^/]+)\/(.+)$/)
+    if (!m) return null
+    const bucket = decodeURIComponent(m[1])
+    const path = decodeURIComponent(m[2])
+    if (!bucket || !path) return null
+    return { bucket, path }
+  } catch {
+    return null
+  }
+}
+
+function diaryMemoryPathVariants(norm: string): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const push = (s: string) => {
+    const t = normalizeDiaryMemoryStoragePath(s)
+    if (!t || seen.has(t)) return
+    seen.add(t)
+    out.push(t)
+  }
+  push(norm)
+  try {
+    if (norm.includes('%')) push(decodeURIComponent(norm))
+  } catch {
+    /* ignore */
+  }
+  return out
+}
+
+/**
+ * Map each DB `memory_image_path` string to a browser-loadable URL.
+ * Supports Supabase HTTPS URLs (re-signed), `bucket/path` prefixes, and ambiguous paths via fallback buckets.
+ */
+async function resolveDiaryMemoryImageUrlMap(admin: any, rawPaths: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const uniqueRaw = [...new Set(rawPaths.map((p) => String(p).trim()).filter(Boolean))]
+
+  /** bucket → object path → DB raw strings that should receive the resolved URL */
+  const explicitByBucket = new Map<string, Map<string, string[]>>()
+  function queueExplicit(bucket: string, objectPath: string, raw: string) {
+    const norm = normalizeDiaryMemoryStoragePath(objectPath)
+    if (!norm) return
+    let pathMap = explicitByBucket.get(bucket)
+    if (!pathMap) {
+      pathMap = new Map()
+      explicitByBucket.set(bucket, pathMap)
+    }
+    const arr = pathMap.get(norm) ?? []
+    arr.push(raw)
+    pathMap.set(norm, arr)
+  }
+
+  const ambiguousNormToRaws = new Map<string, string[]>()
+  function queueAmbiguous(norm: string, raw: string) {
+    const arr = ambiguousNormToRaws.get(norm) ?? []
+    arr.push(raw)
+    ambiguousNormToRaws.set(norm, arr)
+  }
+
+  for (const raw of uniqueRaw) {
+    const t = raw.trim()
+
+    if (/^https?:\/\//i.test(t)) {
+      const loc = parseSupabaseStorageObjectUrl(t)
+      if (loc) {
+        queueExplicit(loc.bucket, loc.path, raw)
+        continue
+      }
+      out.set(raw, raw)
+      continue
+    }
+
+    const norm = normalizeDiaryMemoryStoragePath(t)
+    if (!norm) continue
+
+    const slash = norm.indexOf('/')
+    if (slash > 0) {
+      const maybeBucket = norm.slice(0, slash)
+      const rest = norm.slice(slash + 1)
+      if (KNOWN_BUCKET_PREFIXES.has(maybeBucket) && rest) {
+        queueExplicit(maybeBucket, rest, raw)
+        continue
+      }
+    }
+
+    queueAmbiguous(norm, raw)
+  }
+
+  for (const [bucket, pathMap] of explicitByBucket) {
+    const paths = [...pathMap.keys()]
+    if (paths.length === 0) continue
+    const signed = await signedUrlsInBucket(admin, bucket, paths)
+    for (const path of paths) {
+      const url = signed.get(path)
+      if (!url) continue
+      for (const r of pathMap.get(path) ?? []) out.set(r, url)
+    }
+  }
+
+  let pendingNorms = [...ambiguousNormToRaws.keys()].filter((norm) =>
+    (ambiguousNormToRaws.get(norm) ?? []).some((raw) => !out.has(raw))
+  )
+
+  for (const bucket of DIARY_MEMORY_SIGN_BUCKETS) {
+    if (pendingNorms.length === 0) break
+
+    const pathToNorm = new Map<string, string>()
+    const batchPaths: string[] = []
+    for (const norm of pendingNorms) {
+      if ((ambiguousNormToRaws.get(norm) ?? []).every((raw) => out.has(raw))) continue
+      for (const variant of diaryMemoryPathVariants(norm)) {
+        if (!pathToNorm.has(variant)) {
+          pathToNorm.set(variant, norm)
+          batchPaths.push(variant)
+        }
+      }
+    }
+    if (batchPaths.length === 0) continue
+
+    const signed = await signedUrlsInBucket(admin, bucket, batchPaths)
+    const still = new Set(pendingNorms)
+    for (const [requestedPath, url] of signed) {
+      if (!url) continue
+      const norm = pathToNorm.get(requestedPath)
+      if (!norm) continue
+      for (const raw of ambiguousNormToRaws.get(norm) ?? []) out.set(raw, url)
+      still.delete(norm)
+    }
+    pendingNorms = [...still].filter((norm) =>
+      (ambiguousNormToRaws.get(norm) ?? []).some((raw) => !out.has(raw))
+    )
+  }
+
+  return out
+}
+
+function diaryMemoryResolvedUrl(map: Map<string, string>, rawPath: string): string | null {
+  const t = String(rawPath).trim()
+  if (!t) return null
+  const norm = normalizeDiaryMemoryStoragePath(t)
+  const candidates = [t, norm, ...diaryMemoryPathVariants(norm)].filter(Boolean)
+  const uniq = [...new Set(candidates)]
+  for (const k of uniq) {
+    const hit = map.get(k)
+    if (hit) return hit
+  }
+  return null
 }
 
 function previewMessageContent(content: string | null | undefined, max = 140): string | null {
@@ -168,16 +361,23 @@ const ACTIVITY_SECTIONS = [
   'friend_requests',
   'messages',
   'uploads',
+  'diary',
   'profile_views',
 ] as const
 type ActivitySection = (typeof ACTIVITY_SECTIONS)[number]
+
+const LEGACY_ACTIVITY_SECTION_ALIASES: Record<string, ActivitySection> = {
+  position_diary: 'diary',
+  diary_memory_images: 'diary',
+}
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const rawSection = (searchParams.get('section') || 'connections').trim()
-    const section: ActivitySection = ACTIVITY_SECTIONS.includes(rawSection as ActivitySection)
-      ? (rawSection as ActivitySection)
+    const resolvedRaw = LEGACY_ACTIVITY_SECTION_ALIASES[rawSection] ?? rawSection
+    const section: ActivitySection = ACTIVITY_SECTIONS.includes(resolvedRaw as ActivitySection)
+      ? (resolvedRaw as ActivitySection)
       : 'connections'
 
     const rawPage = parseInt(searchParams.get('page') || '1', 10)
@@ -223,6 +423,8 @@ export async function GET(request: Request) {
       msgCountRes,
       pvCountRes,
       uploadCountRes,
+      diaryCountRes,
+      memoryImgCountRes,
     ] = await Promise.all([
       filterConnectionsHidden(admin.from('connections').select('id', { count: 'exact', head: true })),
       filterFriendRequestsHidden(admin.from('friend_requests').select('id', { count: 'exact', head: true })),
@@ -232,6 +434,10 @@ export async function GET(request: Request) {
       ),
       filterProfileViewsHidden(admin.from('profile_views').select('id', { count: 'exact', head: true })),
       filterExplicitPhotosHidden(admin.from('explicit_photos').select('id', { count: 'exact', head: true })),
+      filterPositionDiaryHidden(admin.from('position_diary').select('id', { count: 'exact', head: true })),
+      filterDiaryMemoryImagesHidden(
+        admin.from('diary_memory_images').select('id', { count: 'exact', head: true })
+      ),
     ])
 
     if (connCountRes.error) {
@@ -269,6 +475,20 @@ export async function GET(request: Request) {
         { status: 500 }
       )
     }
+    if (diaryCountRes.error) {
+      console.error('activity position_diary count:', diaryCountRes.error)
+      return NextResponse.json(
+        { error: `Failed to count position diary: ${diaryCountRes.error.message}` },
+        { status: 500 }
+      )
+    }
+    if (memoryImgCountRes.error) {
+      console.error('activity diary_memory_images count:', memoryImgCountRes.error)
+      return NextResponse.json(
+        { error: `Failed to count diary memory images: ${memoryImgCountRes.error.message}` },
+        { status: 500 }
+      )
+    }
 
     let connRes: { data: unknown[] | null; error: { message: string } | null }
     let frRes: { data: unknown[] | null; error: { message: string } | null }
@@ -276,7 +496,9 @@ export async function GET(request: Request) {
     let pvRes: { data: unknown[] | null; error: { message: string } | null }
     let uploadRes: { data: unknown[] | null; error: { message: string } | null }
 
-    const empty = { data: [] as unknown[], error: null }
+    const empty = { data: [] as unknown[], error: null as { message: string } | null }
+    let diaryRes = empty
+    let memoryImgRes = empty
 
     switch (section) {
       case 'connections':
@@ -339,6 +561,31 @@ export async function GET(request: Request) {
           .order('created_at', { ascending: false })
           .range(offset, rangeEnd)
         break
+      case 'diary':
+        connRes = empty
+        frRes = empty
+        msgRes = empty
+        pvRes = empty
+        uploadRes = empty
+        ;[diaryRes, memoryImgRes] = await Promise.all([
+          filterPositionDiaryHidden(
+            admin
+              .from('position_diary')
+              .select(
+                'id,user_id,position_id,rating,feeling_for_her,feeling_for_him,notes,worth_repeat,memory_image_path,created_at,updated_at'
+              )
+          )
+            .order('created_at', { ascending: false })
+            .range(offset, rangeEnd),
+          filterDiaryMemoryImagesHidden(
+            admin
+              .from('diary_memory_images')
+              .select('id,diary_entry_id,user_id,memory_image_path,created_at,is_visible')
+          )
+            .order('created_at', { ascending: false })
+            .range(offset, rangeEnd),
+        ])
+        break
     }
 
     if (connRes.error) {
@@ -376,12 +623,120 @@ export async function GET(request: Request) {
         { status: 500 }
       )
     }
+    if (diaryRes.error) {
+      console.error('activity position_diary:', diaryRes.error)
+      return NextResponse.json(
+        { error: `Failed to load position diary: ${diaryRes.error.message}` },
+        { status: 500 }
+      )
+    }
+    if (memoryImgRes.error) {
+      console.error('activity diary_memory_images:', memoryImgRes.error)
+      return NextResponse.json(
+        { error: `Failed to load diary memory images: ${memoryImgRes.error.message}` },
+        { status: 500 }
+      )
+    }
 
     const connectionsRaw = connRes.data ?? []
     const friendRequestsRaw = frRes.data ?? []
     const messagesRaw = msgRes.data ?? []
     const profileViewsRaw = pvRes.data ?? []
     const explicitPhotosRaw = uploadRes.data ?? []
+    const positionDiaryRaw = diaryRes.data ?? []
+    const diaryMemoryImagesRaw = memoryImgRes.data ?? []
+
+    const diaryMemoryEntryIds = [
+      ...new Set(
+        diaryMemoryImagesRaw
+          .map((row) =>
+            String((row as { diary_entry_id?: string | null }).diary_entry_id || '').trim()
+          )
+          .filter(Boolean)
+      ),
+    ]
+    const diaryPositionByEntryId = new Map<string, string>()
+    if (diaryMemoryEntryIds.length > 0) {
+      const { data: diaryMetaRows, error: diaryMetaErr } = await admin
+        .from('position_diary')
+        .select('id,position_id')
+        .in('id', diaryMemoryEntryIds)
+
+      if (diaryMetaErr) {
+        console.error('activity position_diary for diary_memory_images:', diaryMetaErr)
+        return NextResponse.json(
+          { error: `Failed to load diary entry positions: ${diaryMetaErr.message}` },
+          { status: 500 }
+        )
+      }
+      for (const row of diaryMetaRows ?? []) {
+        const r = row as { id: string; position_id: string }
+        diaryPositionByEntryId.set(String(r.id), String(r.position_id))
+      }
+    }
+
+    const catalogImageByPositionId = new Map<string, string>()
+    /** Latest memory-image storage path per diary entry id (for row thumbnails when legacy column is empty). */
+    const galleryPathByDiaryEntryId = new Map<string, string>()
+    if (positionDiaryRaw.length > 0) {
+      const uniquePositionIds = [
+        ...new Set(
+          positionDiaryRaw
+            .map((row) =>
+              String((row as { position_id?: string | null }).position_id || '').trim()
+            )
+            .filter(Boolean)
+        ),
+      ]
+      for (const slice of chunkIds(uniquePositionIds)) {
+        if (slice.length === 0) continue
+        const [{ data: scratchRows, error: posCatErr }, { data: drRows, error: drCatErr }] =
+          await Promise.all([
+            admin.from('positions').select('id,image_url').in('id', slice),
+            admin.from('date_roulette_positions').select('id,image_url').in('id', slice),
+          ])
+        if (posCatErr) console.error('activity positions catalog:', posCatErr)
+        if (drCatErr) console.error('activity date_roulette_positions catalog:', drCatErr)
+        for (const row of [...(scratchRows ?? []), ...(drRows ?? [])]) {
+          const r = row as { id: string; image_url: string | null }
+          const url = typeof r.image_url === 'string' ? r.image_url.trim() : ''
+          if (url) catalogImageByPositionId.set(String(r.id), url)
+        }
+      }
+
+      const diaryRowIdsOnPage = [
+        ...new Set(
+          positionDiaryRaw
+            .map((row) => String((row as { id?: string | null }).id || '').trim())
+            .filter(Boolean)
+        ),
+      ]
+      for (const slice of chunkIds(diaryRowIdsOnPage)) {
+        if (slice.length === 0) continue
+        const { data: coverRows, error: coverErr } = await filterDiaryMemoryImagesHidden(
+          admin
+            .from('diary_memory_images')
+            .select('diary_entry_id,memory_image_path,created_at')
+        )
+          .in('diary_entry_id', slice)
+          .order('created_at', { ascending: false })
+
+        if (coverErr) {
+          console.error('activity diary_memory_images entry thumbnails:', coverErr)
+          return NextResponse.json(
+            { error: `Failed to load diary memory thumbnails: ${coverErr.message}` },
+            { status: 500 }
+          )
+        }
+        for (const raw of coverRows ?? []) {
+          const r = raw as { diary_entry_id: string; memory_image_path: string }
+          const eid = String(r.diary_entry_id || '').trim()
+          const p = String(r.memory_image_path || '').trim()
+          if (!eid || !p || galleryPathByDiaryEntryId.has(eid)) continue
+          galleryPathByDiaryEntryId.set(eid, p)
+        }
+      }
+    }
 
     /** How this chat connection likely started (from `friend_requests.source` between the pair). */
     const connectionFriendSources = await Promise.all(
@@ -458,6 +813,14 @@ export async function GET(request: Request) {
       const r = ep as { user_id?: string | null }
       if (r.user_id) userIdSet.add(String(r.user_id))
     }
+    for (const pd of positionDiaryRaw) {
+      const r = pd as { user_id?: string | null }
+      if (r.user_id) userIdSet.add(String(r.user_id))
+    }
+    for (const dm of diaryMemoryImagesRaw) {
+      const r = dm as { user_id?: string | null }
+      if (r.user_id) userIdSet.add(String(r.user_id))
+    }
 
     const profileByUserId = new Map<string, ActivityProfileMini>()
     const allIds = [...userIdSet]
@@ -492,6 +855,20 @@ export async function GET(request: Request) {
       EXPLICIT_PHOTOS_BUCKET,
       explicitPaths
     )
+
+    const diaryMemoryPaths = [
+      ...positionDiaryRaw.map((row) => {
+        const p = row as { memory_image_path?: string | null }
+        return typeof p.memory_image_path === 'string' ? p.memory_image_path.trim() : ''
+      }),
+      ...diaryMemoryImagesRaw.map((row) => {
+        const p = row as { memory_image_path?: string | null }
+        return typeof p.memory_image_path === 'string' ? p.memory_image_path.trim() : ''
+      }),
+      ...galleryPathByDiaryEntryId.values(),
+    ].filter(Boolean)
+    const diaryMemoryUrlByRaw =
+      diaryMemoryPaths.length > 0 ? await resolveDiaryMemoryImageUrlMap(admin, diaryMemoryPaths) : new Map<string, string>()
 
     const signedMessageImageById =
       messagesRaw.length > 0
@@ -571,6 +948,8 @@ export async function GET(request: Request) {
       return {
         id: r.id,
         connection_id: r.connection_id,
+        connection_user_id_1: conn?.user_id_1 ?? null,
+        connection_user_id_2: conn?.user_id_2 ?? null,
         sender_id: r.sender_id,
         content_preview: previewMessageContent(r.content),
         has_image: hasImage,
@@ -620,6 +999,71 @@ export async function GET(request: Request) {
       }
     })
 
+    const position_diary: ActivityPositionDiaryRow[] = positionDiaryRaw.map((row) => {
+      const r = row as {
+        id: string
+        user_id: string
+        position_id: string
+        rating: number | null
+        feeling_for_her: string | null
+        feeling_for_him: string | null
+        notes: string | null
+        worth_repeat: boolean | null
+        memory_image_path: string | null
+        created_at: string | null
+        updated_at: string | null
+      }
+      const path =
+        typeof r.memory_image_path === 'string' ? r.memory_image_path.trim() : ''
+      const galleryPath = galleryPathByDiaryEntryId.get(String(r.id)) ?? ''
+      const catalogUrl =
+        catalogImageByPositionId.get(String(r.position_id || '').trim()) ?? null
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        position_id: r.position_id,
+        rating: r.rating ?? null,
+        feeling_for_her: r.feeling_for_her ?? null,
+        feeling_for_him: r.feeling_for_him ?? null,
+        notes: r.notes ?? null,
+        worth_repeat: r.worth_repeat ?? null,
+        memory_image_path: path || null,
+        created_at: r.created_at ?? null,
+        updated_at: r.updated_at ?? null,
+        user: profileByUserId.get(String(r.user_id)) ?? null,
+        signed_memory_image_url: path ? diaryMemoryResolvedUrl(diaryMemoryUrlByRaw, path) ?? null : null,
+        entry_memory_preview_url: galleryPath
+          ? diaryMemoryResolvedUrl(diaryMemoryUrlByRaw, galleryPath) ?? null
+          : null,
+        position_image_url: catalogUrl,
+      }
+    })
+
+    const diary_memory_images: ActivityDiaryMemoryImageRow[] = diaryMemoryImagesRaw.map((row) => {
+      const r = row as {
+        id: string
+        diary_entry_id: string
+        user_id: string
+        memory_image_path: string
+        created_at: string | null
+        is_visible: boolean | null
+      }
+      const path =
+        typeof r.memory_image_path === 'string' ? r.memory_image_path.trim() : ''
+      const entryId = String(r.diary_entry_id || '').trim()
+      return {
+        id: r.id,
+        diary_entry_id: entryId,
+        user_id: r.user_id,
+        memory_image_path: path,
+        created_at: r.created_at ?? null,
+        is_visible: Boolean(r.is_visible),
+        position_id: entryId ? diaryPositionByEntryId.get(entryId) ?? null : null,
+        user: profileByUserId.get(String(r.user_id)) ?? null,
+        signed_image_url: path ? diaryMemoryResolvedUrl(diaryMemoryUrlByRaw, path) ?? null : null,
+      }
+    })
+
     return NextResponse.json({
       section,
       page,
@@ -628,13 +1072,17 @@ export async function GET(request: Request) {
         connections: connCountRes.count ?? 0,
         friend_requests: frCountRes.count ?? 0,
         messages: msgCountRes.count ?? 0,
-        profile_views: pvCountRes.count ?? 0,
         uploads: uploadCountRes.count ?? 0,
+        position_diary: diaryCountRes.count ?? 0,
+        diary_memory_images: memoryImgCountRes.count ?? 0,
+        profile_views: pvCountRes.count ?? 0,
       },
       connections,
       friend_requests,
       messages,
       uploads,
+      position_diary,
+      diary_memory_images,
       profile_views,
     })
   } catch (e) {

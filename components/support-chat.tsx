@@ -36,6 +36,9 @@ import { Loader2, Pencil, Search, Send, Trash2 } from 'lucide-react'
 import type { ActivityConnectionChatPayload, ActivityConnectionChatMessageRow } from '@/lib/activity-feed-types'
 import { profileGenderEmoji } from '@/lib/profile-gender-emoji'
 import { cn } from '@/lib/utils'
+import { ChatMessageTranslateFooter } from '@/components/chat-message-translate-footer'
+import { ChatTranslateToolbar } from '@/components/chat-translate-toolbar'
+import { useChatTranslation } from '@/hooks/use-chat-translation'
 
 type ConnectionRow = {
   id: string
@@ -44,6 +47,12 @@ type ConnectionRow = {
   peer_user_id: string | null
   last_message_at: string | null
   last_message_preview: string | null
+  /** Peer messages after support’s last reply (approx. WhatsApp-style backlog). */
+  unread_message_count: number
+  /** True when `unread_message_count > 0` (badge / “Unread” filter). */
+  unread: boolean
+  /** Last chat line was from the customer, not support — needs a reply (ignores read state). */
+  unreplied: boolean
   peer: {
     user_id: string
     name: string | null
@@ -138,6 +147,36 @@ function peerLabel(row: ConnectionRow): string {
   return 'Unknown'
 }
 
+function coerceUnreadCount(raw: unknown): number {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n < 0) return 0
+  return Math.floor(n)
+}
+
+function SupportSidebarUnreadBadge({ count }: { count: number }) {
+  if (count <= 0) return null
+  const aria = `${count} unread message${count === 1 ? '' : 's'}`
+  return (
+    <span
+      className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full border border-gray-200 bg-[#f5f5f7] px-[5px] text-[10px] font-semibold tabular-nums leading-none text-gray-600"
+      aria-label={aria}
+    >
+      {count > 99 ? '99+' : String(count)}
+    </span>
+  )
+}
+
+function normalizeConnectionRow(c: ConnectionRow): ConnectionRow {
+  const unread_message_count = coerceUnreadCount(c.unread_message_count)
+  const unrepliedFallback = unread_message_count > 0
+  return {
+    ...c,
+    unread_message_count,
+    unread: unread_message_count > 0,
+    unreplied: typeof c.unreplied === 'boolean' ? c.unreplied : unrepliedFallback,
+  }
+}
+
 function truncateSidebarPreview(text: string, max = 72): string {
   const single = text.replace(/\s+/g, ' ').trim()
   if (single.length <= max) return single
@@ -168,6 +207,7 @@ export default function SupportChat() {
   const [connections, setConnections] = useState<ConnectionRow[]>([])
   const [loadingConnections, setLoadingConnections] = useState(false)
   const [filter, setFilter] = useState('')
+  const [inboxFilter, setInboxFilter] = useState<'all' | 'unread' | 'unreplied'>('all')
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [chatPayload, setChatPayload] = useState<ActivityConnectionChatPayload | null>(null)
@@ -187,6 +227,11 @@ export default function SupportChat() {
   const [supportProfileEditOpen, setSupportProfileEditOpen] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const chatTranslation = useChatTranslation({
+    scrollRootRef: scrollRef,
+    observeKey: selectedId ?? '',
+  })
 
   useEffect(() => {
     if (editTarget) setEditDraft(editTarget.content ?? '')
@@ -250,7 +295,11 @@ export default function SupportChat() {
       const res = await fetch('/api/support-chat/connections')
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to load connections')
-      setConnections(Array.isArray(json.connections) ? (json.connections as ConnectionRow[]) : [])
+      setConnections(
+        Array.isArray(json.connections)
+          ? (json.connections as ConnectionRow[]).map((c) => normalizeConnectionRow(c))
+          : []
+      )
       const sid =
         typeof json.subject_user_id === 'string' ? json.subject_user_id.toLowerCase() : null
       setSubjectUserId(sid)
@@ -299,7 +348,11 @@ export default function SupportChat() {
       const res = await fetch('/api/support-chat/connections')
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to refresh connections')
-      setConnections(Array.isArray(json.connections) ? (json.connections as ConnectionRow[]) : [])
+      setConnections(
+        Array.isArray(json.connections)
+          ? (json.connections as ConnectionRow[]).map((c) => normalizeConnectionRow(c))
+          : []
+      )
     } catch (e) {
       toast({
         title: 'Could not refresh inbox',
@@ -319,16 +372,27 @@ export default function SupportChat() {
   }, [chatPayload?.messages])
 
   const filteredConnections = useMemo(() => {
+    let list = connections
+    if (inboxFilter === 'unread') list = connections.filter((c) => c.unread_message_count > 0)
+    else if (inboxFilter === 'unreplied') list = connections.filter((c) => c.unreplied)
     const q = filter.trim().toLowerCase()
-    if (!q) return connections
-    return connections.filter((c) => {
+    if (!q) return list
+    return list.filter((c) => {
       const label = peerLabel(c).toLowerCase()
       const un = c.peer?.username?.toLowerCase() ?? ''
       const pid = (c.peer_user_id ?? '').toLowerCase()
       const preview = (c.last_message_preview ?? '').toLowerCase()
       return label.includes(q) || un.includes(q) || pid.includes(q) || preview.includes(q)
     })
-  }, [connections, filter])
+  }, [connections, filter, inboxFilter])
+
+  useEffect(() => {
+    if (!selectedId) return
+    if (!filteredConnections.some((c) => c.id === selectedId)) {
+      setSelectedId(null)
+      setChatPayload(null)
+    }
+  }, [filteredConnections, selectedId])
 
   const selectedConn = connections.find((c) => c.id === selectedId) ?? null
 
@@ -355,7 +419,16 @@ export default function SupportChat() {
       const now = new Date().toISOString()
       setConnections((prev) => {
         const next = prev.map((c) =>
-          c.id === selectedId ? { ...c, last_message_preview: preview, last_message_at: now } : c
+          c.id === selectedId
+            ? {
+                ...c,
+                last_message_preview: preview,
+                last_message_at: now,
+                unread_message_count: 0,
+                unread: false,
+                unreplied: false,
+              }
+            : c
         )
         return [...next].sort((a, b) => {
           const ta = new Date(a.last_message_at || a.created_at || 0).getTime()
@@ -498,6 +571,59 @@ export default function SupportChat() {
               disabled={connections.length === 0 && !loadingConnections}
             />
           </div>
+          <div
+            className="flex rounded-xl bg-[#f5f5f7] p-1"
+            role="tablist"
+            aria-label="Inbox filter"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={inboxFilter === 'all'}
+              disabled={loadingConnections || connections.length === 0}
+              onClick={() => setInboxFilter('all')}
+              className={cn(
+                'flex-1 rounded-lg py-1.5 text-center text-xs font-medium transition-colors disabled:opacity-40',
+                inboxFilter === 'all'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              )}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={inboxFilter === 'unread'}
+              disabled={loadingConnections || connections.length === 0}
+              onClick={() => setInboxFilter('unread')}
+              className={cn(
+                'flex-1 rounded-lg py-1.5 text-center text-xs font-medium transition-colors disabled:opacity-40',
+                inboxFilter === 'unread'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              )}
+              title="Chats where the backlog counter is greater than zero"
+            >
+              Unread
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={inboxFilter === 'unreplied'}
+              disabled={loadingConnections || connections.length === 0}
+              onClick={() => setInboxFilter('unreplied')}
+              className={cn(
+                'flex-1 rounded-lg py-1.5 text-center text-xs font-medium transition-colors disabled:opacity-40',
+                inboxFilter === 'unreplied'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              )}
+              title="Latest message was from the user, not support"
+            >
+              Unreplied
+            </button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
@@ -511,6 +637,18 @@ export default function SupportChat() {
           ) : null}
           {!subjectUserId && supportConfigured === false ? (
             <p className="p-4 text-sm text-gray-500">Configure support user id to load chats.</p>
+          ) : null}
+          {!loadingConnections &&
+          connections.length > 0 &&
+          filteredConnections.length === 0 &&
+          (filter.trim() || inboxFilter !== 'all') ? (
+            <p className="p-4 text-sm text-gray-500">
+              {filter.trim()
+                ? 'No chats match your search.'
+                : inboxFilter === 'unread'
+                  ? 'No chats with unread messages.'
+                  : 'No unreplied chats.'}
+            </p>
           ) : null}
           {filteredConnections.map((c) => {
             const isSelected = selectedId === c.id
@@ -538,9 +676,17 @@ export default function SupportChat() {
                       {formatTime(c.last_message_at || c.created_at)}
                     </span>
                   </div>
-                  <p className="truncate text-xs text-gray-600">
-                    {c.last_message_preview ?? 'No messages yet'}
-                  </p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <p
+                      className={cn(
+                        'min-w-0 flex-1 truncate text-xs leading-snug text-gray-600',
+                        c.unread_message_count > 0 && 'font-semibold text-gray-900'
+                      )}
+                    >
+                      {c.last_message_preview ?? 'No messages yet'}
+                    </p>
+                    <SupportSidebarUnreadBadge count={c.unread_message_count} />
+                  </div>
                 </div>
               </button>
             )
@@ -556,16 +702,26 @@ export default function SupportChat() {
           </div>
         ) : (
           <>
-            <header className="flex shrink-0 items-center gap-3 border-b border-gray-100 px-4 py-3">
-              <PeerChatAvatar
-                peer={selectedConn.peer}
-                className="h-10 w-10 border border-gray-100"
-                fallbackClassName="bg-[#eef2f7] text-xl leading-none"
-              />
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate font-semibold text-gray-900">{peerLabel(selectedConn)}</h2>
-                <p className="truncate font-mono text-xs text-gray-500">{selectedConn.peer_user_id ?? ''}</p>
+            <header className="flex shrink-0 flex-col gap-2 border-b border-gray-100 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <PeerChatAvatar
+                  peer={selectedConn.peer}
+                  className="h-10 w-10 border border-gray-100"
+                  fallbackClassName="bg-[#eef2f7] text-xl leading-none"
+                />
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate font-semibold text-gray-900">{peerLabel(selectedConn)}</h2>
+                  <p className="truncate font-mono text-xs text-gray-500">{selectedConn.peer_user_id ?? ''}</p>
+                </div>
               </div>
+              <ChatTranslateToolbar
+                targetLang={chatTranslation.targetLang}
+                onTargetLangChange={chatTranslation.setTargetLang}
+                configured={chatTranslation.configured}
+                chatTranslateActive={chatTranslation.chatTranslateActive}
+                onToggleConversation={chatTranslation.toggleChatTranslate}
+                translatingCount={Object.keys(chatTranslation.pendingIds).length}
+              />
             </header>
 
             <div
@@ -579,6 +735,7 @@ export default function SupportChat() {
               ) : (
                 messages.map((m: ActivityConnectionChatMessageRow) => {
                   const fromSupport = Boolean(supportUserId && m.sender_id === supportUserId)
+                  const bubbleVariant = fromSupport ? 'gradient' : 'white'
                   const bubble = (
                     <div
                       className={`max-w-[85%] rounded-2xl px-3 py-2 shadow-sm ${
@@ -588,6 +745,15 @@ export default function SupportChat() {
                       }`}
                     >
                       <p className="break-words text-sm whitespace-pre-wrap">{m.content ?? ''}</p>
+                      <ChatMessageTranslateFooter
+                        mode={chatTranslation.chatTranslateActive ? 'conversation' : 'idle'}
+                        rawText={m.content}
+                        targetLang={chatTranslation.targetLang}
+                        translatedText={chatTranslation.byMessageId[m.id]}
+                        isTranslating={Boolean(chatTranslation.pendingIds[m.id])}
+                        onHide={() => chatTranslation.hideTranslation(m.id)}
+                        bubbleVariant={bubbleVariant}
+                      />
                       <p
                         className={`mt-1 text-right text-[10px] ${
                           fromSupport ? 'text-white/80' : 'text-gray-400'
@@ -599,7 +765,12 @@ export default function SupportChat() {
                   )
 
                   return (
-                    <div key={m.id} className={`flex ${fromSupport ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      key={m.id}
+                      ref={chatTranslation.observeMessageRow(m.id, m.content)}
+                      data-translate-row={m.id}
+                      className={`flex ${fromSupport ? 'justify-end' : 'justify-start'}`}
+                    >
                       {fromSupport ? (
                         <ContextMenu>
                           <ContextMenuTrigger asChild>{bubble}</ContextMenuTrigger>
