@@ -14,9 +14,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles, FlagTriangleRight, Ticket, Receipt, Star, Bell, Eraser, Activity, MessagesSquare, TrendingUp } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles, FlagTriangleRight, Ticket, Receipt, Star, Bell, Eraser, Activity, MessagesSquare, TrendingUp, Kanban } from 'lucide-react'
 import { Button } from './ui/button'
 import SignOutButton from './sign-out-button'
 
@@ -98,6 +101,17 @@ const developerMenuItems = [
   },
 ]
 
+const creatorCrmNav = {
+  title: 'Pipeline',
+  url: '/creator-crm',
+  icon: Kanban,
+  roles: ['admin', 'dev', 'developer'] as const,
+  items: [
+    { title: 'Log', url: '/creator-crm/log' },
+    { title: 'Templates', url: '/creator-crm/templates' },
+  ],
+}
+
 const promoterMenuItems = [
   {
     title: 'Devices',
@@ -170,7 +184,10 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   const developerItems = developerMenuItems.filter(item => 
     !userRole || (item.roles as readonly string[]).includes(userRole)
   )
-  
+
+  const showCreatorCrmNav =
+    !userRole || (creatorCrmNav.roles as readonly string[]).includes(userRole)
+
   const promoterItems = promoterMenuItems.filter(item => 
     !userRole || (item.roles as readonly string[]).includes(userRole)
   )
@@ -182,6 +199,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   // Show groups: Admins see all groups, others see only their group
   const showGeneralGroup = generalItems.length > 0
   const showDeveloperGroup = developerItems.length > 0 // Show if user has access to any developer items
+  const showCreatorCrmGroup = showCreatorCrmNav
   const showPromoterGroup = (userRole === 'promoter' || userRole === 'admin') && promoterItems.length > 0
   const showSupportModerationGroup = isAdmin // Show for admins and developers only
 
@@ -272,6 +290,49 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
                     </SidebarMenuItem>
                   )
                 })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {showCreatorCrmGroup && (
+          <SidebarGroup className="px-2 py-2">
+            <SidebarGroupLabel className="px-2 mb-1">Creator CRM</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === creatorCrmNav.url}
+                    tooltip={creatorCrmNav.title}
+                  >
+                    <Link
+                      href={creatorCrmNav.url}
+                      className={`flex items-center w-full ${isCollapsed ? 'justify-center' : 'gap-2'}`}
+                    >
+                      <Kanban className="h-4 w-4 shrink-0" />
+                      {!isCollapsed && (
+                        <span className="truncate flex-1">{creatorCrmNav.title}</span>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                  <SidebarMenuSub>
+                    {creatorCrmNav.items.map((item) => {
+                      const isSubActive =
+                        pathname === item.url || pathname?.startsWith(`${item.url}/`)
+
+                      return (
+                        <SidebarMenuSubItem key={item.url}>
+                          <SidebarMenuSubButton asChild isActive={isSubActive}>
+                            <Link href={item.url}>
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      )
+                    })}
+                  </SidebarMenuSub>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

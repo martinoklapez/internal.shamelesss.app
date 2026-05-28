@@ -1,0 +1,13 @@
+# Local Supabase CLI config.
+# Hosted projects: also add "creator_pipeline" under Dashboard → Project Settings → API → Exposed schemas.
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "creator_pipeline"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15

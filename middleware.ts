@@ -41,6 +41,8 @@ export async function middleware(request: NextRequest) {
     '/generate',
     '/notifications',
     '/reengagement',
+    '/creator-crm',
+    '/creator-outreach',
   ]
   const isProtectedRoute = protectedRoutes.some(route => 
     request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith(`${route}/`)
@@ -74,7 +76,13 @@ export async function middleware(request: NextRequest) {
     // Promoters cannot access games and feature flags
     if (role === 'promoter') {
       const pathname = request.nextUrl.pathname
-      if (pathname.startsWith('/games') || pathname === '/feature-flags' || pathname === '/reengagement') {
+      if (
+        pathname.startsWith('/games') ||
+        pathname === '/feature-flags' ||
+        pathname === '/reengagement' ||
+        pathname.startsWith('/creator-crm') ||
+        pathname.startsWith('/creator-outreach')
+      ) {
         const url = request.nextUrl.clone()
         url.pathname = '/home'
         return NextResponse.redirect(url)
