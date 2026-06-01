@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Shamelesss Pipeline",
+  "version": "1.0.0",
+  "description": "Creator Pipeline side panel — Quick Add and profile lookup on Instagram & TikTok.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["storage", "sidePanel", "tabs"],
+  "host_permissions": [
+    "https://www.instagram.com/*",
+    "https://instagram.com/*",
+    "https://www.tiktok.com/*",
+    "https://tiktok.com/*",
+    "http://localhost:3000/*",
+    "https://*.shamelesss.app/*",
+    "https://*.supabase.co/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Shamelesss Pipeline",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  }
+}

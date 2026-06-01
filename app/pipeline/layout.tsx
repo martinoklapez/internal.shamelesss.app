@@ -1,6 +1,6 @@
 import { requireCreatorCrmPage } from '@/lib/creator-outreach/require-creator-crm-page'
 
-export default async function CreatorCrmLayout({
+export default async function CreatorPipelineLayout({
   children,
 }: {
   children: React.ReactNode

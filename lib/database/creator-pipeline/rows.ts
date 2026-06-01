@@ -3,13 +3,18 @@ import type {
   ContactCrmStatus,
   CreatorContactKind,
   OutreachPlatform,
+  OutreachRuleAction,
+  OutreachRuleTrigger,
   OutreachSendStatus,
 } from '@/lib/creator-outreach/types'
+
+export type OutreachEventStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
 export type CreatorRow = {
   id: string
   display_name: string
   notes: string
+  avatar_profile_id: string | null
   status: ContactCrmStatus
   created_at: string
   updated_at: string
@@ -19,7 +24,9 @@ export type ProfileRow = {
   id: string
   platform: OutreachPlatform
   handle: string
+  display_name: string
   profile_url: string
+  avatar_url: string | null
   follower_count: number | null
   notes: string
   scouted_at: string
@@ -32,6 +39,7 @@ export type ContactRow = {
   name: string
   company: string
   email: string
+  phone: string
   notes: string
   status: ContactCrmStatus
   missive_conversation_ids: string[]
@@ -81,4 +89,27 @@ export type ActivityEventRow = {
   type: ActivityEventType
   message: string
   created_at: string
+}
+
+export type OutreachRuleRow = {
+  id: string
+  enabled: boolean
+  trigger: OutreachRuleTrigger
+  contact_kind: CreatorContactKind
+  action: OutreachRuleAction
+  template_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type OutreachEventRow = {
+  id: string
+  contact_id: string
+  trigger: OutreachRuleTrigger
+  email_snapshot: string
+  status: OutreachEventStatus
+  result: Record<string, unknown> | null
+  error_message: string | null
+  created_at: string
+  processed_at: string | null
 }

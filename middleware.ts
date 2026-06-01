@@ -1,7 +1,33 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const EXTENSION_CORS_PATHS = ['/api/creator-pipeline', '/api/creator-outreach/avatar-proxy']
+
+const EXTENSION_CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+}
+
+function isExtensionApiPath(pathname: string): boolean {
+  return EXTENSION_CORS_PATHS.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )
+}
+
+function withExtensionCors(response: NextResponse): NextResponse {
+  for (const [key, value] of Object.entries(EXTENSION_CORS_HEADERS)) {
+    response.headers.set(key, value)
+  }
+  return response
+}
+
 export async function middleware(request: NextRequest) {
+  const extensionApi = isExtensionApiPath(request.nextUrl.pathname)
+  if (extensionApi && request.method === 'OPTIONS') {
+    return new NextResponse(null, { status: 204, headers: EXTENSION_CORS_HEADERS })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -41,6 +67,7 @@ export async function middleware(request: NextRequest) {
     '/generate',
     '/notifications',
     '/reengagement',
+    '/pipeline',
     '/creator-crm',
     '/creator-outreach',
   ]
@@ -80,6 +107,7 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/games') ||
         pathname === '/feature-flags' ||
         pathname === '/reengagement' ||
+        pathname.startsWith('/pipeline') ||
         pathname.startsWith('/creator-crm') ||
         pathname.startsWith('/creator-outreach')
       ) {
@@ -95,6 +123,10 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/home'
     return NextResponse.redirect(url)
+  }
+
+  if (extensionApi) {
+    return withExtensionCors(supabaseResponse)
   }
 
   return supabaseResponse

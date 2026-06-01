@@ -38,10 +38,10 @@ export default function CreatorOutreachTemplatesView() {
   return (
     <div className="flex-1 min-h-0 min-w-0 overflow-y-auto px-5 sm:px-8 lg:px-10 py-8">
       <Link
-        href="/creator-crm"
+        href="/pipeline"
         className="text-xs text-gray-400 hover:text-gray-700 mb-2 inline-block"
       >
-        Creator CRM
+        Creator Pipeline
       </Link>
       <h1 className="text-lg font-semibold text-gray-900 mb-6">Templates</h1>
       <p className="text-xs text-gray-400 mb-6">Email templates used for outreach · Supabase creator_pipeline</p>

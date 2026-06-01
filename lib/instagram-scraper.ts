@@ -1,146 +1,232 @@
-/**
- * Utility to fetch Instagram account name from a username/handle
- * @param username - The Instagram username (without @)
- * @returns The account display name or null if not found
- */
-export async function getInstagramAccountName(username: string): Promise<string | null> {
-  try {
-    // Remove @ if present
-    const cleanUsername = username.replace(/^@/, '')
-    
-    // Fetch the Instagram profile page
-    const response = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-    })
+import { normalizeFollowerCount } from '@/lib/normalize-follower-count'
 
-    if (!response.ok) {
-      console.error(`Failed to fetch Instagram profile: ${response.status} ${response.statusText} for ${cleanUsername}`)
+const INSTAGRAM_FETCH_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+} as const
+
+export type InstagramProfile = {
+  username: string
+  name: string
+  profilePicture: string | null
+  followerCount: number | null
+  biography?: string | null
+  businessEmail?: string | null
+  publicEmail?: string | null
+}
+
+function unescapeInstagramJsonString(raw: string): string {
+  return raw
+    .replace(/\\u0026/g, '&')
+    .replace(/\\u0040/g, '@')
+    .replace(/\\\//g, '/')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\"/g, '"')
+    .trim()
+}
+
+function extractInstagramJsonString(html: string, field: string): string | null {
+  const match = html.match(new RegExp(`"${field}":"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`))
+  if (!match?.[1]) return null
+  const value = unescapeInstagramJsonString(match[1])
+  return value || null
+}
+
+function extractInstagramJsonNumber(html: string, field: string): number | null {
+  const match = html.match(new RegExp(`"${field}":(\\d+)`))
+  if (!match?.[1]) return null
+  return normalizeFollowerCount(Number(match[1]))
+}
+
+function extractInstagramFollowerCount(html: string): number | null {
+  return (
+    extractInstagramJsonNumber(html, 'followersCount') ??
+    extractInstagramJsonNumber(html, 'followerCount') ??
+    extractInstagramJsonNumber(html, 'followers_count')
+  )
+}
+
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, num) => String.fromCodePoint(parseInt(num, 10)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#064;/g, '@')
+}
+
+/** Extract handle from profile URL or bare username. */
+export function parseInstagramHandle(input: string): string {
+  const trimmed = input.trim().replace(/^@/, '')
+  try {
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      const { pathname } = new URL(trimmed)
+      const segments = pathname.split('/').filter(Boolean)
+      const blocked = new Set(['p', 'reel', 'reels', 'stories', 'explore', 'accounts'])
+      if (segments.length > 0 && !blocked.has(segments[0])) {
+        return segments[0].replace(/^@/, '')
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return trimmed.split('/').filter(Boolean).pop()?.replace(/^@/, '') ?? trimmed
+}
+
+export function parseInstagramProfileFromHtml(
+  html: string,
+  fallbackHandle: string
+): InstagramProfile | null {
+  const metaContent = (property: string) => {
+    const match = html.match(
+      new RegExp(
+        `<meta[^>]*property=["']${property}["'][^>]*content=["']([^"']+)["']`,
+        'i'
+      )
+    )
+    return match?.[1] ? decodeHtmlEntities(match[1]) : null
+  }
+
+  const ogTitle = metaContent('og:title')
+  const ogImage = metaContent('og:image')
+
+  let name: string | null = null
+  let username = fallbackHandle
+
+  if (ogTitle) {
+    const titleMatch = ogTitle.match(/^([^(•]+?)(?:\s*\(@([^)]+)\))?\s*[•|]/i)
+    if (titleMatch) {
+      name = titleMatch[1].trim()
+      if (titleMatch[2]) username = titleMatch[2].replace(/^@/, '').trim()
+    }
+  }
+
+  const jsonLdMatches = html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/g
+  )
+  for (const match of jsonLdMatches) {
+    try {
+      const data = JSON.parse(match[1])
+      if (data['@type'] === 'Person' || data['@type'] === 'ProfilePage') {
+        if (data.name && !String(data.name).toLowerCase().includes('instagram')) {
+          name = String(data.name).trim()
+        }
+        if (data.image) {
+          const img =
+            typeof data.image === 'string'
+              ? data.image
+              : Array.isArray(data.image)
+                ? data.image[0]
+                : data.image?.url
+          if (img && !ogImage) {
+            return {
+              username,
+              name: name ?? username,
+              profilePicture: String(img),
+              followerCount: extractInstagramFollowerCount(html),
+            }
+          }
+        }
+      }
+    } catch {
+      // continue
+    }
+  }
+
+  const picMatch =
+    html.match(/"profile_pic_url_hd":"([^"\\]+(?:\\.[^"\\]*)*)"/) ??
+    html.match(/"profile_pic_url":"([^"\\]+(?:\\.[^"\\]*)*)"/)
+  const profilePicture =
+    ogImage ?? picMatch?.[1]?.replace(/\\u0026/g, '&').replace(/\\\//g, '/') ?? null
+
+  const fullNameMatch = html.match(/"full_name":"([^"\\]+(?:\\.[^"\\]*)*)"/)
+  if (fullNameMatch && !name) {
+    name = fullNameMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').trim()
+  }
+
+  const usernameMatch = html.match(/"username":"([^"\\]+)"/)
+  if (usernameMatch) username = usernameMatch[1]
+
+  const biography = extractInstagramJsonString(html, 'biography')
+  const businessEmail =
+    extractInstagramJsonString(html, 'business_email') ??
+    extractInstagramJsonString(html, 'businessEmail')
+  const publicEmail =
+    extractInstagramJsonString(html, 'public_email') ??
+    extractInstagramJsonString(html, 'publicEmail')
+  const followerCount = extractInstagramFollowerCount(html)
+
+  if (
+    !name &&
+    !profilePicture &&
+    username === fallbackHandle &&
+    !biography &&
+    followerCount == null
+  ) {
+    return null
+  }
+
+  return {
+    username,
+    name: name && name !== username ? name : username,
+    profilePicture,
+    followerCount,
+    biography,
+    businessEmail,
+    publicEmail,
+  }
+}
+
+async function fetchInstagramProfileHtml(username: string): Promise<string | null> {
+  const urls = [
+    `https://www.instagram.com/${username}/`,
+    `https://www.instagram.com/${username}/?hl=en`,
+  ]
+  const headers = {
+    ...INSTAGRAM_FETCH_HEADERS,
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1',
+  }
+
+  for (const url of urls) {
+    const response = await fetch(url, { headers })
+    if (!response.ok) continue
+    const html = await response.text()
+    if (parseInstagramProfileFromHtml(html, username)) return html
+  }
+  return null
+}
+
+export async function getInstagramProfile(
+  usernameOrUrl: string
+): Promise<InstagramProfile | null> {
+  try {
+    const cleanUsername = parseInstagramHandle(usernameOrUrl)
+    const html = await fetchInstagramProfileHtml(cleanUsername)
+    if (!html) {
+      console.warn(`Could not extract Instagram profile for @${cleanUsername}`)
       return null
     }
-
-    const html = await response.text()
-
-    // 1. Try to extract from JSON-LD structured data
-    const jsonLdMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/g)
-    for (const match of jsonLdMatches) {
-      try {
-        const data = JSON.parse(match[1])
-        // Instagram uses @type: "Person" or "ProfilePage"
-        if (data['@type'] === 'Person' || data['@type'] === 'ProfilePage') {
-          if (data.name && data.name !== cleanUsername && !data.name.toLowerCase().includes('instagram')) {
-            return data.name.trim()
-          }
-          if (data.alternateName && data.alternateName !== cleanUsername) {
-            // Sometimes the display name is in alternateName
-            return data.alternateName.trim()
-          }
-        }
-      } catch (e) {
-        // Not valid JSON, continue
-      }
-    }
-
-    // 2. Try to extract from window._sharedData or similar embedded JSON
-    const sharedDataMatch = html.match(/<script[^>]*>window\._sharedData\s*=\s*({[\s\S]*?});<\/script>/)
-    if (sharedDataMatch) {
-      try {
-        const data = JSON.parse(sharedDataMatch[1])
-        const userInfo = data?.entry_data?.ProfilePage?.[0]?.graphql?.user ||
-                        data?.entry_data?.profilePage?.[0]?.graphql?.user
-        
-        if (userInfo?.full_name) {
-          const fullName = userInfo.full_name.trim()
-          if (fullName && fullName !== cleanUsername && !fullName.toLowerCase().includes('instagram')) {
-            return fullName
-          }
-        }
-      } catch (e) {
-        // Continue to other methods
-      }
-    }
-
-    // 3. Try to extract from other script tags containing user data
-    const scriptMatches = html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)
-    for (const match of scriptMatches) {
-      const scriptContent = match[1]
-      // Look for full_name or display name patterns
-      const patterns = [
-        /"full_name"\s*:\s*"([^"]+)"/i,
-        /"fullName"\s*:\s*"([^"]+)"/i,
-        /"displayName"\s*:\s*"([^"]+)"/i,
-        /"name"\s*:\s*"([^"]+)"[^}]*"username"\s*:\s*"([^"]+)"/i,
-      ]
-      
-      for (const pattern of patterns) {
-        const result = scriptContent.match(pattern)
-        if (result) {
-          const name = result[1] || result[result.length - 1]
-          if (name && name !== cleanUsername && !name.toLowerCase().includes('instagram') && !name.includes('|')) {
-            return name.trim()
-          }
-        }
-      }
-    }
-
-    // 4. Try to extract from meta tags (og:title)
-    // Instagram og:title format: "Name (@username) • Instagram photos and videos"
-    const metaTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
-    if (metaTitleMatch) {
-      const title = metaTitleMatch[1]
-      // Extract name before the (@username) part
-      const nameMatch = title.match(/^([^(]+?)(?:\s*\(@[^)]+\))?\s*[•|]/i)
-      if (nameMatch) {
-        const name = nameMatch[1].trim()
-        if (name && name !== cleanUsername && !name.toLowerCase().includes('instagram') && !name.includes('|')) {
-          return name
-        }
-      }
-    }
-
-    // 5. Try to extract from og:description
-    const metaDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)
-    if (metaDescMatch) {
-      const description = metaDescMatch[1]
-      // Sometimes description contains "Name (@username) - Description"
-      const nameMatch = description.match(/^([^(]+?)(?:\s*\(@[^)]+\))?\s*-/i)
-      if (nameMatch) {
-        const name = nameMatch[1].trim()
-        if (name && name !== cleanUsername && !name.toLowerCase().includes('instagram')) {
-          return name
-        }
-      }
-    }
-
-    // 6. Try to extract from HTML structure - look for h1 or title elements
-    const htmlPatterns = [
-      /<h1[^>]*>([^<]+)<\/h1>/i,
-      /<title[^>]*>([^<]+)<\/title>/i,
-    ]
-
-    for (const pattern of htmlPatterns) {
-      const match = html.match(pattern)
-      if (match && match[1]) {
-        const text = match[1].trim()
-        // Extract name before (@username) or • or |
-        const nameMatch = text.match(/^([^(•|]+?)(?:\s*\(@[^)]+\))?\s*[•|]/i)
-        if (nameMatch) {
-          const name = nameMatch[1].trim()
-          if (name && name !== cleanUsername && !name.toLowerCase().includes('instagram')) {
-            return name
-          }
-        }
-      }
-    }
-
-    console.warn(`Could not extract Instagram account name for @${cleanUsername} using any method.`)
-    return null
+    return parseInstagramProfileFromHtml(html, cleanUsername)
   } catch (error) {
-    console.error(`Error fetching Instagram account name for @${username}:`, error)
+    console.error(`Error fetching Instagram profile for ${usernameOrUrl}:`, error)
     return null
   }
 }
 
+/**
+ * Fetch Instagram display name from a username/handle or profile URL.
+ */
+export async function getInstagramAccountName(username: string): Promise<string | null> {
+  const profile = await getInstagramProfile(username)
+  return profile?.name ?? null
+}

@@ -103,12 +103,13 @@ const developerMenuItems = [
 
 const creatorCrmNav = {
   title: 'Pipeline',
-  url: '/creator-crm',
+  url: '/pipeline',
   icon: Kanban,
   roles: ['admin', 'dev', 'developer'] as const,
   items: [
-    { title: 'Log', url: '/creator-crm/log' },
-    { title: 'Templates', url: '/creator-crm/templates' },
+    { title: 'Rules', url: '/pipeline/rules' },
+    { title: 'Log', url: '/pipeline/log' },
+    { title: 'Templates', url: '/pipeline/templates' },
   ],
 }
 

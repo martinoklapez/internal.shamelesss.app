@@ -129,8 +129,15 @@ export function BreadcrumbWrapper() {
     if (segment === 'analytics') return 'Analytics'
     if (segment === 'support-chat') return 'Support Chat'
     if (segment === 'star-rating-feedback') return 'Star Rating Feedback'
+    if (segment === 'pipeline') return 'Creator Pipeline'
 
     // Nested routes
+    if (segments[0] === 'pipeline') {
+      if (segment === 'rules') return 'Rules'
+      if (segment === 'log') return 'Log'
+      if (segment === 'templates') return 'Templates'
+    }
+
     if (segments[0] === 'devices' && index === 1) {
       return `Device ${segment}`
     }

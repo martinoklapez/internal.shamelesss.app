@@ -12,13 +12,23 @@ import { cn } from '@/lib/utils'
 function isFullHeightAppRoute(pathname: string | null): boolean {
   return (
     pathname?.startsWith('/support-chat') === true ||
-    pathname?.startsWith('/creator-crm') === true
+    pathname?.startsWith('/pipeline') === true
   )
 }
 
 export function RootLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const fullHeightApp = isFullHeightAppRoute(pathname)
+
+  // Minimal chrome for Missive iframe (auth + CRM context only)
+  if (pathname?.startsWith('/integrations/missive')) {
+    return (
+      <AppDialogsProvider>
+        <Toaster />
+        {children}
+      </AppDialogsProvider>
+    )
+  }
 
   // Don't show sidebar on sign-in page
   if (pathname === '/') {

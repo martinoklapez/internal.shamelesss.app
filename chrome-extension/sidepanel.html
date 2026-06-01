@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shamelesss Pipeline</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <aside class="panel-shell">
+      <header class="panel-header">
+        <div id="panel-header-main" class="panel-header-main">
+          <div>
+            <p class="panel-title">Quick Add</p>
+            <p class="panel-subtitle">Creator Pipeline</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="panel-scroll">
+        <p id="boot-error" class="alert alert-destructive hidden"></p>
+
+        <div id="config-missing" class="alert alert-warning hidden">
+          Copy <code>config.example.js</code> to <code>config.js</code> and set your app URL and Supabase keys, then reload the extension.
+        </div>
+
+        <section id="auth-section" class="auth-card">
+          <h2 class="auth-card-title">Sign in</h2>
+          <p class="auth-card-desc">Use the same account as the internal app (admin, dev, or developer).</p>
+          <form id="sign-in-form">
+            <label class="field">
+              <span>Email address</span>
+              <input id="email" class="input" type="email" autocomplete="username" placeholder="Enter your email" required />
+            </label>
+            <label class="field">
+              <span>Password</span>
+              <input id="password" class="input" type="password" autocomplete="current-password" placeholder="Enter your password" required />
+            </label>
+            <p id="auth-error" class="alert-error-inline hidden"></p>
+            <button type="submit" class="btn btn-default btn-block" id="sign-in-btn">Sign in</button>
+          </form>
+        </section>
+
+        <div id="main-panel" class="main-panel hidden">
+          <div class="main-panel-body">
+            <div id="auto-accept-row" class="auto-accept-row">
+              <div class="auto-accept-copy">
+                <label for="auto-accept-toggle" class="auto-accept-label">Auto-accept</label>
+                <p class="auto-accept-hint">
+                  Adds ready profiles automatically in queue order (new or existing). Hard conflicts
+                  still need manual review.
+                </p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="auto-accept-toggle" />
+                <span class="switch-track" aria-hidden="true"></span>
+              </label>
+            </div>
+
+            <section class="section" id="section-main">
+              <p id="tab-hint" class="empty-hint">Open an Instagram or TikTok profile page.</p>
+              <div id="sheet-content" class="sheet-content"></div>
+            </section>
+
+            <section id="section-quick-add" class="section section-queue hidden">
+              <div class="section-row">
+                <p class="section-label section-label-inline">Profile URL</p>
+                <span id="ready-count" class="pill pill-emerald hidden"></span>
+              </div>
+              <div class="input-row">
+                <input
+                  id="quick-add-url"
+                  class="input input-sm input-url"
+                  type="url"
+                  spellcheck="false"
+                  placeholder="TikTok or Instagram profile URL"
+                />
+                <button type="button" class="btn btn-secondary btn-icon" id="enqueue-btn" title="Add to queue">
+                  <span id="enqueue-icon"></span>
+                  <span class="sr-only">Add to queue</span>
+                </button>
+              </div>
+              <p id="url-error" class="alert-error-inline hidden"></p>
+              <ul id="queue-list" class="queue-list"></ul>
+              <p id="queue-empty" class="queue-empty hidden">No active jobs.</p>
+            </section>
+          </div>
+
+          <footer class="main-panel-footer">
+            <a id="open-crm-link" class="btn btn-outline btn-block" href="#" target="_blank" rel="noopener">
+              <span>Open Pipeline</span>
+            </a>
+          </footer>
+        </div>
+      </div>
+
+      <footer id="panel-account-footer" class="panel-account-footer hidden">
+        <button type="button" class="account-footer-btn" id="sign-out-btn" aria-label="Sign out">
+        </button>
+      </footer>
+    </aside>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

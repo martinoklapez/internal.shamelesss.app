@@ -1,5 +1,5 @@
-import CreatorOutreachLogView from '@/components/creator-outreach-log-view'
+import { redirect } from 'next/navigation'
 
-export default function CreatorCrmLogPage() {
-  return <CreatorOutreachLogView />
+export default function CreatorCrmLogRedirectPage() {
+  redirect('/pipeline/log')
 }

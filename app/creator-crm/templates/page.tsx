@@ -1,5 +1,5 @@
-import CreatorOutreachTemplatesView from '@/components/creator-outreach-templates-view'
+import { redirect } from 'next/navigation'
 
-export default function CreatorCrmTemplatesPage() {
-  return <CreatorOutreachTemplatesView />
+export default function CreatorCrmTemplatesRedirectPage() {
+  redirect('/pipeline/templates')
 }

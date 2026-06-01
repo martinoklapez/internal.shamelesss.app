@@ -26,6 +26,13 @@ Create the following storage buckets in your Supabase project:
    - Allowed MIME types: image/*
    - Used for: DateRoulette game position images
 
+5. **creator-pipeline-avatars**
+   - Public: Yes
+   - File size limit: 5MB (recommended)
+   - Allowed MIME types: image/jpeg, image/png, image/webp, image/gif
+   - Used for: Creator CRM cached TikTok/Instagram profile pictures
+   - Created by migration `20260528180000_creator_pipeline_profile_avatars.sql`
+
 ## Setup Instructions
 
 1. Go to your Supabase Dashboard

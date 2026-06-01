@@ -12,19 +12,40 @@ export type ActivityEventType =
   | 'profile_linked'
   | 'profile_unlinked'
   | 'contact_added'
+  | 'contact_unlinked'
   | 'contact_removed'
   | 'email_added'
+  | 'outreach_queued'
   | 'outreach_sent'
   | 'outreach_skipped'
+
+/** Fires when a contact gains a usable email (create with email or add/change on update). */
+export type OutreachRuleTrigger = 'contact_email_ready'
+
+export type OutreachRuleAction = 'send_email' | 'do_not_send'
+
+export type OutreachRule = {
+  id: string
+  enabled: boolean
+  trigger: OutreachRuleTrigger
+  contactKind: CreatorContactKind
+  action: OutreachRuleAction
+  templateId: string | null
+  createdAt: string
+  updatedAt: string
+}
 
 /** Creator direct inbox, manager, agency, or other rep — not a social profile. */
 export type CreatorContact = {
   id: string
-  creatorId: string
+  /** `null` when unlinked from any creator (still in pipeline). */
+  creatorId: string | null
   kind: CreatorContactKind
   name: string
   company: string
   email: string
+  /** E.164 (`+14155552671`). Empty when unknown. */
+  phone: string
   notes: string
   status: ContactCrmStatus
   /** Missive conversation IDs — set by backend integration, not edited in the UI. */
@@ -37,6 +58,11 @@ export type CreatorPerson = {
   id: string
   displayName: string
   notes: string
+  /**
+   * Linked profile whose `avatarUrl` is shown for this creator.
+   * `null` = use the earliest scouted linked profile.
+   */
+  avatarProfileId: string | null
   /** Rolled up from contacts — automation-driven, not edited in the UI. */
   status: ContactCrmStatus
   createdAt: string
@@ -48,11 +74,16 @@ export type SocialMediaProfile = {
   id: string
   platform: OutreachPlatform
   handle: string
+  /** Platform display name (nickname / full name), distinct from @handle. */
+  displayName: string
   profileUrl: string
+  /** Cached avatar in Supabase Storage (`creator-pipeline-avatars` bucket). */
+  avatarUrl: string | null
   followerCount: number | null
   creatorId: string | null
   notes: string
   scoutedAt: string
+  /** Supabase auth user id of whoever scouted the profile. */
   scoutedBy: string
 }
 
@@ -99,6 +130,14 @@ export type CreatorOutreachStore = {
   contacts: CreatorContact[]
   emailTouchpoints: EmailTouchpoint[]
   templates: EmailTemplate[]
+  outreachRules: OutreachRule[]
   outreachSends: OutreachSend[]
   activity: ActivityEvent[]
 }
+
+export const OUTREACH_CONTACT_KINDS: CreatorContactKind[] = [
+  'creator',
+  'manager',
+  'agency',
+  'other',
+]

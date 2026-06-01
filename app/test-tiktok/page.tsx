@@ -44,10 +44,10 @@ export default function TestTikTokPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Test TikTok Account Name Fetch
+            Test TikTok Profile Fetch
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Enter a TikTok handle to fetch the account name
+            Enter a handle or profile URL to fetch username, display name, and avatar
           </p>
         </div>
 
@@ -57,7 +57,7 @@ export default function TestTikTokPage() {
             <Input
               id="handle"
               type="text"
-              placeholder="@username or username"
+              placeholder="@username, username, or full profile URL"
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
               onKeyDown={(e) => {
@@ -86,30 +86,42 @@ export default function TestTikTokPage() {
             <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
               <p className="text-sm font-medium text-gray-900">Result</p>
               
-              {result.accountName ? (
-                <div className="space-y-1">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold">Account Name:</span> {result.accountName}
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold">Handle:</span> @{result.handle}
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold">URL:</span>{' '}
-                    <a 
-                      href={result.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      {result.url}
-                    </a>
-                  </p>
-                  {result.method && (
-                    <p className="text-sm text-gray-500">
-                      <span className="font-semibold">Method:</span> {result.method}
-                    </p>
+              {result.name || result.accountName ? (
+                <div className="space-y-3">
+                  {result.profilePicture && (
+                    <img
+                      src={result.profilePicture}
+                      alt={result.name ?? result.accountName}
+                      className="h-20 w-20 rounded-full object-cover border border-gray-200"
+                    />
                   )}
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Display name:</span>{' '}
+                      {result.name ?? result.accountName}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Username:</span> @
+                      {result.username ?? result.handle}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">URL:</span>{' '}
+                      <a
+                        href={result.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {result.url}
+                      </a>
+                    </p>
+                    {result.profilePicture && (
+                      <p className="text-sm text-gray-500 break-all">
+                        <span className="font-semibold">Avatar URL:</span>{' '}
+                        {result.profilePicture}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">

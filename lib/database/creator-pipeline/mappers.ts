@@ -5,6 +5,7 @@ import type {
   CreatorPerson,
   EmailTemplate,
   EmailTouchpoint,
+  OutreachRule,
   OutreachSend,
   SocialMediaProfile,
 } from '@/lib/creator-outreach/types'
@@ -15,6 +16,7 @@ import type {
   CreatorRow,
   EmailTemplateRow,
   EmailTouchpointRow,
+  OutreachRuleRow,
   OutreachSendRow,
   ProfileRow,
 } from './rows'
@@ -24,6 +26,7 @@ export function mapCreatorRow(row: CreatorRow): CreatorPerson {
     id: row.id,
     displayName: row.display_name,
     notes: row.notes,
+    avatarProfileId: row.avatar_profile_id ?? null,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -35,7 +38,9 @@ export function mapProfileRow(row: ProfileRow, creatorId: string | null): Social
     id: row.id,
     platform: row.platform,
     handle: row.handle,
+    displayName: row.display_name?.trim() ?? '',
     profileUrl: row.profile_url,
+    avatarUrl: row.avatar_url ?? null,
     followerCount: row.follower_count,
     creatorId,
     notes: row.notes,
@@ -44,7 +49,7 @@ export function mapProfileRow(row: ProfileRow, creatorId: string | null): Social
   }
 }
 
-export function mapContactRow(row: ContactRow, creatorId: string): CreatorContact {
+export function mapContactRow(row: ContactRow, creatorId: string | null): CreatorContact {
   return {
     id: row.id,
     creatorId,
@@ -52,6 +57,7 @@ export function mapContactRow(row: ContactRow, creatorId: string): CreatorContac
     name: row.name,
     company: row.company,
     email: row.email,
+    phone: row.phone ?? '',
     notes: row.notes,
     status: row.status,
     missiveConversationIds: Array.isArray(row.missive_conversation_ids)
@@ -96,6 +102,32 @@ export function mapOutreachSendRow(row: OutreachSendRow): OutreachSend {
   }
 }
 
+export function mapOutreachRuleRow(row: OutreachRuleRow): OutreachRule {
+  return {
+    id: row.id,
+    enabled: row.enabled,
+    trigger: row.trigger,
+    contactKind: row.contact_kind,
+    action: row.action,
+    templateId: row.template_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function outreachRuleToRow(rule: OutreachRule): OutreachRuleRow {
+  return {
+    id: rule.id,
+    enabled: rule.enabled,
+    trigger: rule.trigger,
+    contact_kind: rule.contactKind,
+    action: rule.action,
+    template_id: rule.action === 'send_email' ? rule.templateId : null,
+    created_at: rule.createdAt,
+    updated_at: rule.updatedAt,
+  }
+}
+
 export function mapActivityRow(row: ActivityEventRow): ActivityEvent {
   return {
     id: row.id,
@@ -110,6 +142,7 @@ export function creatorToRow(c: CreatorPerson): CreatorRow {
     id: c.id,
     display_name: c.displayName,
     notes: c.notes,
+    avatar_profile_id: c.avatarProfileId,
     status: c.status,
     created_at: c.createdAt,
     updated_at: c.updatedAt,
@@ -121,7 +154,9 @@ export function profileToRow(p: SocialMediaProfile): ProfileRow {
     id: p.id,
     platform: p.platform,
     handle: p.handle,
+    display_name: p.displayName,
     profile_url: p.profileUrl,
+    avatar_url: p.avatarUrl,
     follower_count: p.followerCount,
     notes: p.notes,
     scouted_at: p.scoutedAt,
@@ -136,6 +171,7 @@ export function contactToRow(c: CreatorContact): ContactRow {
     name: c.name,
     company: c.company,
     email: c.email,
+    phone: c.phone,
     notes: c.notes,
     status: c.status,
     missive_conversation_ids: c.missiveConversationIds,
@@ -155,6 +191,7 @@ export function buildAssociationRows(store: CreatorOutreachStore): Omit<Associat
     }
   }
   for (const contact of store.contacts) {
+    if (!contact.creatorId) continue
     rows.push({
       creator_id: contact.creatorId,
       profile_id: null,
@@ -177,12 +214,8 @@ export function applyAssociations(
   }
   return {
     profiles: profiles.map((p) => mapProfileRow(p, profileCreator.get(p.id) ?? null)),
-    contacts: contacts
-      .map((c) => {
-        const creatorId = contactCreator.get(c.id)
-        if (!creatorId) return null
-        return mapContactRow(c, creatorId)
-      })
-      .filter((c): c is CreatorContact => c !== null),
+    contacts: contacts.map((c) =>
+      mapContactRow(c, contactCreator.get(c.id) ?? null)
+    ),
   }
 }

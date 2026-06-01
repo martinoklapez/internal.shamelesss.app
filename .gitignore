@@ -28,6 +28,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# Chrome extension local config (keys)
+chrome-extension/config.js
+
 # backup extracts (may contain credentials)
 supabase/backup_social_accounts_copy.txt
 supabase/backup_*.txt

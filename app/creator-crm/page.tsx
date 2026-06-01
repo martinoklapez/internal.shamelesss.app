@@ -1,5 +1,5 @@
-import CreatorOutreachManager from '@/components/creator-outreach-manager'
+import { redirect } from 'next/navigation'
 
-export default function CreatorCrmPipelinePage() {
-  return <CreatorOutreachManager />
+export default function CreatorCrmRedirectPage() {
+  redirect('/pipeline')
 }

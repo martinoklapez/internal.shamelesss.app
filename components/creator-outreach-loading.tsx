@@ -7,7 +7,7 @@ function Pulse({ className }: { className?: string }) {
 export function CreatorOutreachLoading({
   variant = 'pipeline',
 }: {
-  variant?: 'pipeline' | 'log' | 'templates'
+  variant?: 'pipeline' | 'log' | 'templates' | 'rules'
 }) {
   if (variant === 'log') {
     return (
@@ -39,12 +39,12 @@ export function CreatorOutreachLoading({
     )
   }
 
-  if (variant === 'templates') {
+  if (variant === 'rules' || variant === 'templates') {
     return (
       <div
         className="flex-1 min-h-0 min-w-0 overflow-hidden px-5 sm:px-8 lg:px-10 py-8 animate-pulse"
         aria-busy
-        aria-label="Loading templates"
+        aria-label={variant === 'rules' ? 'Loading rules' : 'Loading templates'}
       >
         <Pulse className="h-3 w-20 mb-6" />
         <Pulse className="h-6 w-28 mb-2" />

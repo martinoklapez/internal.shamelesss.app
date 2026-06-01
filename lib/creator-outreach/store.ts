@@ -4,10 +4,8 @@ import type {
   CreatorContactKind,
   CreatorOutreachStore,
   CreatorPerson,
-  EmailTemplate,
   EmailTouchpoint,
   OutreachPlatform,
-  OutreachSend,
   ContactCrmStatus,
   SocialMediaProfile,
 } from './types'
@@ -26,6 +24,14 @@ export function normalizeEmail(email: string): string {
 
 import { deriveCreatorCrmStatusFromContacts } from './crm-status'
 import { inferCreatorContactKind } from './infer-contact-kind'
+import {
+  draftContactNotes,
+  type DraftContactFromProfile,
+} from '@/lib/social-profile-draft-contact'
+import { normalizePhone } from '@/lib/normalize-phone'
+
+export { normalizePhone } from '@/lib/normalize-phone'
+export { formatPhoneForDisplay, isValidPhoneInput } from '@/lib/normalize-phone'
 
 function syncCreatorCrmStatusFromContacts(
   store: CreatorOutreachStore,
@@ -49,113 +55,22 @@ function pushActivity(
 export type ScoutProfileInput = {
   platform: OutreachPlatform
   handle: string
+  displayName?: string
   profileUrl?: string
+  /** Remote CDN URL to download and cache in Supabase Storage (server-side). */
+  profilePictureSourceUrl?: string | null
   followerCount?: number | null
   notes?: string
+  /** Supabase auth user id; set by API when omitted. */
   scoutedBy?: string
   creatorId?: string | null
   newCreatorName?: string
+  /** When set with a linked creator, creates a CRM contact from scraped profile email. */
+  draftContact?: DraftContactFromProfile | null
 }
 
-export type EvaluateOutreachResult =
-  | { action: 'sent'; send: OutreachSend }
-  | { action: 'skipped'; reason: string }
-  | { action: 'none'; reason: string }
-
-function defaultTemplate(store: CreatorOutreachStore): EmailTemplate {
-  return store.templates.find((t) => t.isDefault) ?? store.templates[0]
-}
-
-export function hasOutreachBeenSentToEmail(store: CreatorOutreachStore, email: string): boolean {
-  const normalized = normalizeEmail(email)
-  return store.outreachSends.some(
-    (s) => normalizeEmail(s.email) === normalized && s.status === 'sent'
-  )
-}
-
-export function evaluateAndTriggerOutreach(
-  store: CreatorOutreachStore,
-  opts: {
-    email: string
-    profileId: string | null
-    contactId?: string | null
-    creatorId: string | null
-    templateId?: string
-  }
-): EvaluateOutreachResult {
-  const normalized = normalizeEmail(opts.email)
-  if (!normalized || !normalized.includes('@')) {
-    return { action: 'none', reason: 'Invalid email' }
-  }
-
-  if (hasOutreachBeenSentToEmail(store, normalized)) {
-    const skipped: OutreachSend = {
-      id: uid(),
-      email: normalized,
-      templateId: opts.templateId ?? defaultTemplate(store).id,
-      templateName: defaultTemplate(store).name,
-      profileId: opts.profileId,
-      contactId: opts.contactId ?? null,
-      creatorId: opts.creatorId,
-      status: 'skipped_duplicate',
-      sentAt: nowIso(),
-    }
-    store.outreachSends.unshift(skipped)
-    pushActivity(
-      store,
-      'outreach_skipped',
-      `Skipped outreach — already sent to ${normalized}`
-    )
-    syncContactCrmStatusFromOutreach(store, opts.contactId ?? null, 'skipped_duplicate')
-    return { action: 'skipped', reason: 'Email already received outreach' }
-  }
-
-  const tpl = opts.templateId
-    ? store.templates.find((t) => t.id === opts.templateId) ?? defaultTemplate(store)
-    : defaultTemplate(store)
-
-  const send: OutreachSend = {
-    id: uid(),
-    email: normalized,
-    templateId: tpl.id,
-    templateName: tpl.name,
-    profileId: opts.profileId,
-    contactId: opts.contactId ?? null,
-    creatorId: opts.creatorId,
-    status: 'sent',
-    sentAt: nowIso(),
-  }
-  store.outreachSends.unshift(send)
-  pushActivity(
-    store,
-    'outreach_sent',
-    `Sent "${tpl.name}" to ${normalized}`
-  )
-  syncContactCrmStatusFromOutreach(store, opts.contactId ?? null, 'sent')
-  return { action: 'sent', send }
-}
-
-/** CRM status is automation-driven only — updated when outreach runs. */
-function syncContactCrmStatusFromOutreach(
-  store: CreatorOutreachStore,
-  contactId: string | null,
-  event: 'email_ready' | 'sent' | 'skipped_duplicate'
-): void {
-  if (!contactId) return
-  const contact = store.contacts.find((c) => c.id === contactId)
-  if (!contact) return
-  if (event === 'email_ready' && contact.email) {
-    if (contact.status === 'new') contact.status = 'contacted'
-    syncCreatorCrmStatusFromContacts(store, contact.creatorId)
-    return
-  }
-  if (event === 'sent' || event === 'skipped_duplicate') {
-    if (contact.status === 'new' || contact.status === 'contacted') {
-      contact.status = 'contacted'
-    }
-  }
-  syncCreatorCrmStatusFromContacts(store, contact.creatorId)
-}
+export type { ContactEmailReadyEvent, EvaluateOutreachResult } from './rules-engine'
+export { hasActiveOutreachForEmail } from './rules-engine'
 
 function registerEmailTouchpoint(
   store: CreatorOutreachStore,
@@ -193,7 +108,12 @@ function registerEmailTouchpoint(
 export function scoutProfile(
   store: CreatorOutreachStore,
   input: ScoutProfileInput
-): { store: CreatorOutreachStore; profile: SocialMediaProfile; outreach?: EvaluateOutreachResult } {
+): {
+  store: CreatorOutreachStore
+  profile: SocialMediaProfile
+  contactFromDraft?: CreatorContact
+  emailReadyContactId?: string
+} {
   const handle = input.handle.trim().replace(/^@/, '')
   const platform = input.platform
   const profileUrl =
@@ -209,6 +129,7 @@ export function scoutProfile(
       id: uid(),
       displayName: input.newCreatorName.trim(),
       notes: '',
+      avatarProfileId: null,
       status: 'new',
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -218,16 +139,20 @@ export function scoutProfile(
     pushActivity(store, 'creator_created', `Created creator "${creator.displayName}"`)
   }
 
+  const displayName = input.displayName?.trim() || handle
+
   const profile: SocialMediaProfile = {
     id: uid(),
     platform,
     handle,
+    displayName,
     profileUrl,
+    avatarUrl: null,
     followerCount: input.followerCount ?? null,
     creatorId,
     notes: input.notes?.trim() ?? '',
     scoutedAt: nowIso(),
-    scoutedBy: input.scoutedBy?.trim() || 'Team',
+    scoutedBy: input.scoutedBy?.trim() ?? '',
   }
 
   store.profiles.unshift(profile)
@@ -237,7 +162,36 @@ export function scoutProfile(
     `Scouted @${handle} on ${platform === 'tiktok' ? 'TikTok' : 'Instagram'}${creatorId ? ' (linked)' : ''}`
   )
 
-  return { store, profile }
+  let contactFromDraft: CreatorContact | undefined
+  let emailReadyContactId: string | undefined
+
+  if (input.draftContact?.email && creatorId) {
+    const normalized = normalizeEmail(input.draftContact.email)
+    const duplicate = store.contacts.some(
+      (c) => c.creatorId === creatorId && normalizeEmail(c.email) === normalized
+    )
+    if (!duplicate) {
+      const kind = inferCreatorContactKind(
+        store,
+        creatorId,
+        normalized,
+        input.draftContact.name
+      )
+      const contactResult = addCreatorContact(store, {
+        creatorId,
+        kind,
+        name: input.draftContact.name.trim() || displayName,
+        email: normalized,
+        notes: draftContactNotes(input.draftContact, platform, handle),
+        linkedProfileId: profile.id,
+      })
+      Object.assign(store, contactResult.store)
+      contactFromDraft = contactResult.contact
+      emailReadyContactId = contactResult.emailReadyContactId
+    }
+  }
+
+  return { store, profile, contactFromDraft, emailReadyContactId }
 }
 
 export function createCreator(
@@ -248,6 +202,7 @@ export function createCreator(
     id: uid(),
     displayName: displayName.trim(),
     notes: '',
+    avatarProfileId: null,
     status: 'new',
     createdAt: nowIso(),
     updatedAt: nowIso(),
@@ -295,12 +250,22 @@ export function unlinkProfileFromCreator(
 export function updateCreator(
   store: CreatorOutreachStore,
   creatorId: string,
-  patch: Partial<Pick<CreatorPerson, 'displayName' | 'notes'>>
+  patch: Partial<Pick<CreatorPerson, 'displayName' | 'notes' | 'avatarProfileId'>>
 ): CreatorOutreachStore {
   const creator = store.creators.find((c) => c.id === creatorId)
   if (!creator) return store
   if (patch.displayName !== undefined) creator.displayName = patch.displayName.trim()
   if (patch.notes !== undefined) creator.notes = patch.notes
+  if (patch.avatarProfileId !== undefined) {
+    if (patch.avatarProfileId === null) {
+      creator.avatarProfileId = null
+    } else {
+      const linked = store.profiles.some(
+        (p) => p.id === patch.avatarProfileId && p.creatorId === creatorId
+      )
+      if (linked) creator.avatarProfileId = patch.avatarProfileId
+    }
+  }
   creator.updatedAt = nowIso()
   return store
 }
@@ -308,14 +273,18 @@ export function updateCreator(
 export function updateProfile(
   store: CreatorOutreachStore,
   profileId: string,
-  patch: Partial<Pick<SocialMediaProfile, 'notes' | 'followerCount' | 'handle'>>
+  patch: Partial<
+    Pick<SocialMediaProfile, 'notes' | 'followerCount' | 'handle' | 'avatarUrl' | 'displayName'>
+  >
 ): CreatorOutreachStore {
   const profile = store.profiles.find((p) => p.id === profileId)
   if (!profile) return store
 
   if (patch.handle !== undefined) profile.handle = patch.handle.trim().replace(/^@/, '')
+  if (patch.displayName !== undefined) profile.displayName = patch.displayName.trim()
   if (patch.notes !== undefined) profile.notes = patch.notes
   if (patch.followerCount !== undefined) profile.followerCount = patch.followerCount
+  if (patch.avatarUrl !== undefined) profile.avatarUrl = patch.avatarUrl
 
   return store
 }
@@ -342,14 +311,14 @@ export function contactKindLabel(kind: CreatorContactKind): string {
   if (kind === 'creator') return 'Creator'
   if (kind === 'manager') return 'Manager'
   if (kind === 'agency') return 'Agency'
-  return 'Contact'
+  return 'Other'
 }
 
 function applyInferredContactKind(
   store: CreatorOutreachStore,
   contact: CreatorContact
 ): void {
-  if (!contact.email) return
+  if (!contact.email || !contact.creatorId) return
   contact.kind = inferCreatorContactKind(
     store,
     contact.creatorId,
@@ -364,17 +333,68 @@ export type AddCreatorContactInput = {
   name: string
   company?: string
   email?: string
+  phone?: string
   notes?: string
+  /** Links the email touchpoint to a scouted profile when provided. */
+  linkedProfileId?: string | null
 }
 
 export type UpdateCreatorContactInput = Partial<
-  Pick<CreatorContact, 'kind' | 'name' | 'company' | 'email' | 'notes'>
+  Pick<CreatorContact, 'kind' | 'name' | 'company' | 'email' | 'phone' | 'notes'>
 >
+
+/** Reassign a contact from another creator to `creatorId`. */
+export function unlinkContactFromCreator(
+  store: CreatorOutreachStore,
+  contactId: string
+): CreatorOutreachStore {
+  const contact = store.contacts.find((c) => c.id === contactId)
+  if (!contact || !contact.creatorId) return store
+
+  const creatorId = contact.creatorId
+  const creator = store.creators.find((c) => c.id === creatorId)
+  contact.creatorId = null
+  pushActivity(
+    store,
+    'contact_unlinked',
+    `Unlinked ${contactKindLabel(contact.kind)} "${contact.name}" from ${creator?.displayName ?? 'creator'}`
+  )
+  syncCreatorCrmStatusFromContacts(store, creatorId)
+  return store
+}
+
+export function linkContactToCreator(
+  store: CreatorOutreachStore,
+  contactId: string,
+  creatorId: string
+): CreatorOutreachStore {
+  const contact = store.contacts.find((c) => c.id === contactId)
+  if (!contact || contact.creatorId === creatorId) return store
+
+  const fromCreator = contact.creatorId
+    ? store.creators.find((c) => c.id === contact.creatorId)
+    : null
+  const toCreator = store.creators.find((c) => c.id === creatorId)
+  contact.creatorId = creatorId
+  applyInferredContactKind(store, contact)
+  pushActivity(
+    store,
+    'contact_added',
+    `Linked ${contactKindLabel(contact.kind)} "${contact.name}" to ${toCreator?.displayName ?? 'creator'}${
+      fromCreator ? ` (from ${fromCreator.displayName})` : ''
+    }`
+  )
+  return store
+}
 
 export function addCreatorContact(
   store: CreatorOutreachStore,
   input: AddCreatorContactInput
-): { store: CreatorOutreachStore; contact: CreatorContact; outreach?: EvaluateOutreachResult } {
+): {
+  store: CreatorOutreachStore
+  contact: CreatorContact
+  emailReadyContactId?: string
+} {
   const contact: CreatorContact = {
     id: uid(),
     creatorId: input.creatorId,
@@ -382,6 +402,7 @@ export function addCreatorContact(
     name: input.name.trim(),
     company: input.company?.trim() ?? '',
     email: input.email ? normalizeEmail(input.email) : '',
+    phone: input.phone ? normalizePhone(input.phone) : '',
     notes: input.notes?.trim() ?? '',
     status: 'new',
     missiveConversationIds: [],
@@ -396,31 +417,25 @@ export function addCreatorContact(
     `Added ${contactKindLabel(contact.kind)} "${contact.name}" for ${creator?.displayName ?? 'creator'}`
   )
 
-  let outreach: EvaluateOutreachResult | undefined
+  let emailReadyContactId: string | undefined
   if (contact.email) {
-    syncContactCrmStatusFromOutreach(store, contact.id, 'email_ready')
     registerEmailTouchpoint(store, contact.email, {
-      profileId: null,
+      profileId: input.linkedProfileId ?? null,
       contactId: contact.id,
       creatorId: contact.creatorId,
     })
     pushActivity(store, 'email_added', `Email on contact ${contact.name}: ${contact.email}`)
-    outreach = evaluateAndTriggerOutreach(store, {
-      email: contact.email,
-      profileId: null,
-      contactId: contact.id,
-      creatorId: contact.creatorId,
-    })
+    emailReadyContactId = contact.id
   }
 
-  return { store, contact, outreach }
+  return { store, contact, emailReadyContactId }
 }
 
 export function updateCreatorContact(
   store: CreatorOutreachStore,
   contactId: string,
   patch: UpdateCreatorContactInput
-): { store: CreatorOutreachStore; outreach?: EvaluateOutreachResult } {
+): { store: CreatorOutreachStore; emailReadyContactId?: string } {
   const contact = store.contacts.find((c) => c.id === contactId)
   if (!contact) return { store }
 
@@ -429,27 +444,24 @@ export function updateCreatorContact(
   if (patch.company !== undefined) contact.company = patch.company.trim()
   if (patch.notes !== undefined) contact.notes = patch.notes
 
+  if (patch.phone !== undefined) {
+    contact.phone = normalizePhone(patch.phone)
+  }
+
   if (patch.email !== undefined) {
     const normalized = normalizeEmail(patch.email)
     const hadEmail = Boolean(contact.email)
     contact.email = normalized
     if (!normalized) return { store }
-    applyInferredContactKind(store, contact)
+    if (contact.creatorId) applyInferredContactKind(store, contact)
     if (!hadEmail || contact.email !== normalized) {
-      syncContactCrmStatusFromOutreach(store, contact.id, 'email_ready')
       registerEmailTouchpoint(store, normalized, {
         profileId: null,
         contactId: contact.id,
         creatorId: contact.creatorId,
       })
       pushActivity(store, 'email_added', `Email on contact ${contact.name}: ${normalized}`)
-      const outreach = evaluateAndTriggerOutreach(store, {
-        email: normalized,
-        profileId: null,
-        contactId: contact.id,
-        creatorId: contact.creatorId,
-      })
-      return { store, outreach }
+      return { store, emailReadyContactId: contact.id }
     }
   }
 
@@ -463,6 +475,48 @@ export function contactCrmStatusLabel(status: ContactCrmStatus): string {
   return 'Blocked'
 }
 
+export function removeProfile(
+  store: CreatorOutreachStore,
+  profileId: string
+): CreatorOutreachStore {
+  const profile = store.profiles.find((p) => p.id === profileId)
+  if (!profile) return store
+
+  store.profiles = store.profiles.filter((p) => p.id !== profileId)
+  store.emailTouchpoints = store.emailTouchpoints.filter((t) => t.profileId !== profileId)
+  store.outreachSends = store.outreachSends.filter((s) => s.profileId !== profileId)
+  return store
+}
+
+export function removeCreator(
+  store: CreatorOutreachStore,
+  creatorId: string
+): { store: CreatorOutreachStore; deletedContactIds: string[] } {
+  const creator = store.creators.find((c) => c.id === creatorId)
+  if (!creator) return { store, deletedContactIds: [] }
+
+  const deletedContactIds = store.contacts
+    .filter((c) => c.creatorId === creatorId)
+    .map((c) => c.id)
+
+  for (const profile of store.profiles) {
+    if (profile.creatorId === creatorId) profile.creatorId = null
+  }
+
+  store.contacts = store.contacts.filter((c) => c.creatorId !== creatorId)
+  store.creators = store.creators.filter((c) => c.id !== creatorId)
+
+  store.emailTouchpoints = store.emailTouchpoints.filter(
+    (t) => t.creatorId !== creatorId && !deletedContactIds.includes(t.contactId ?? '')
+  )
+  store.outreachSends = store.outreachSends.filter(
+    (s) =>
+      s.creatorId !== creatorId && !deletedContactIds.includes(s.contactId ?? '')
+  )
+
+  return { store, deletedContactIds }
+}
+
 export function removeCreatorContact(
   store: CreatorOutreachStore,
   contactId: string
@@ -471,12 +525,14 @@ export function removeCreatorContact(
   if (!contact) return store
   const creatorId = contact.creatorId
   store.contacts = store.contacts.filter((c) => c.id !== contactId)
+  store.emailTouchpoints = store.emailTouchpoints.filter((t) => t.contactId !== contactId)
+  store.outreachSends = store.outreachSends.filter((s) => s.contactId !== contactId)
   pushActivity(
     store,
     'contact_removed',
     `Removed ${contactKindLabel(contact.kind)} "${contact.name}"`
   )
-  syncCreatorCrmStatusFromContacts(store, creatorId)
+  if (creatorId) syncCreatorCrmStatusFromContacts(store, creatorId)
   return store
 }
 
