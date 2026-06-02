@@ -19,7 +19,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone, Users, X, UserCircle, Sparkles, FlagTriangleRight, Ticket, Receipt, Star, Bell, Eraser, Activity, MessagesSquare, TrendingUp, Kanban } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users, X, Sparkles, FlagTriangleRight, Ticket, Receipt, Star, Bell, Eraser, Activity, MessagesSquare, TrendingUp, Kanban } from 'lucide-react'
 import { Button } from './ui/button'
 import SignOutButton from './sign-out-button'
 
@@ -119,12 +119,6 @@ const promoterMenuItems = [
     url: '/devices',
     icon: Smartphone,
     roles: ['promoter', 'admin'] as const,
-  },
-  {
-    title: 'Characters',
-    url: '/characters',
-    icon: UserCircle,
-    roles: ['admin', 'dev', 'developer', 'promoter'] as const,
   },
 ]
 
