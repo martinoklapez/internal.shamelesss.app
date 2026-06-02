@@ -5,6 +5,11 @@ import {
   saveOutreachRulesInDb,
   type SaveOutreachRuleInput,
 } from '@/lib/database/creator-pipeline/save-outreach-rules'
+import {
+  deleteEmailTemplateInDb,
+  saveEmailTemplateInDb,
+  type SaveEmailTemplateInput,
+} from '@/lib/database/creator-pipeline/save-email-templates'
 import { invokeOutreachProcessor } from '@/lib/creator-outreach/invoke-outreach-processor'
 import type { EvaluateOutreachResult } from '@/lib/creator-outreach/rules-engine'
 import type { CreatorOutreachStore } from '@/lib/creator-outreach/types'
@@ -69,6 +74,8 @@ type MutateBody =
   | { action: 'deleteCreator'; creatorId: string }
   | { action: 'deleteProfile'; profileId: string }
   | { action: 'saveOutreachRules'; rules: SaveOutreachRuleInput[] }
+  | { action: 'saveEmailTemplate'; template: SaveEmailTemplateInput }
+  | { action: 'deleteEmailTemplate'; templateId: string }
   | { action: 'replaceStore'; store: CreatorOutreachStore }
 
 function cloneStore(store: CreatorOutreachStore): CreatorOutreachStore {
@@ -115,6 +122,20 @@ export async function POST(request: Request) {
       const savedRules = await saveOutreachRulesInDb(supabase, body.rules)
       const store = await loadCreatorOutreachStoreFromDb(supabase)
       store.outreachRules = savedRules
+      return NextResponse.json({ store })
+    }
+
+    if (body.action === 'saveEmailTemplate') {
+      const templates = await saveEmailTemplateInDb(supabase, body.template)
+      const store = await loadCreatorOutreachStoreFromDb(supabase)
+      store.templates = templates
+      return NextResponse.json({ store })
+    }
+
+    if (body.action === 'deleteEmailTemplate') {
+      const templates = await deleteEmailTemplateInDb(supabase, body.templateId)
+      const store = await loadCreatorOutreachStoreFromDb(supabase)
+      store.templates = templates
       return NextResponse.json({ store })
     }
 

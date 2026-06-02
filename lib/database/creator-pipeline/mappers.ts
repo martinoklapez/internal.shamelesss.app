@@ -77,6 +77,17 @@ export function mapTemplateRow(row: EmailTemplateRow): EmailTemplate {
   }
 }
 
+export function templateToRow(template: EmailTemplate): EmailTemplateRow {
+  return {
+    id: template.id,
+    name: template.name,
+    subject: template.subject,
+    body_preview: template.bodyPreview,
+    is_default: template.isDefault,
+    created_at: new Date().toISOString(),
+  }
+}
+
 export function mapTouchpointRow(row: EmailTouchpointRow): EmailTouchpoint {
   return {
     id: row.id,
