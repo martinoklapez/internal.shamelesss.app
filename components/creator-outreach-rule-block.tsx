@@ -14,6 +14,7 @@ import {
   type CreatorContactKind,
   type EmailTemplate,
   type OutreachRuleAction,
+  type SendFromAddress,
 } from '@/lib/creator-outreach/types'
 import { contactKindLabel } from '@/lib/creator-outreach/store'
 import { cn } from '@/lib/utils'
@@ -31,11 +32,13 @@ export type ContactKindRuleDraft = {
   enabled: boolean
   action: OutreachRuleAction
   templateId: string | null
+  sendFromId: string | null
 }
 
 type CreatorOutreachRulesBuilderProps = {
   drafts: Record<CreatorContactKind, ContactKindRuleDraft>
   templates: EmailTemplate[]
+  sendFromAddresses: SendFromAddress[]
   ruleEnabled: boolean
   onRuleEnabledChange: (enabled: boolean) => void
   onKindChange: (kind: CreatorContactKind, patch: Partial<ContactKindRuleDraft>) => void
@@ -49,23 +52,25 @@ function OutcomeRow({
   kind,
   draft,
   templates,
+  sendFromAddresses,
   ruleEnabled,
   onChange,
 }: {
   kind: CreatorContactKind
   draft: ContactKindRuleDraft
   templates: EmailTemplate[]
+  sendFromAddresses: SendFromAddress[]
   ruleEnabled: boolean
   onChange: (patch: Partial<ContactKindRuleDraft>) => void
 }) {
   const send = draft.action === 'send_email'
   const rowActive = ruleEnabled && draft.enabled
+  const enabledSenders = sendFromAddresses.filter((s) => s.enabled)
 
   return (
     <div
       className={cn(
-        'grid w-fit max-w-full items-center gap-x-2 py-2',
-        'grid-cols-[auto_1.25rem_12rem_minmax(10rem,max-content)_auto]',
+        'flex w-full max-w-full flex-wrap items-center gap-x-2 gap-y-2 py-2',
         !rowActive && 'opacity-50'
       )}
     >
@@ -84,12 +89,15 @@ function OutcomeRow({
         value={draft.action}
         onValueChange={(action: OutreachRuleAction) => {
           if (action === 'do_not_send') {
-            onChange({ action, templateId: null })
+            onChange({ action, templateId: null, sendFromId: null })
           } else {
             const defaultTpl = templates.find((t) => t.isDefault) ?? templates[0]
+            const defaultSender =
+              enabledSenders.find((s) => s.isDefault) ?? enabledSenders[0]
             onChange({
               action,
               templateId: draft.templateId ?? defaultTpl?.id ?? null,
+              sendFromId: draft.sendFromId ?? defaultSender?.id ?? null,
             })
           }
         }}
@@ -104,14 +112,14 @@ function OutcomeRow({
         </SelectContent>
       </Select>
 
-      <div className={cn('min-h-9', send && 'min-w-[10rem]')}>
-        {send ? (
+      {send ? (
+        <>
           <Select
             value={draft.templateId ?? undefined}
             onValueChange={(templateId) => onChange({ action: 'send_email', templateId })}
             disabled={!rowActive}
           >
-            <SelectTrigger className={cn(clauseSelectClass, 'w-full min-w-[10rem]')}>
+            <SelectTrigger className={cn(clauseSelectClass, 'w-[11rem]')}>
               <SelectValue placeholder="Template" />
             </SelectTrigger>
             <SelectContent>
@@ -122,8 +130,25 @@ function OutcomeRow({
               ))}
             </SelectContent>
           </Select>
-        ) : null}
-      </div>
+          <span className="text-xs text-gray-400">from</span>
+          <Select
+            value={draft.sendFromId ?? undefined}
+            onValueChange={(sendFromId) => onChange({ action: 'send_email', sendFromId })}
+            disabled={!rowActive}
+          >
+            <SelectTrigger className={cn(clauseSelectClass, 'min-w-[12rem] max-w-[16rem]')}>
+              <SelectValue placeholder="Sender" />
+            </SelectTrigger>
+            <SelectContent>
+              {enabledSenders.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.displayName ? `${s.displayName} · ${s.address}` : s.address}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </>
+      ) : null}
 
       <div className="flex justify-end">
         <Switch
@@ -140,6 +165,7 @@ function OutcomeRow({
 export function CreatorOutreachRulesBuilder({
   drafts,
   templates,
+  sendFromAddresses,
   ruleEnabled,
   onRuleEnabledChange,
   onKindChange,
@@ -181,15 +207,16 @@ export function CreatorOutreachRulesBuilder({
       <section className="space-y-1 mt-6 pt-5 border-t border-gray-100">
         <p className="text-sm font-medium text-gray-900 mb-2">Then</p>
         <p className="text-xs text-gray-500 mb-3">
-          Each row is fixed to a contact type (left). Choose the action and template on the right.
+          Each row is fixed to a contact type (left). Choose template and sender for outbound email.
         </p>
-        <div className="divide-y divide-gray-100 w-fit max-w-full">
+        <div className="divide-y divide-gray-100 w-full max-w-full">
           {OUTREACH_CONTACT_KINDS.map((kind) => (
             <OutcomeRow
               key={kind}
               kind={kind}
               draft={drafts[kind]}
               templates={templates}
+              sendFromAddresses={sendFromAddresses}
               ruleEnabled={ruleEnabled}
               onChange={(patch) => onKindChange(kind, patch)}
             />

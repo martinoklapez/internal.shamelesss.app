@@ -7,6 +7,7 @@ import type {
   EmailTouchpoint,
   OutreachRule,
   OutreachSend,
+  SendFromAddress,
   SocialMediaProfile,
 } from '@/lib/creator-outreach/types'
 import type {
@@ -19,6 +20,7 @@ import type {
   OutreachRuleRow,
   OutreachSendRow,
   ProfileRow,
+  SendFromAddressRow,
 } from './rows'
 
 export function mapCreatorRow(row: CreatorRow): CreatorPerson {
@@ -99,12 +101,44 @@ export function mapTouchpointRow(row: EmailTouchpointRow): EmailTouchpoint {
   }
 }
 
-export function mapOutreachSendRow(row: OutreachSendRow): OutreachSend {
+export function mapSendFromAddressRow(row: SendFromAddressRow): SendFromAddress {
+  const accountId = row.missive_account_id?.trim()
+  return {
+    id: row.id,
+    address: row.address,
+    displayName: row.display_name,
+    missiveAccountId: accountId || undefined,
+    signatureHtml: row.signature_html?.trim() || undefined,
+    enabled: row.enabled,
+    isDefault: row.is_default,
+  }
+}
+
+export function sendFromAddressToRow(address: SendFromAddress): SendFromAddressRow {
+  const accountId = address.missiveAccountId?.trim()
+  return {
+    id: address.id,
+    address: address.address,
+    display_name: address.displayName,
+    missive_account_id: accountId || null,
+    signature_html: address.signatureHtml?.trim() || null,
+    enabled: address.enabled,
+    is_default: address.isDefault,
+    created_at: new Date().toISOString(),
+  }
+}
+
+export function mapOutreachSendRow(
+  row: OutreachSendRow,
+  fallbackFrom?: { address: string; displayName: string }
+): OutreachSend {
   return {
     id: row.id,
     email: row.email,
     templateId: row.template_id,
     templateName: row.template_name,
+    fromAddress: row.from_address ?? fallbackFrom?.address ?? '',
+    fromDisplayName: row.from_display_name ?? fallbackFrom?.displayName ?? '',
     profileId: row.profile_id,
     contactId: row.contact_id,
     creatorId: row.creator_id,
@@ -121,6 +155,7 @@ export function mapOutreachRuleRow(row: OutreachRuleRow): OutreachRule {
     contactKind: row.contact_kind,
     action: row.action,
     templateId: row.template_id,
+    sendFromId: row.send_from_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -134,6 +169,7 @@ export function outreachRuleToRow(rule: OutreachRule): OutreachRuleRow {
     contact_kind: rule.contactKind,
     action: rule.action,
     template_id: rule.action === 'send_email' ? rule.templateId : null,
+    send_from_id: rule.action === 'send_email' ? rule.sendFromId : null,
     created_at: rule.createdAt,
     updated_at: rule.updatedAt,
   }

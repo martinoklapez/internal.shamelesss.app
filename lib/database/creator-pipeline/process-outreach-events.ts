@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendQueuedOutreachViaMissive } from '@/lib/creator-outreach/missive'
+import { defaultSendFromAddress } from '@/lib/creator-outreach/resolve-send-from'
 import { platformLabel } from '@/lib/creator-outreach/store'
 import {
   applyContactEmailReadyRules,
@@ -13,7 +14,7 @@ import type { OutreachEventRow } from './rows'
 
 function shouldAttemptMissive(explicit?: boolean): boolean {
   if (explicit !== undefined) return explicit
-  return Boolean(process.env.MISSIVE_API_TOKEN?.trim() && process.env.MISSIVE_FROM_ADDRESS?.trim())
+  return Boolean(process.env.MISSIVE_API_TOKEN?.trim())
 }
 
 export type ProcessOutreachEventsOptions = {
@@ -30,6 +31,7 @@ export type ProcessOutreachEventsResult = {
   missiveSent?: number
   missiveFailed?: number
   lastMissiveError?: string
+  lastMissiveWarning?: string
 }
 
 function serializeResult(result: EvaluateOutreachResult): Record<string, unknown> {
@@ -90,7 +92,7 @@ async function claimPendingEvents(
 async function processMissiveForQueuedSends(
   supabase: SupabaseClient,
   sendIds: string[]
-): Promise<{ sent: number; failed: number; lastError?: string }> {
+): Promise<{ sent: number; failed: number; lastError?: string; lastWarning?: string }> {
   if (sendIds.length === 0) return { sent: 0, failed: 0 }
 
   const store = await loadCreatorOutreachStoreFromDb(supabase)
@@ -98,6 +100,7 @@ async function processMissiveForQueuedSends(
   let sent = 0
   let failed = 0
   let lastError: string | undefined
+  let lastWarning: string | undefined
 
   for (const sendId of sendIds) {
     const send = store.outreachSends.find((s) => s.id === sendId)
@@ -125,13 +128,46 @@ async function processMissiveForQueuedSends(
           ? store.profiles.find((p) => p.creatorId === contact.creatorId)
           : undefined
 
-    const missive = await sendQueuedOutreachViaMissive(send, tpl, {
+    const defaultFrom = defaultSendFromAddress(store)
+    const ruleFromAddress = send.fromAddress || defaultFrom?.address
+    const ruleFromDisplayName = send.fromDisplayName || defaultFrom?.displayName
+    const ruleSender = store.sendFromAddresses.find(
+      (s) => s.address.toLowerCase() === (ruleFromAddress ?? '').toLowerCase()
+    )
+    const missiveAccountId =
+      ruleSender?.missiveAccountId ?? defaultFrom?.missiveAccountId
+    const signatureHtml = ruleSender?.signatureHtml ?? defaultFrom?.signatureHtml
+    if (!ruleFromAddress) {
+      failed += 1
+      lastError = 'No send-from address on queued outreach'
+      continue
+    }
+
+    const missiveContext = {
       contactName: contact?.name ?? send.email,
       creatorName: creator?.displayName ?? contact?.name ?? 'Creator',
       platform: profile ? platformLabel(profile.platform) : undefined,
       handle: profile?.handle,
       existingConversationId:
         contact?.missiveConversationIds[contact.missiveConversationIds.length - 1] ?? null,
+    }
+
+    const pipelineSenders = store.sendFromAddresses
+      .filter((s) => s.enabled)
+      .map((s) => ({
+        address: s.address,
+        missiveAccountId: s.missiveAccountId,
+        displayName: s.displayName,
+        signatureHtml: s.signatureHtml,
+      }))
+
+    const missive = await sendQueuedOutreachViaMissive(send, tpl, {
+      ...missiveContext,
+      fromAddress: ruleFromAddress,
+      fromDisplayName: ruleFromDisplayName,
+      pipelineSenders,
+      missiveAccountId,
+      signatureHtml,
     })
 
     if (!missive.ok) {
@@ -139,6 +175,17 @@ async function processMissiveForQueuedSends(
       lastError = missive.reason
       console.error(`Missive send failed for ${send.email}:`, missive.reason)
       continue
+    }
+
+    if (missive.personalFallback) {
+      const matched = store.sendFromAddresses.find(
+        (s) => s.address.toLowerCase() === missive.fromAddress.toLowerCase()
+      )
+      send.fromAddress = missive.fromAddress
+      send.fromDisplayName = matched?.displayName ?? send.fromDisplayName
+      lastWarning =
+        `Email sent from ${missive.fromAddress} (API token user), not ${missive.configuredFromAddress}. ` +
+        `Enable "Allow others to send" on that alias in Missive for API sends from the shared inbox.`
     }
 
     markOutreachSendDelivered(store, send, missive.conversationId, contact ?? null)
@@ -149,7 +196,7 @@ async function processMissiveForQueuedSends(
     await persistCreatorOutreachStoreToDb(supabase, store)
   }
 
-  return { sent, failed, lastError }
+  return { sent, failed, lastError: lastError, lastWarning }
 }
 
 /**
@@ -212,6 +259,7 @@ export async function processPendingOutreachEvents(
   let missiveSent = 0
   let missiveFailed = 0
   let lastMissiveError: string | undefined
+  let lastMissiveWarning: string | undefined
 
   const attemptMissive = shouldAttemptMissive(options.attemptMissive)
   if (attemptMissive) {
@@ -225,8 +273,17 @@ export async function processPendingOutreachEvents(
       missiveSent = missive.sent
       missiveFailed = missive.failed
       lastMissiveError = missive.lastError
+      lastMissiveWarning = missive.lastWarning
     }
   }
 
-  return { processed, failed, lastOutreach, missiveSent, missiveFailed, lastMissiveError }
+  return {
+    processed,
+    failed,
+    lastOutreach,
+    missiveSent,
+    missiveFailed,
+    lastMissiveError,
+    lastMissiveWarning,
+  }
 }

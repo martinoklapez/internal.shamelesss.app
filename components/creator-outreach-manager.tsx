@@ -1259,17 +1259,32 @@ export default function CreatorOutreachManager() {
       missiveSent?: number
       missiveFailed?: number
       lastMissiveError?: string
+      lastMissiveWarning?: string
     }) => {
       if (!payload) return
       if (payload.missiveSent && payload.missiveSent > 0) {
-        notifySuccess(
-          payload.missiveSent === 1
-            ? 'Email sent via Missive.'
-            : `${payload.missiveSent} emails sent via Missive.`,
-          'Sent'
-        )
+        if (payload.lastMissiveWarning) {
+          notifySuccess(payload.lastMissiveWarning, 'Sent — wrong From address')
+        } else {
+          notifySuccess(
+            payload.missiveSent === 1
+              ? 'Email sent via Missive.'
+              : `${payload.missiveSent} emails sent via Missive.`,
+            'Sent'
+          )
+        }
       } else if (payload.missiveFailed && payload.missiveFailed > 0) {
-        notifyError(payload.lastMissiveError ?? 'Missive could not send the email.')
+        const detail =
+          payload.lastMissiveError ??
+          'Missive could not send the email. Check Pipeline → Senders and Missive alias permissions.'
+        if (payload.outreach?.action === 'queued') {
+          notifyError(
+            `${detail} The contact was saved; outreach stays queued. Fix the sender in Pipeline → Rules or Missive, then run process-outreach again.`,
+            'Contact saved — email not sent'
+          )
+        } else {
+          notifyError(detail)
+        }
       } else if (payload.outreach?.action === 'queued') {
         notifySuccess('Outreach queued per Rules.', 'Queued')
       } else if (payload.outreach?.action === 'skipped') {

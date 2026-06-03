@@ -18,10 +18,10 @@ export async function invokeOutreachProcessor(
   missiveSent?: number
   missiveFailed?: number
   lastMissiveError?: string
+  lastMissiveWarning?: string
 }> {
   const attemptMissive =
-    options?.attemptMissive ??
-    Boolean(process.env.MISSIVE_API_TOKEN?.trim() && process.env.MISSIVE_FROM_ADDRESS?.trim())
+    options?.attemptMissive ?? Boolean(process.env.MISSIVE_API_TOKEN?.trim())
 
   const result: ProcessOutreachEventsResult = await processPendingOutreachEvents(
     supabase,
@@ -36,5 +36,6 @@ export async function invokeOutreachProcessor(
     missiveSent: result.missiveSent,
     missiveFailed: result.missiveFailed,
     lastMissiveError: result.lastMissiveError,
+    lastMissiveWarning: result.lastMissiveWarning,
   }
 }

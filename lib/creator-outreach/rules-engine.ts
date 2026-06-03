@@ -1,4 +1,5 @@
 import { deriveCreatorCrmStatusFromContacts } from './crm-status'
+import { resolveSendFromForRule } from './resolve-send-from'
 import type {
   ActivityEventType,
   CreatorOutreachStore,
@@ -105,6 +106,11 @@ export function applyContactEmailReadyRules(
     return { action: 'none', reason: `Rule: do not send for ${contact.kind}` }
   }
 
+  const sendFrom = resolveSendFromForRule(store, rule)
+  if (!sendFrom) {
+    return { action: 'none', reason: 'No enabled send-from address configured' }
+  }
+
   if (hasActiveOutreachForEmail(store, normalized)) {
     const tpl =
       store.templates.find((t) => t.id === rule.templateId) ?? defaultTemplate(store)
@@ -113,6 +119,8 @@ export function applyContactEmailReadyRules(
       email: normalized,
       templateId: tpl.id,
       templateName: tpl.name,
+      fromAddress: sendFrom.address,
+      fromDisplayName: sendFrom.displayName,
       profileId: null,
       contactId: contact.id,
       creatorId: contact.creatorId,
@@ -136,6 +144,8 @@ export function applyContactEmailReadyRules(
     email: normalized,
     templateId: tpl.id,
     templateName: tpl.name,
+    fromAddress: sendFrom.address,
+    fromDisplayName: sendFrom.displayName,
     profileId: null,
     contactId: contact.id,
     creatorId: contact.creatorId,
@@ -146,7 +156,7 @@ export function applyContactEmailReadyRules(
   pushActivity(
     store,
     'outreach_queued',
-    `Queued "${tpl.name}" to ${normalized} (${contact.kind})`
+    `Queued "${tpl.name}" from ${sendFrom.address} to ${normalized} (${contact.kind})`
   )
   return { action: 'queued', send }
 }

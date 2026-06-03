@@ -13,6 +13,7 @@ export type SaveOutreachRuleInput = {
   enabled: boolean
   action: OutreachRuleAction
   templateId: string | null
+  sendFromId: string | null
 }
 
 export async function saveOutreachRulesInDb(
@@ -39,9 +40,11 @@ export async function saveOutreachRulesInDb(
     if (input.action === 'do_not_send' && input.templateId) {
       throw new Error(`Template must be empty when not sending for ${input.contactKind}`)
     }
-
-    if (input.action === 'send_email' && input.templateId) {
-      // validated in upsert batch below
+    if (input.action === 'send_email' && !input.sendFromId) {
+      throw new Error(`Send-from address required for ${input.contactKind}`)
+    }
+    if (input.action === 'do_not_send' && input.sendFromId) {
+      throw new Error(`Send-from must be empty when not sending for ${input.contactKind}`)
     }
 
     return outreachRuleToRow({
@@ -51,6 +54,7 @@ export async function saveOutreachRulesInDb(
       contactKind: input.contactKind,
       action: input.action,
       templateId: input.action === 'send_email' ? input.templateId : null,
+      sendFromId: input.action === 'send_email' ? input.sendFromId : null,
       createdAt: (prev?.created_at as string) ?? now,
       updatedAt: now,
     })
@@ -65,6 +69,17 @@ export async function saveOutreachRulesInDb(
         .maybeSingle()
       if (tplError) throw new Error(tplError.message)
       if (!tpl) throw new Error(`Template not found for ${input.contactKind}`)
+    }
+    if (input.action === 'send_email' && input.sendFromId) {
+      const { data: sender, error: senderError } = await db
+        .from('send_from_addresses')
+        .select('id, enabled')
+        .eq('id', input.sendFromId)
+        .maybeSingle()
+      if (senderError) throw new Error(senderError.message)
+      if (!sender || !sender.enabled) {
+        throw new Error(`Send-from address not found or disabled for ${input.contactKind}`)
+      }
     }
   }
 

@@ -125,10 +125,10 @@ export function CreatorOutreachTemplatesBuilder({
   const subjectRef = useRef<HTMLInputElement>(null)
   const bodyRef = useRef<TemplateVariableTextareaHandle>(null)
   const [variablesOpen, setVariablesOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('preview')
 
   useEffect(() => {
-    setActiveTab('edit')
+    setActiveTab('preview')
     setVariablesOpen(false)
   }, [draft?.id])
 

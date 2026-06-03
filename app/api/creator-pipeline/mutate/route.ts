@@ -10,6 +10,11 @@ import {
   saveEmailTemplateInDb,
   type SaveEmailTemplateInput,
 } from '@/lib/database/creator-pipeline/save-email-templates'
+import {
+  deleteSendFromAddressInDb,
+  saveSendFromAddressInDb,
+  type SaveSendFromAddressInput,
+} from '@/lib/database/creator-pipeline/save-send-from-addresses'
 import { invokeOutreachProcessor } from '@/lib/creator-outreach/invoke-outreach-processor'
 import type { EvaluateOutreachResult } from '@/lib/creator-outreach/rules-engine'
 import type { CreatorOutreachStore } from '@/lib/creator-outreach/types'
@@ -76,6 +81,8 @@ type MutateBody =
   | { action: 'saveOutreachRules'; rules: SaveOutreachRuleInput[] }
   | { action: 'saveEmailTemplate'; template: SaveEmailTemplateInput }
   | { action: 'deleteEmailTemplate'; templateId: string }
+  | { action: 'saveSendFromAddress'; address: SaveSendFromAddressInput }
+  | { action: 'deleteSendFromAddress'; addressId: string }
   | { action: 'replaceStore'; store: CreatorOutreachStore }
 
 function cloneStore(store: CreatorOutreachStore): CreatorOutreachStore {
@@ -116,6 +123,7 @@ export async function POST(request: Request) {
     let missiveSent: number | undefined
     let missiveFailed: number | undefined
     let lastMissiveError: string | undefined
+    let lastMissiveWarning: string | undefined
     let contactIdsToProcess: string[] = []
 
     if (body.action === 'saveOutreachRules') {
@@ -136,6 +144,20 @@ export async function POST(request: Request) {
       const templates = await deleteEmailTemplateInDb(supabase, body.templateId)
       const store = await loadCreatorOutreachStoreFromDb(supabase)
       store.templates = templates
+      return NextResponse.json({ store })
+    }
+
+    if (body.action === 'saveSendFromAddress') {
+      const sendFromAddresses = await saveSendFromAddressInDb(supabase, body.address)
+      const store = await loadCreatorOutreachStoreFromDb(supabase)
+      store.sendFromAddresses = sendFromAddresses
+      return NextResponse.json({ store })
+    }
+
+    if (body.action === 'deleteSendFromAddress') {
+      const sendFromAddresses = await deleteSendFromAddressInDb(supabase, body.addressId)
+      const store = await loadCreatorOutreachStoreFromDb(supabase)
+      store.sendFromAddresses = sendFromAddresses
       return NextResponse.json({ store })
     }
 
@@ -240,6 +262,7 @@ export async function POST(request: Request) {
           missiveSent: processed.missiveSent,
           missiveFailed: processed.missiveFailed,
           lastMissiveError: processed.lastMissiveError,
+          lastMissiveWarning: processed.lastMissiveWarning,
         })
       }
       default:
@@ -256,6 +279,7 @@ export async function POST(request: Request) {
       missiveSent = processed.missiveSent
       missiveFailed = processed.missiveFailed
       lastMissiveError = processed.lastMissiveError
+      lastMissiveWarning = processed.lastMissiveWarning
     }
 
     const saved = await loadCreatorOutreachStoreFromDb(supabase)
@@ -265,6 +289,7 @@ export async function POST(request: Request) {
       missiveSent,
       missiveFailed,
       lastMissiveError,
+      lastMissiveWarning,
     })
   } catch (error) {
     console.error('POST /api/creator-pipeline/mutate:', error)

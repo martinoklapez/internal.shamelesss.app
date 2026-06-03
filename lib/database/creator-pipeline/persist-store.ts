@@ -72,6 +72,8 @@ function outreachSendToRow(s: CreatorOutreachStore['outreachSends'][0]) {
     email: s.email,
     template_id: s.templateId,
     template_name: s.templateName,
+    from_address: s.fromAddress || null,
+    from_display_name: s.fromDisplayName || null,
     profile_id: s.profileId,
     contact_id: s.contactId,
     creator_id: s.creatorId,

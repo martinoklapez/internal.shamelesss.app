@@ -1,18 +1,42 @@
+import { appendOutreachSignatureHtml } from './outreach-email-body'
 import type { OutreachSend } from './types'
 
 const MISSIVE_API_BASE = 'https://public.missiveapp.com/v1'
 
 export type MissiveSendResult =
-  | { ok: true; conversationId: string }
+  | {
+      ok: true
+      conversationId: string
+      fromAddress: string
+      configuredFromAddress: string
+      /** True when the configured alias failed and send used the API token user's email. */
+      personalFallback?: boolean
+    }
   | { ok: false; reason: string }
+
+export type MissivePipelineSender = {
+  address: string
+  missiveAccountId?: string
+  displayName?: string
+}
 
 export type MissiveSendContext = {
   contactName: string
   creatorName: string
+  fromAddress: string
+  fromDisplayName?: string
   platform?: string
   handle?: string
   /** Reply in an existing Missive thread when present. */
   existingConversationId?: string | null
+  /** Enabled Pipeline senders (address + shared account id + display name). */
+  pipelineSenders?: MissivePipelineSender[]
+  /** @deprecated Prefer pipelineSenders */
+  fallbackFromAddresses?: string[]
+  /** Missive shared email account ID when not set on the matching pipelineSenders row. */
+  missiveAccountId?: string
+  /** HTML signature for the configured sender (appended after template body). */
+  signatureHtml?: string
 }
 
 type MissiveDraftPayload = {
@@ -21,6 +45,7 @@ type MissiveDraftPayload = {
   send: boolean
   to_fields: { address: string; name?: string }[]
   from_field: { address: string; name?: string }
+  account?: string
   conversation?: string
   team?: string
   organization?: string
@@ -77,17 +102,120 @@ function parseMissiveErrorMessage(data: unknown, raw: string, status: number): s
 }
 
 function isSenderMismatchError(message: string): boolean {
-  return message.toLowerCase().includes('does not match an available sender')
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('does not match an available sender') ||
+    lower.includes('cannot send from')
+  )
 }
 
-function senderMismatchHelp(configured: string, tried: string[]): string {
+function isAccountNotFoundError(message: string): boolean {
+  const lower = message.toLowerCase()
+  return lower.includes('account with id') && lower.includes('does not exist')
+}
+
+function resolveMissiveAccountId(context: MissiveSendContext): string | undefined {
+  const fromContext = context.missiveAccountId?.trim()
+  if (fromContext) return fromContext
+  return process.env.MISSIVE_ACCOUNT_ID?.trim() || undefined
+}
+
+/** True when Missive rejected the configured From address (alias / API permission). */
+export function isMissiveSenderUnavailableReason(reason: string): boolean {
+  return isSenderMismatchError(reason)
+}
+
+function allowPersonalEmailFallback(): boolean {
+  return process.env.MISSIVE_ALLOW_PERSONAL_FALLBACK !== 'false'
+}
+
+function senderMismatchHelp(
+  requested: string,
+  tried: string[],
+  tokenOwnerEmail: string | null,
+  accountId?: string
+): string {
+  const triedLine = tried.length ? ` Tried: ${tried.join(', ')}.` : ''
+  const ownerLine = tokenOwnerEmail
+    ? ` API token user: ${tokenOwnerEmail}.`
+    : ''
+  const accountLine = accountId
+    ? ` The Missive account ID on the sender is only used as a fallback; Gmail outreach still requires the alias in API "available senders".`
+    : ''
+  const fallbackLine = allowPersonalEmailFallback()
+    ? ` Set MISSIVE_ALLOW_PERSONAL_FALLBACK=false to disable sending from ${tokenOwnerEmail ?? 'your personal email'} when the alias fails.`
+    : ` Personal-email fallback is disabled (MISSIVE_ALLOW_PERSONAL_FALLBACK=false).`
   return (
-    `Missive cannot send from "${configured}" with this API token. ` +
-    `Sending requires an alias the token owner is allowed to send as (not only compose with). ` +
-    `Tried: ${tried.join(', ')}. ` +
-    `Fix: use an address that works (often the token owner's email), set MISSIVE_SEND_FROM_ADDRESS, ` +
-    `or in Missive → Settings → Accounts → Aliases enable "Allow others to send" for ${configured}.`
+    `Missive API cannot send from "${requested}" — this alias is not in the token user's API send list.${triedLine}${ownerLine}${accountLine} ` +
+    `Fix: Missive → Settings → Accounts → your shared Gmail account → Aliases → ${requested} → ` +
+    `"Allow others to send" → add ${tokenOwnerEmail ?? 'the API token user'}. Composing in the team inbox is not enough.${fallbackLine}`
   )
+}
+
+/** Email of the Missive user who owns the API token (the only guaranteed API send-from). */
+export async function getMissiveTokenOwnerEmail(token: string): Promise<string | null> {
+  const result = await missiveApiRequest<{ users?: { me?: boolean; email?: string }[] }>(
+    token,
+    '/users',
+    { method: 'GET' }
+  )
+  if (!result.ok) return null
+  const me = result.data.users?.find((u) => u.me)
+  const email = me?.email?.trim().toLowerCase()
+  return email || null
+}
+
+function normalizeEmailAddress(addr: string | undefined | null): string | null {
+  const normalized = addr?.trim().toLowerCase()
+  if (!normalized || !normalized.includes('@')) return null
+  return normalized
+}
+
+function buildSendFromCandidates(primary: string, extras: string[]): string[] {
+  const seen = new Set<string>()
+  const list: string[] = []
+  const add = (addr: string | undefined | null) => {
+    const normalized = normalizeEmailAddress(addr)
+    if (!normalized || seen.has(normalized)) return
+    seen.add(normalized)
+    list.push(normalized)
+  }
+  add(primary)
+  for (const extra of extras) add(extra)
+  add(process.env.MISSIVE_FROM_ADDRESS)
+  add(process.env.MISSIVE_SEND_FROM_ADDRESS)
+  return list
+}
+
+function pipelineSenderForAddress(
+  context: MissiveSendContext,
+  address: string
+): MissivePipelineSender | undefined {
+  const normalized = address.toLowerCase()
+  return context.pipelineSenders?.find((s) => s.address.toLowerCase() === normalized)
+}
+
+function accountIdForAddress(context: MissiveSendContext, address: string): string | undefined {
+  const fromRow = pipelineSenderForAddress(context, address)?.missiveAccountId?.trim()
+  if (fromRow) return fromRow
+  if (address.toLowerCase() === normalizeEmailAddress(context.fromAddress)) {
+    return resolveMissiveAccountId(context)
+  }
+  return undefined
+}
+
+function displayNameForAddress(
+  context: MissiveSendContext,
+  address: string,
+  fallback?: string
+): string | undefined {
+  const fromRow = pipelineSenderForAddress(context, address)?.displayName?.trim()
+  return fromRow || fallback
+}
+
+function hasSharedInboxConfigured(context: MissiveSendContext): boolean {
+  if (resolveMissiveAccountId(context)) return true
+  return (context.pipelineSenders ?? []).some((s) => Boolean(s.missiveAccountId?.trim()))
 }
 
 export async function missiveApiRequest<T>(
@@ -129,33 +257,6 @@ export async function missiveApiRequest<T>(
   }
 
   return { ok: true, data: data as T }
-}
-
-async function getTokenOwnerEmail(token: string): Promise<string | null> {
-  const result = await missiveApiRequest<{ users?: { me?: boolean; email?: string }[] }>(
-    token,
-    '/users',
-    { method: 'GET' }
-  )
-  if (!result.ok) return null
-  const me = result.data.users?.find((u) => u.me)
-  const email = me?.email?.trim().toLowerCase()
-  return email || null
-}
-
-function buildSendFromCandidates(configured: string, tokenOwnerEmail: string | null): string[] {
-  const seen = new Set<string>()
-  const list: string[] = []
-  const add = (addr: string | undefined | null) => {
-    const normalized = addr?.trim().toLowerCase()
-    if (!normalized || seen.has(normalized)) return
-    seen.add(normalized)
-    list.push(normalized)
-  }
-  add(configured)
-  add(process.env.MISSIVE_SEND_FROM_ADDRESS)
-  add(tokenOwnerEmail)
-  return list
 }
 
 function conversationIdFromDraftResponse(data: unknown): string | null {
@@ -214,6 +315,33 @@ async function createAndSendDraft(
   return { ok: false, reason: created.reason, senderMismatch }
 }
 
+/** Email drafts: try without account first, then with account if the alias was rejected. */
+async function createAndSendEmailDraft(
+  token: string,
+  draft: MissiveDraftPayload,
+  accountId?: string
+): Promise<{ ok: true; data: unknown } | { ok: false; reason: string; senderMismatch: boolean }> {
+  const { account: _existing, ...base } = draft
+  const withoutAccount = await createAndSendDraft(token, base)
+  if (withoutAccount.ok || !accountId) {
+    return withoutAccount
+  }
+  if (!withoutAccount.senderMismatch) {
+    return withoutAccount
+  }
+
+  const withAccount = await createAndSendDraft(token, { ...base, account: accountId })
+  if (withAccount.ok) {
+    return withAccount
+  }
+  if (isAccountNotFoundError(withAccount.reason)) {
+    console.warn(
+      `[missive] Account ${accountId} not visible to this API token for email send; alias must be in API available senders`
+    )
+  }
+  return withoutAccount
+}
+
 /**
  * Send a queued outreach row via Missive POST /v1/drafts with send: true.
  */
@@ -227,16 +355,10 @@ export async function sendQueuedOutreachViaMissive(
     return { ok: false, reason: 'MISSIVE_API_TOKEN not configured' }
   }
 
-  const configuredFrom = process.env.MISSIVE_FROM_ADDRESS?.trim()
-  if (!configuredFrom) {
-    return {
-      ok: false,
-      reason: 'MISSIVE_FROM_ADDRESS not configured (must match a Missive email alias)',
-    }
+  const fromAddress = context.fromAddress?.trim().toLowerCase()
+  if (!fromAddress || !fromAddress.includes('@')) {
+    return { ok: false, reason: 'Send-from address missing on outreach send' }
   }
-
-  const tokenOwnerEmail = await getTokenOwnerEmail(token)
-  const fromCandidates = buildSendFromCandidates(configuredFrom, tokenOwnerEmail)
 
   const vars: Record<string, string> = {
     creator_name: context.creatorName,
@@ -247,7 +369,10 @@ export async function sendQueuedOutreachViaMissive(
 
   const renderedSubject = renderOutreachTemplate(template.subject, vars).trim()
   const renderedBody = renderOutreachTemplate(template.bodyPreview, vars).trim()
-  const body = textToMissiveHtml(renderedBody)
+  const body = appendOutreachSignatureHtml(
+    textToMissiveHtml(renderedBody),
+    context.signatureHtml
+  )
 
   const existingConversationId = context.existingConversationId?.trim() || null
   const subject = existingConversationId
@@ -256,7 +381,10 @@ export async function sendQueuedOutreachViaMissive(
 
   const teamId = process.env.MISSIVE_TEAM_ID?.trim()
   const organizationId = process.env.MISSIVE_ORGANIZATION_ID?.trim()
-  const fromName = process.env.MISSIVE_FROM_NAME?.trim() || undefined
+  const fromName =
+    context.fromDisplayName?.trim() ||
+    process.env.MISSIVE_FROM_NAME?.trim() ||
+    undefined
 
   const baseDraft: Omit<MissiveDraftPayload, 'from_field'> = {
     subject,
@@ -275,41 +403,81 @@ export async function sendQueuedOutreachViaMissive(
     }
   }
 
-  let created: { ok: true; data: unknown } | { ok: false; reason: string; senderMismatch: boolean } =
-    { ok: false, reason: 'No send attempt', senderMismatch: false }
+  const configuredFrom = fromAddress.toLowerCase()
+  const tokenOwnerEmail = await getMissiveTokenOwnerEmail(token)
+  const sharedInbox = hasSharedInboxConfigured(context)
+  const configuredAccountId = accountIdForAddress(context, configuredFrom)
+
+  const candidates = sharedInbox
+    ? [
+        configuredFrom,
+        ...(allowPersonalEmailFallback() && tokenOwnerEmail ? [tokenOwnerEmail] : []),
+      ]
+    : buildSendFromCandidates(fromAddress, [
+        ...(context.pipelineSenders?.map((s) => s.address) ??
+          context.fallbackFromAddresses ??
+          []),
+        tokenOwnerEmail ?? '',
+      ])
+
+  let lastReason = 'No send-from address available'
+  let lastSenderMismatch = false
   const tried: string[] = []
 
-  for (const fromAddress of fromCandidates) {
-    tried.push(fromAddress)
-    created = await createAndSendDraft(token, {
-      ...baseDraft,
-      from_field: { address: fromAddress, name: fromName },
-    })
-    if (created.ok) break
+  let sentData: unknown = null
+  let usedFrom = configuredFrom
+  let personalFallback = false
+
+  for (const candidate of candidates) {
+    tried.push(candidate)
+    const useAccount =
+      candidate === configuredFrom ? configuredAccountId : undefined
+    const candidateName = displayNameForAddress(context, candidate, fromName)
+    const fromField: { address: string; name?: string } = { address: candidate }
+    if (candidateName) {
+      fromField.name = candidateName
+    }
+
+    const created = await createAndSendEmailDraft(
+      token,
+      {
+        ...baseDraft,
+        from_field: fromField,
+      },
+      useAccount
+    )
+
+    if (created.ok) {
+      sentData = created.data
+      usedFrom = candidate
+      personalFallback =
+        candidate === tokenOwnerEmail?.toLowerCase() && candidate !== configuredFrom
+      if (personalFallback) {
+        console.warn(
+          `[missive] Sent from ${candidate} (personal fallback). Configured sender ${configuredFrom} is not API-allowed yet.`
+        )
+      }
+      break
+    }
+
+    lastReason = created.reason
+    lastSenderMismatch = created.senderMismatch
     if (!created.senderMismatch) {
       return { ok: false, reason: created.reason }
     }
   }
 
-  if (!created.ok) {
+  if (!sentData) {
     return {
       ok: false,
-      reason: senderMismatchHelp(configuredFrom, tried),
+      reason: lastSenderMismatch
+        ? senderMismatchHelp(fromAddress, tried, tokenOwnerEmail, configuredAccountId)
+        : lastReason,
     }
   }
 
-  if (
-    tried.length > 1 &&
-    tried[0] !== tried[tried.length - 1] &&
-    created.ok
-  ) {
-    console.warn(
-      `Missive: sent from "${tried[tried.length - 1]}" because "${configuredFrom}" is not an API send alias for this token.`
-    )
-  }
-
   let conversationId =
-    conversationIdFromDraftResponse(created.data) ?? existingConversationId
+    conversationIdFromDraftResponse(sentData) ?? existingConversationId
 
   if (!conversationId) {
     for (let attempt = 0; attempt < 3 && !conversationId; attempt += 1) {
@@ -328,5 +496,11 @@ export async function sendQueuedOutreachViaMissive(
     }
   }
 
-  return { ok: true, conversationId }
+  return {
+    ok: true,
+    conversationId,
+    fromAddress: usedFrom,
+    configuredFromAddress: configuredFrom,
+    personalFallback,
+  }
 }

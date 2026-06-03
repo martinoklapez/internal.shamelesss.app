@@ -72,11 +72,24 @@ export type EmailTouchpointRow = {
   added_at: string
 }
 
+export type SendFromAddressRow = {
+  id: string
+  address: string
+  display_name: string
+  missive_account_id: string | null
+  signature_html: string | null
+  enabled: boolean
+  is_default: boolean
+  created_at: string
+}
+
 export type OutreachSendRow = {
   id: string
   email: string
   template_id: string
   template_name: string
+  from_address: string | null
+  from_display_name: string | null
   profile_id: string | null
   contact_id: string | null
   creator_id: string | null
@@ -98,6 +111,7 @@ export type OutreachRuleRow = {
   contact_kind: CreatorContactKind
   action: OutreachRuleAction
   template_id: string | null
+  send_from_id: string | null
   created_at: string
   updated_at: string
 }

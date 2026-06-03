@@ -43,7 +43,8 @@ From any entity:
 ## Other tables
 
 - `email_templates` — Templates page
-- `outreach_rules` — Rules page (`contact_email_ready` → send template or do not send, per `contact_kind`)
+- `send_from_addresses` — Senders page (Gmail/Missive From aliases for outreach)
+- `outreach_rules` — Rules page (`contact_email_ready` → template + sender or do not send, per `contact_kind`)
 - `email_touchpoints`, `outreach_sends`, `activity_events` — Log / outreach
 - `outreach_events` — queued by DB trigger when `contacts.email` is set or changed
 
@@ -51,7 +52,7 @@ From any entity:
 
 1. **Trigger** `contacts_enqueue_email_ready` on `creator_pipeline.contacts` inserts a row into `outreach_events` when a contact gets a usable email (create, add, or change).
 2. **Worker** `processPendingOutreachEvents` applies `outreach_rules`, writes `outreach_sends` (`queued`), activity. Contact CRM status stays **`new`** until a send succeeds.
-3. **Missive** — `MISSIVE_API_TOKEN` + `MISSIVE_FROM_ADDRESS` → `POST /v1/drafts` with `send: true`; rows move to `sent` and contact/creator status becomes **`contacted`**.
+3. **Missive** — `MISSIVE_API_TOKEN` + sender from rule (`send_from_addresses`) → `POST /v1/drafts` with `send: true`; rows move to `sent` and contact/creator status becomes **`contacted`**.
 
 Invoke the worker:
 
@@ -64,9 +65,8 @@ Env:
 
 - `CREATOR_OUTREACH_CRON_SECRET` — cron / edge function auth
 - `MISSIVE_API_TOKEN` — Missive API token (Preferences → API)
-- `MISSIVE_FROM_ADDRESS` — preferred From alias; must be send-enabled for the API token user (see Missive → Accounts → Aliases → “Allow others to send”)
-- `MISSIVE_SEND_FROM_ADDRESS` — optional fallback when the preferred alias only works in the UI composer
-- `MISSIVE_FROM_NAME` — optional From display name
+- **Senders** (UI `/pipeline/senders`) — allowed From addresses; each must be a Gmail “Send mail as” + Missive alias with API send enabled
+- `MISSIVE_FROM_NAME` — optional display name fallback when a sender row has no `display_name`
 - `MISSIVE_TEAM_ID` + `MISSIVE_ORGANIZATION_ID` — route new threads into a shared team inbox (both required when using `team`)
 - Edge function: `APP_URL` — base URL of this Next app
 

@@ -61,11 +61,11 @@ export default function CreatorOutreachLogView() {
                   <span className="font-mono text-xs text-gray-800 min-w-0 truncate flex-1">
                     {s.email}
                   </span>
-                  <span className="text-xs text-gray-400 shrink-0">
+                  <span className="text-xs text-gray-400 shrink-0 max-w-[14rem] truncate">
                     {s.status === 'sent'
-                      ? s.templateName
+                      ? `${s.fromAddress ? `${s.fromAddress} · ` : ''}${s.templateName}`
                       : s.status === 'queued'
-                        ? `queued · ${s.templateName}`
+                        ? `queued · ${s.fromAddress ? `${s.fromAddress} · ` : ''}${s.templateName}`
                         : 'skipped'}
                   </span>
                   <span className="text-xs text-gray-300 shrink-0 w-20 text-right">

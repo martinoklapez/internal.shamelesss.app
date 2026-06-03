@@ -7,6 +7,7 @@ import {
   mapCreatorRow,
   mapOutreachRuleRow,
   mapOutreachSendRow,
+  mapSendFromAddressRow,
   mapTemplateRow,
   mapTouchpointRow,
 } from './mappers'
@@ -20,6 +21,7 @@ import type {
   OutreachRuleRow,
   OutreachSendRow,
   ProfileRow,
+  SendFromAddressRow,
 } from './rows'
 
 async function fetchTable<T>(
@@ -79,6 +81,10 @@ export async function loadCreatorOutreachStoreFromDb(
     'email_templates',
     db.from('email_templates').select('*').order('is_default', { ascending: false })
   )
+  const sendFromRes = await fetchTable(
+    'send_from_addresses',
+    db.from('send_from_addresses').select('*').order('is_default', { ascending: false })
+  )
   const rulesRes = await fetchTable(
     'outreach_rules',
     db.from('outreach_rules').select('*').order('contact_kind', { ascending: true })
@@ -87,7 +93,7 @@ export async function loadCreatorOutreachStoreFromDb(
     'email_touchpoints',
     db.from('email_touchpoints').select('*').order('added_at', { ascending: false })
   )
-  assertLoaded([templatesRes, rulesRes, touchpointsRes])
+  assertLoaded([templatesRes, sendFromRes, rulesRes, touchpointsRes])
 
   const sendsRes = await fetchTable(
     'outreach_sends',
@@ -98,6 +104,12 @@ export async function loadCreatorOutreachStoreFromDb(
     db.from('activity_events').select('*').order('created_at', { ascending: false })
   )
   assertLoaded([sendsRes, activityRes])
+
+  const sendFromAddresses = sendFromRes.data.map(mapSendFromAddressRow)
+  const defaultSendFrom = sendFromAddresses.find((s) => s.isDefault) ?? sendFromAddresses[0]
+  const sendFromFallback = defaultSendFrom
+    ? { address: defaultSendFrom.address, displayName: defaultSendFrom.displayName }
+    : undefined
 
   const creators = creatorsRes.data.map(mapCreatorRow)
   const { profiles, contacts } = applyAssociations(
@@ -112,8 +124,11 @@ export async function loadCreatorOutreachStoreFromDb(
     contacts,
     emailTouchpoints: touchpointsRes.data.map(mapTouchpointRow),
     templates: templatesRes.data.map(mapTemplateRow),
+    sendFromAddresses,
     outreachRules: rulesRes.data.map(mapOutreachRuleRow),
-    outreachSends: sendsRes.data.map(mapOutreachSendRow),
+    outreachSends: sendsRes.data.map((row) =>
+      mapOutreachSendRow(row as OutreachSendRow, sendFromFallback)
+    ),
     activity: activityRes.data.map(mapActivityRow),
   }
 }

@@ -23,6 +23,9 @@ type RulesDraft = {
 function buildDrafts(store: CreatorOutreachStore): RulesDraft {
   const byKind = {} as Record<CreatorContactKind, ContactKindRuleDraft>
   const defaultTpl = store.templates.find((t) => t.isDefault) ?? store.templates[0]
+  const defaultSender =
+    store.sendFromAddresses.find((s) => s.enabled && s.isDefault) ??
+    store.sendFromAddresses.find((s) => s.enabled)
 
   for (const kind of OUTREACH_CONTACT_KINDS) {
     const rule = store.outreachRules.find((r) => r.contactKind === kind)
@@ -33,6 +36,10 @@ function buildDrafts(store: CreatorOutreachStore): RulesDraft {
         rule?.action === 'send_email'
           ? rule.templateId
           : rule?.templateId ?? defaultTpl?.id ?? null,
+      sendFromId:
+        rule?.action === 'send_email'
+          ? rule.sendFromId
+          : rule?.sendFromId ?? defaultSender?.id ?? null,
     }
   }
 
@@ -50,7 +57,8 @@ function draftsEqual(a: RulesDraft, b: RulesDraft): boolean {
     return (
       x.enabled === y.enabled &&
       x.action === y.action &&
-      x.templateId === y.templateId
+      x.templateId === y.templateId &&
+      x.sendFromId === y.sendFromId
     )
   })
 }
@@ -93,9 +101,18 @@ export default function CreatorOutreachRulesView() {
       const next = { ...prev.byKind[kind], ...patch }
       if (patch.action === 'do_not_send') {
         next.templateId = null
-      } else if (patch.action === 'send_email' && !next.templateId && store) {
-        const defaultTpl = store.templates.find((t) => t.isDefault) ?? store.templates[0]
-        next.templateId = defaultTpl?.id ?? null
+        next.sendFromId = null
+      } else if (patch.action === 'send_email' && store) {
+        if (!next.templateId) {
+          const defaultTpl = store.templates.find((t) => t.isDefault) ?? store.templates[0]
+          next.templateId = defaultTpl?.id ?? null
+        }
+        if (!next.sendFromId) {
+          const defaultSender =
+            store.sendFromAddresses.find((s) => s.enabled && s.isDefault) ??
+            store.sendFromAddresses.find((s) => s.enabled)
+          next.sendFromId = defaultSender?.id ?? null
+        }
       }
       return { ...prev, byKind: { ...prev.byKind, [kind]: next } }
     })
@@ -119,6 +136,10 @@ export default function CreatorOutreachRulesView() {
             drafts.byKind[contactKind].action === 'send_email'
               ? drafts.byKind[contactKind].templateId
               : null,
+          sendFromId:
+            drafts.byKind[contactKind].action === 'send_email'
+              ? drafts.byKind[contactKind].sendFromId
+              : null,
         })),
       })
       setStore(saved)
@@ -138,6 +159,18 @@ export default function CreatorOutreachRulesView() {
       )
     }
     return <CreatorOutreachLoading variant="rules" />
+  }
+
+  if (store.sendFromAddresses.length === 0) {
+    return (
+      <div className="px-5 sm:px-8 lg:px-10 py-12 text-sm text-gray-600">
+        No send-from addresses configured.{' '}
+        <Link href="/pipeline/senders" className="text-gray-900 underline">
+          Add a sender
+        </Link>{' '}
+        before setting outreach rules.
+      </div>
+    )
   }
 
   if (store.outreachRules.length === 0) {
@@ -167,6 +200,7 @@ export default function CreatorOutreachRulesView() {
       <CreatorOutreachRulesBuilder
         drafts={drafts.byKind}
         templates={store.templates}
+        sendFromAddresses={store.sendFromAddresses}
         ruleEnabled={drafts.ruleEnabled}
         onRuleEnabledChange={setRuleEnabled}
         onKindChange={updateKind}

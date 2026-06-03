@@ -107,9 +107,11 @@ const creatorCrmNav = {
   icon: Kanban,
   roles: ['admin', 'dev', 'developer'] as const,
   items: [
+    { title: 'Templates', url: '/pipeline/templates' },
+    { title: 'Signatures', url: '/pipeline/signatures' },
+    { title: 'Senders', url: '/pipeline/senders' },
     { title: 'Rules', url: '/pipeline/rules' },
     { title: 'Log', url: '/pipeline/log' },
-    { title: 'Templates', url: '/pipeline/templates' },
   ],
 }
 

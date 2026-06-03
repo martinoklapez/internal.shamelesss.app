@@ -24,6 +24,18 @@ export type OutreachRuleTrigger = 'contact_email_ready'
 
 export type OutreachRuleAction = 'send_email' | 'do_not_send'
 
+export type SendFromAddress = {
+  id: string
+  address: string
+  displayName: string
+  /** Missive shared email account ID (Settings → API → Resource IDs). */
+  missiveAccountId?: string
+  /** HTML signature appended after the template body on send. */
+  signatureHtml?: string
+  enabled: boolean
+  isDefault: boolean
+}
+
 export type OutreachRule = {
   id: string
   enabled: boolean
@@ -31,6 +43,7 @@ export type OutreachRule = {
   contactKind: CreatorContactKind
   action: OutreachRuleAction
   templateId: string | null
+  sendFromId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -110,6 +123,8 @@ export type OutreachSend = {
   email: string
   templateId: string
   templateName: string
+  fromAddress: string
+  fromDisplayName: string
   profileId: string | null
   contactId: string | null
   creatorId: string | null
@@ -130,6 +145,7 @@ export type CreatorOutreachStore = {
   contacts: CreatorContact[]
   emailTouchpoints: EmailTouchpoint[]
   templates: EmailTemplate[]
+  sendFromAddresses: SendFromAddress[]
   outreachRules: OutreachRule[]
   outreachSends: OutreachSend[]
   activity: ActivityEvent[]
