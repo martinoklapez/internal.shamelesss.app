@@ -21,7 +21,6 @@ export async function mutateCreatorOutreach<T extends Record<string, unknown>>(
   missiveFailed?: number
   lastMissiveError?: string
   lastMissiveWarning?: string
-  lastMissiveWarning?: string
 }> {
   const res = await fetch('/api/creator-pipeline/mutate', {
     method: 'POST',
@@ -38,7 +37,7 @@ export async function mutateCreatorOutreach<T extends Record<string, unknown>>(
     missiveSent?: number
     missiveFailed?: number
     lastMissiveError?: string
-  lastMissiveWarning?: string
+    lastMissiveWarning?: string
   }>
 }
 
@@ -141,7 +140,7 @@ export async function confirmQuickAddJob(
     missiveSent?: number
     missiveFailed?: number
     lastMissiveError?: string
-  lastMissiveWarning?: string
+    lastMissiveWarning?: string
   }>
 }
 
