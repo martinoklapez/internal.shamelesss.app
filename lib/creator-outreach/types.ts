@@ -32,6 +32,14 @@ export type SendFromAddress = {
   missiveAccountId?: string
   /** HTML signature appended after the template body on send. */
   signatureHtml?: string
+  /** Photo URL for {{book_meeting}} cards (HTTPS image link). */
+  hostAvatarUrl?: string
+  /** Cal.com (or other) booking link for {{book_meeting}} in outreach emails. */
+  bookingUrl?: string
+  bookingMeetingName?: string
+  bookingMeetingType?: string
+  bookingDuration?: string
+  bookingActionLabel?: string
   enabled: boolean
   isDefault: boolean
 }

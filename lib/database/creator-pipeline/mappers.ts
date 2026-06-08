@@ -103,12 +103,19 @@ export function mapTouchpointRow(row: EmailTouchpointRow): EmailTouchpoint {
 
 export function mapSendFromAddressRow(row: SendFromAddressRow): SendFromAddress {
   const accountId = row.missive_account_id?.trim()
+  const hostAvatarUrl = row.host_avatar_url?.trim()
   return {
     id: row.id,
     address: row.address,
     displayName: row.display_name,
     missiveAccountId: accountId || undefined,
     signatureHtml: row.signature_html?.trim() || undefined,
+    hostAvatarUrl: hostAvatarUrl || undefined,
+    bookingUrl: row.booking_url?.trim() || undefined,
+    bookingMeetingName: row.booking_meeting_name?.trim() || undefined,
+    bookingMeetingType: row.booking_meeting_type?.trim() || undefined,
+    bookingDuration: row.booking_duration?.trim() || undefined,
+    bookingActionLabel: row.booking_action_label?.trim() || undefined,
     enabled: row.enabled,
     isDefault: row.is_default,
   }
@@ -116,12 +123,19 @@ export function mapSendFromAddressRow(row: SendFromAddressRow): SendFromAddress 
 
 export function sendFromAddressToRow(address: SendFromAddress): SendFromAddressRow {
   const accountId = address.missiveAccountId?.trim()
+  const hostAvatarUrl = address.hostAvatarUrl?.trim()
   return {
     id: address.id,
     address: address.address,
     display_name: address.displayName,
     missive_account_id: accountId || null,
     signature_html: address.signatureHtml?.trim() || null,
+    host_avatar_url: hostAvatarUrl || null,
+    booking_url: address.bookingUrl?.trim() || null,
+    booking_meeting_name: address.bookingMeetingName?.trim() || null,
+    booking_meeting_type: address.bookingMeetingType?.trim() || null,
+    booking_duration: address.bookingDuration?.trim() || null,
+    booking_action_label: address.bookingActionLabel?.trim() || null,
     enabled: address.enabled,
     is_default: address.isDefault,
     created_at: new Date().toISOString(),

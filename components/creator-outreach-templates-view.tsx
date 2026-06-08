@@ -11,6 +11,7 @@ import {
 } from '@/components/creator-outreach-templates-builder'
 import { useAppDialogs } from '@/components/app-dialogs-provider'
 import { CreatorOutreachLoading } from '@/components/creator-outreach-loading'
+import { bookingDetailsFromSender } from '@/lib/creator-outreach/cal-booking'
 import { fetchCreatorOutreachStore, mutateCreatorOutreach } from '@/lib/creator-outreach/client-api'
 import type { CreatorOutreachStore } from '@/lib/creator-outreach/types'
 import { notifyError, notifySuccess } from '@/lib/notify'
@@ -168,6 +169,15 @@ export default function CreatorOutreachTemplatesView() {
     }
   }
 
+  const defaultBookingDetails = useMemo(() => {
+    if (!store) return undefined
+    const sender =
+      store.sendFromAddresses.find((item) => item.enabled && item.isDefault) ??
+      store.sendFromAddresses.find((item) => item.enabled)
+    if (!sender) return undefined
+    return bookingDetailsFromSender(sender)
+  }, [store])
+
   if (!store) {
     if (loadError) {
       return (
@@ -205,6 +215,7 @@ export default function CreatorOutreachTemplatesView() {
         dirty={dirty}
         saving={saving}
         deleting={deleting}
+        bookingDetails={defaultBookingDetails}
         onSelect={selectTemplate}
         onDraftChange={updateDraft}
         onCreate={createTemplate}

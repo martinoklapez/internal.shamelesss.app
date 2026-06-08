@@ -10,6 +10,12 @@ export type SaveSendFromAddressInput = {
   displayName: string
   missiveAccountId?: string
   signatureHtml?: string
+  hostAvatarUrl?: string
+  bookingUrl?: string
+  bookingMeetingName?: string
+  bookingMeetingType?: string
+  bookingDuration?: string
+  bookingActionLabel?: string
   enabled: boolean
   isDefault: boolean
 }
@@ -83,6 +89,12 @@ export async function saveSendFromAddressInDb(
     displayName: input.displayName.trim(),
     missiveAccountId: input.missiveAccountId?.trim() || undefined,
     signatureHtml: input.signatureHtml?.trim() || undefined,
+    hostAvatarUrl: input.hostAvatarUrl?.trim() || undefined,
+    bookingUrl: input.bookingUrl?.trim() || undefined,
+    bookingMeetingName: input.bookingMeetingName?.trim() || undefined,
+    bookingMeetingType: input.bookingMeetingType?.trim() || undefined,
+    bookingDuration: input.bookingDuration?.trim() || undefined,
+    bookingActionLabel: input.bookingActionLabel?.trim() || undefined,
     enabled: input.enabled,
     isDefault: input.isDefault,
   })

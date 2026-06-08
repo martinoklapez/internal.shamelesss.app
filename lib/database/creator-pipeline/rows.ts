@@ -78,6 +78,12 @@ export type SendFromAddressRow = {
   display_name: string
   missive_account_id: string | null
   signature_html: string | null
+  host_avatar_url: string | null
+  booking_url: string | null
+  booking_meeting_name: string | null
+  booking_meeting_type: string | null
+  booking_duration: string | null
+  booking_action_label: string | null
   enabled: boolean
   is_default: boolean
   created_at: string

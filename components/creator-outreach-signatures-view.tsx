@@ -12,6 +12,7 @@ import { formatSignatureHtmlForEditing } from '@/lib/creator-outreach/format-sig
 import { signatureHtmlForPreview } from '@/lib/creator-outreach/signature-preview-html'
 import type { CreatorOutreachStore, SendFromAddress } from '@/lib/creator-outreach/types'
 import { cn } from '@/lib/utils'
+import { PipelineImageUpload } from '@/components/pipeline-image-upload'
 import { notifyError, notifySuccess } from '@/lib/notify'
 
 export default function CreatorOutreachSignaturesView() {
@@ -226,10 +227,19 @@ export default function CreatorOutreachSignaturesView() {
                           )}
                           placeholder="Paste HTML from Missive → Settings → Signatures"
                         />
+                        <PipelineImageUpload
+                          scope="signatures"
+                          ownerId={selected.id}
+                          label="Logo / image"
+                          hint="Uploads to the pipeline assets bucket and appends an img tag to your signature HTML."
+                          onUploaded={(url) => {
+                            const img = `<img src="${url}" alt="" width="120" style="display:block;max-width:120px;height:auto;" />`
+                            setSignatureHtml((prev) => (prev.trim() ? `${prev.trim()}\n${img}` : img))
+                          }}
+                        />
                         <p className="text-[11px] text-gray-500 leading-relaxed">
                           Gmail <span className="font-mono">mail-sig</span> images are proxied for
-                          preview only. For reliable delivery to recipients, host your logo on your
-                          site or CDN and use that URL in the HTML.
+                          preview only. Upload logos here or use a public HTTPS URL in the HTML.
                         </p>
                       </div>
                     </div>

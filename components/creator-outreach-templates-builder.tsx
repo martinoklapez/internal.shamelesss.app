@@ -10,6 +10,8 @@ import {
   TemplateVariableTextarea,
   type TemplateVariableTextareaHandle,
 } from '@/components/template-variable-textarea'
+import { CalBookingWidget } from '@/components/cal-booking-widget'
+import { BOOK_MEETING_TOKEN, type CalBookingMeetingDetails } from '@/lib/creator-outreach/cal-booking'
 import {
   OUTREACH_TEMPLATE_PLACEHOLDERS,
 } from '@/lib/creator-outreach/template-placeholders'
@@ -58,6 +60,33 @@ function TemplateWithBadges({ text, className }: { text: string; className?: str
   )
 }
 
+function TemplateBodyPreview({
+  text,
+  bookingDetails,
+}: {
+  text: string
+  bookingDetails?: Partial<CalBookingMeetingDetails>
+}) {
+  const parts = text.split(BOOK_MEETING_TOKEN)
+
+  return (
+    <div className="space-y-3">
+      {parts.map((part, index) => (
+        <div key={index} className="space-y-3">
+          {part ? (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+              <TemplateWithBadges text={part} />
+            </p>
+          ) : null}
+          {index < parts.length - 1 ? (
+            <CalBookingWidget details={bookingDetails} />
+          ) : null}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function draftsEqual(a: EmailTemplateDraft, b: EmailTemplateDraft): boolean {
   return (
     a.name === b.name &&
@@ -74,6 +103,7 @@ type CreatorOutreachTemplatesBuilderProps = {
   dirty: boolean
   saving: boolean
   deleting: boolean
+  bookingDetails?: Partial<CalBookingMeetingDetails>
   onSelect: (id: string) => void
   onDraftChange: (patch: Partial<EmailTemplateDraft>) => void
   onCreate: () => void
@@ -94,7 +124,7 @@ export function createEmptyEmailTemplateDraft(): EmailTemplateDraft {
     name: 'Untitled template',
     subject: 'Collaboration idea for {{creator_name}}',
     bodyPreview:
-      'Hi {{contact_name}},\n\nWe love your content on {{platform}} (@{{handle}}). We built Shamelesss and think your audience would resonate with what we are building.\n\nWould you be open to a quick chat this week?\n\nBest,\nShamelesss',
+      'Hi {{contact_name}},\n\nWe love your content on {{platform}} (@{{handle}}). We built Shamelesss and think your audience would resonate with what we are building.\n\nWould you be open to a quick chat this week?\n\n{{book_meeting}}\n\nBest,\nShamelesss',
     isDefault: false,
     isNew: true,
   }
@@ -121,6 +151,7 @@ export function CreatorOutreachTemplatesBuilder({
   onSave,
   onReset,
   onDelete,
+  bookingDetails,
 }: CreatorOutreachTemplatesBuilderProps) {
   const subjectRef = useRef<HTMLInputElement>(null)
   const bodyRef = useRef<TemplateVariableTextareaHandle>(null)
@@ -318,7 +349,7 @@ export function CreatorOutreachTemplatesBuilder({
                     />
                     <span className="text-xs font-medium text-gray-700">Variables</span>
                     <span className="text-xs text-gray-400">
-                      creator_name, contact_name, platform, handle
+                      creator_name, contact_name, platform, handle, book_meeting
                     </span>
                   </button>
                   {variablesOpen ? (
@@ -327,18 +358,10 @@ export function CreatorOutreachTemplatesBuilder({
                         Click to insert at the cursor. These are replaced when the email is sent.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {OUTREACH_TEMPLATE_PLACEHOLDERS.map((placeholder) => (
-                          <div key={placeholder.key} className="flex flex-wrap items-center gap-1">
+                        {OUTREACH_TEMPLATE_PLACEHOLDERS.map((placeholder) =>
+                          placeholder.kind === 'widget' ? (
                             <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-xs font-mono"
-                              onClick={() => insertPlaceholder(placeholder.key, 'subject')}
-                            >
-                              Subject · {`{{${placeholder.key}}}`}
-                            </Button>
-                            <Button
+                              key={placeholder.key}
                               type="button"
                               variant="outline"
                               size="sm"
@@ -347,8 +370,29 @@ export function CreatorOutreachTemplatesBuilder({
                             >
                               Body · {`{{${placeholder.key}}}`}
                             </Button>
-                          </div>
-                        ))}
+                          ) : (
+                            <div key={placeholder.key} className="flex flex-wrap items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs font-mono"
+                                onClick={() => insertPlaceholder(placeholder.key, 'subject')}
+                              >
+                                Subject · {`{{${placeholder.key}}}`}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs font-mono"
+                                onClick={() => insertPlaceholder(placeholder.key, 'body')}
+                              >
+                                Body · {`{{${placeholder.key}}}`}
+                              </Button>
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   ) : null}
@@ -365,9 +409,9 @@ export function CreatorOutreachTemplatesBuilder({
                       <TemplateWithBadges text={draft.subject} />
                     </p>
                     <p className="mt-5 text-xs text-gray-500">Body</p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
-                      <TemplateWithBadges text={draft.bodyPreview} />
-                    </p>
+                    <div className="mt-1">
+                      <TemplateBodyPreview text={draft.bodyPreview} bookingDetails={bookingDetails} />
+                    </div>
                   </div>
                 </div>
               )}

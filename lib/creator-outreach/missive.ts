@@ -1,3 +1,8 @@
+import {
+  type CalBookingMeetingDetails,
+  outreachBodyToEmailHtml,
+  replaceBookMeetingInPlainText,
+} from './cal-booking'
 import { appendOutreachSignatureHtml } from './outreach-email-body'
 import type { OutreachSend } from './types'
 
@@ -37,6 +42,8 @@ export type MissiveSendContext = {
   missiveAccountId?: string
   /** HTML signature for the configured sender (appended after template body). */
   signatureHtml?: string
+  /** {{book_meeting}} card copy from the outreach sender (Pipeline → Senders). */
+  bookingDetails?: Partial<CalBookingMeetingDetails>
 }
 
 type MissiveDraftPayload = {
@@ -367,10 +374,13 @@ export async function sendQueuedOutreachViaMissive(
     handle: context.handle ?? '',
   }
 
-  const renderedSubject = renderOutreachTemplate(template.subject, vars).trim()
+  const renderedSubject = replaceBookMeetingInPlainText(
+    renderOutreachTemplate(template.subject, vars).trim(),
+    context.bookingDetails
+  )
   const renderedBody = renderOutreachTemplate(template.bodyPreview, vars).trim()
   const body = appendOutreachSignatureHtml(
-    textToMissiveHtml(renderedBody),
+    outreachBodyToEmailHtml(renderedBody, context.bookingDetails),
     context.signatureHtml
   )
 

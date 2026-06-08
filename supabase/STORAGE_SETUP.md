@@ -33,6 +33,13 @@ Create the following storage buckets in your Supabase project:
    - Used for: Creator CRM cached TikTok/Instagram profile pictures
    - Created by migration `20260528180000_creator_pipeline_profile_avatars.sql`
 
+6. **creator-pipeline-assets**
+   - Public: Yes
+   - File size limit: 5MB (recommended)
+   - Allowed MIME types: image/jpeg, image/png, image/webp, image/gif, image/svg+xml
+   - Used for: Pipeline sender host photos, signature logos, and other outreach email images
+   - Created by migration `20260604140000_creator_pipeline_email_assets_bucket.sql`
+
 ## Setup Instructions
 
 1. Go to your Supabase Dashboard

@@ -12,6 +12,9 @@ import { fetchCreatorOutreachStore, mutateCreatorOutreach } from '@/lib/creator-
 import type { CreatorOutreachStore, SendFromAddress } from '@/lib/creator-outreach/types'
 import { cn } from '@/lib/utils'
 import { notifyError, notifySuccess } from '@/lib/notify'
+import { CalBookingWidget } from '@/components/cal-booking-widget'
+import { PipelineImageUpload } from '@/components/pipeline-image-upload'
+import { bookingDetailsFromSender } from '@/lib/creator-outreach/cal-booking'
 import { Plus, Trash2 } from 'lucide-react'
 
 type SenderDraft = SendFromAddress & { isNew?: boolean }
@@ -25,6 +28,12 @@ function draftsEqual(a: SenderDraft, b: SenderDraft): boolean {
     a.address === b.address &&
     a.displayName === b.displayName &&
     (a.missiveAccountId ?? '') === (b.missiveAccountId ?? '') &&
+    (a.hostAvatarUrl ?? '') === (b.hostAvatarUrl ?? '') &&
+    (a.bookingUrl ?? '') === (b.bookingUrl ?? '') &&
+    (a.bookingMeetingName ?? '') === (b.bookingMeetingName ?? '') &&
+    (a.bookingMeetingType ?? '') === (b.bookingMeetingType ?? '') &&
+    (a.bookingDuration ?? '') === (b.bookingDuration ?? '') &&
+    (a.bookingActionLabel ?? '') === (b.bookingActionLabel ?? '') &&
     a.enabled === b.enabled &&
     a.isDefault === b.isDefault
   )
@@ -118,6 +127,12 @@ export default function CreatorOutreachSendersView() {
           displayName: draft.displayName,
           missiveAccountId: draft.missiveAccountId,
           signatureHtml: draft.signatureHtml,
+          hostAvatarUrl: draft.hostAvatarUrl,
+          bookingUrl: draft.bookingUrl,
+          bookingMeetingName: draft.bookingMeetingName,
+          bookingMeetingType: draft.bookingMeetingType,
+          bookingDuration: draft.bookingDuration,
+          bookingActionLabel: draft.bookingActionLabel,
           enabled: draft.enabled,
           isDefault: draft.isDefault,
         },
@@ -314,6 +329,136 @@ export default function CreatorOutreachSendersView() {
                     }
                     placeholder="Shamelesss"
                   />
+                </div>
+                <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-gray-700">Booking card</p>
+                    <code className="text-[10px] text-gray-400">{'{{book_meeting}}'}</code>
+                  </div>
+                  <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-start">
+                    <div className="min-w-0 flex-1 space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="sender-booking-url" className="text-xs">
+                          Booking URL
+                        </Label>
+                        <Input
+                          id="sender-booking-url"
+                          type="url"
+                          value={draft.bookingUrl ?? ''}
+                          onChange={(e) =>
+                            setDraftsById((prev) => ({
+                              ...prev,
+                              [draft.id]: {
+                                ...prev[draft.id],
+                                bookingUrl: e.target.value.trim() || undefined,
+                              },
+                            }))
+                          }
+                          placeholder="https://cal.com/your-team/intro"
+                        />
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="sender-booking-name" className="text-xs">
+                            Meeting name
+                          </Label>
+                          <Input
+                            id="sender-booking-name"
+                            value={draft.bookingMeetingName ?? ''}
+                            onChange={(e) =>
+                              setDraftsById((prev) => ({
+                                ...prev,
+                                [draft.id]: {
+                                  ...prev[draft.id],
+                                  bookingMeetingName: e.target.value.trim() || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="Intro call"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="sender-booking-type" className="text-xs">
+                            Meeting type
+                          </Label>
+                          <Input
+                            id="sender-booking-type"
+                            value={draft.bookingMeetingType ?? ''}
+                            onChange={(e) =>
+                              setDraftsById((prev) => ({
+                                ...prev,
+                                [draft.id]: {
+                                  ...prev[draft.id],
+                                  bookingMeetingType: e.target.value.trim() || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="Video call"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="sender-booking-duration" className="text-xs">
+                            Duration
+                          </Label>
+                          <Input
+                            id="sender-booking-duration"
+                            value={draft.bookingDuration ?? ''}
+                            onChange={(e) =>
+                              setDraftsById((prev) => ({
+                                ...prev,
+                                [draft.id]: {
+                                  ...prev[draft.id],
+                                  bookingDuration: e.target.value.trim() || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="30 min"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="sender-booking-action" className="text-xs">
+                            Link label
+                          </Label>
+                          <Input
+                            id="sender-booking-action"
+                            value={draft.bookingActionLabel ?? ''}
+                            onChange={(e) =>
+                              setDraftsById((prev) => ({
+                                ...prev,
+                                [draft.id]: {
+                                  ...prev[draft.id],
+                                  bookingActionLabel: e.target.value.trim() || undefined,
+                                },
+                              }))
+                            }
+                            placeholder="Pick a time"
+                          />
+                        </div>
+                      </div>
+                      <PipelineImageUpload
+                        scope="senders"
+                        ownerId={draft.id}
+                        value={draft.hostAvatarUrl ?? ''}
+                        onChange={(hostAvatarUrl) =>
+                          setDraftsById((prev) => ({
+                            ...prev,
+                            [draft.id]: {
+                              ...prev[draft.id],
+                              hostAvatarUrl: hostAvatarUrl || undefined,
+                            },
+                          }))
+                        }
+                        label="Host photo"
+                        hint="Upload, browse the pipeline bucket, or paste a URL."
+                        variant="avatar"
+                        hostName={draft.displayName}
+                      />
+                    </div>
+                    <div className="w-full shrink-0 lg:w-[18rem]">
+                      <p className="mb-2 text-xs text-gray-500">Preview</p>
+                      <CalBookingWidget details={bookingDetailsFromSender(draft)} />
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sender-missive-account" className="text-xs">

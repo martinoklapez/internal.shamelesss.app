@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { bookingDetailsFromSender } from '@/lib/creator-outreach/cal-booking'
 import { sendQueuedOutreachViaMissive } from '@/lib/creator-outreach/missive'
 import { defaultSendFromAddress } from '@/lib/creator-outreach/resolve-send-from'
 import { platformLabel } from '@/lib/creator-outreach/store'
@@ -168,6 +169,15 @@ async function processMissiveForQueuedSends(
       pipelineSenders,
       missiveAccountId,
       signatureHtml,
+      bookingDetails: bookingDetailsFromSender({
+        displayName: ruleFromDisplayName ?? '',
+        hostAvatarUrl: ruleSender?.hostAvatarUrl,
+        bookingUrl: ruleSender?.bookingUrl,
+        bookingMeetingName: ruleSender?.bookingMeetingName,
+        bookingMeetingType: ruleSender?.bookingMeetingType,
+        bookingDuration: ruleSender?.bookingDuration,
+        bookingActionLabel: ruleSender?.bookingActionLabel,
+      }),
     })
 
     if (!missive.ok) {
