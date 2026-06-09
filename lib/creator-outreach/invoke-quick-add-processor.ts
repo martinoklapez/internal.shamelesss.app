@@ -2,10 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   processPendingQuickAddJobs,
   type ProcessQuickAddJobsResult,
-} from '@/lib/database/creator-pipeline/process-quick-add-jobs'
+} from '@/lib/database/creator-pipeline/process-quick-add-scrape'
 
 /**
- * Drain pending quick-add scrape jobs (same logic as POST /api/creator-pipeline/process-quick-add).
+ * Drain pending quick-add scrape jobs in-process on Vercel (dev / fallback).
+ * Production enqueue uses {@link invokeQuickAddEdgeWorker} → Supabase Edge Function.
  */
 export async function invokeQuickAddProcessor(
   supabase: SupabaseClient,

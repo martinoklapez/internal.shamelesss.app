@@ -1,4 +1,5 @@
 import { runApifyActorSyncGetDatasetItems, getApifyApiToken } from '@/lib/apify/client'
+import { readRuntimeEnv } from '@/lib/runtime/env'
 import { getTikTokProfileViaApify } from '@/lib/apify/tiktok-profile'
 import { normalizeFollowerCount } from '@/lib/normalize-follower-count'
 import type { InstagramProfile } from '@/lib/instagram-scraper'
@@ -8,7 +9,7 @@ import type { TikTokProfile } from '@/lib/tiktok-scraper'
 const DEFAULT_INSTAGRAM_ACTOR = 'apify/instagram-profile-scraper'
 
 function instagramActorId(): string {
-  return process.env.APIFY_INSTAGRAM_PROFILE_ACTOR_ID?.trim() || DEFAULT_INSTAGRAM_ACTOR
+  return readRuntimeEnv('APIFY_INSTAGRAM_PROFILE_ACTOR_ID') || DEFAULT_INSTAGRAM_ACTOR
 }
 
 export function isApifySocialProfileConfigured(): boolean {

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "bundle:quick-add-edge": "node scripts/bundle-quick-add-edge.mjs",
+    "deploy:quick-add-edge": "npm run bundle:quick-add-edge && supabase functions deploy process-creator-quick-add"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -43,6 +45,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
+    "esbuild": "^0.25.12",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.35",
     "postcss": "^8.4.40",

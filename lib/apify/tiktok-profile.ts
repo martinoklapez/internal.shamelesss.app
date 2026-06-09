@@ -1,4 +1,5 @@
 import { runApifyActorSyncGetDatasetItems } from '@/lib/apify/client'
+import { readRuntimeEnv } from '@/lib/runtime/env'
 import { extractEmailsFromText } from '@/lib/extract-emails-from-text'
 import { normalizeFollowerCount } from '@/lib/normalize-follower-count'
 import type { TikTokProfile } from '@/lib/tiktok-scraper'
@@ -16,11 +17,11 @@ export const DEFAULT_TIKTOK_PROFILE_ACTOR = 'clockworks/tiktok-profile-scraper'
 export const DEFAULT_TIKTOK_SCRAPER_ACTOR = 'clockworks/tiktok-scraper'
 
 export function tiktokProfileActorId(): string {
-  return process.env.APIFY_TIKTOK_PROFILE_ACTOR_ID?.trim() || DEFAULT_TIKTOK_PROFILE_ACTOR
+  return readRuntimeEnv('APIFY_TIKTOK_PROFILE_ACTOR_ID') || DEFAULT_TIKTOK_PROFILE_ACTOR
 }
 
 export function tiktokScraperActorId(): string {
-  return process.env.APIFY_TIKTOK_SCRAPER_ACTOR_ID?.trim() || DEFAULT_TIKTOK_SCRAPER_ACTOR
+  return readRuntimeEnv('APIFY_TIKTOK_SCRAPER_ACTOR_ID') || DEFAULT_TIKTOK_SCRAPER_ACTOR
 }
 
 export type TikTokAuthorMeta = {

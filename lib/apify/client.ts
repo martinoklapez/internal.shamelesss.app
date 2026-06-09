@@ -1,8 +1,9 @@
+import { readRuntimeEnv } from '@/lib/runtime/env'
+
 const APIFY_API_BASE = 'https://api.apify.com/v2'
 
 export function getApifyApiToken(): string | undefined {
-  const token = process.env.APIFY_API_TOKEN?.trim()
-  return token || undefined
+  return readRuntimeEnv('APIFY_API_TOKEN')
 }
 
 /** `apify/instagram-profile-scraper` → `apify~instagram-profile-scraper` */

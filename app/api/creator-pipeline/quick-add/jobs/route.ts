@@ -3,7 +3,7 @@ import {
   enqueueQuickAddJobs,
   listActiveQuickAddJobs,
 } from '@/lib/database/creator-pipeline/process-quick-add-jobs'
-import { invokeQuickAddProcessor } from '@/lib/creator-outreach/invoke-quick-add-processor'
+import { invokeQuickAddEdgeWorker } from '@/lib/creator-outreach/invoke-quick-add-edge-worker'
 import { requireCreatorCrmApi } from '@/lib/creator-outreach/require-creator-crm-api'
 import { getAdminSupabaseClient } from '@/lib/supabase/admin'
 
@@ -50,8 +50,8 @@ export async function POST(request: Request) {
     const supabase = getAdminSupabaseClient()
     const { jobs, skipped } = await enqueueQuickAddJobs(supabase, auth.userId, urls)
 
-    void invokeQuickAddProcessor(supabase).catch((err) => {
-      console.error('invokeQuickAddProcessor after enqueue:', err)
+    void invokeQuickAddEdgeWorker(supabase).catch((err) => {
+      console.error('invokeQuickAddEdgeWorker after enqueue:', err)
     })
 
     return NextResponse.json({ jobs, skipped })

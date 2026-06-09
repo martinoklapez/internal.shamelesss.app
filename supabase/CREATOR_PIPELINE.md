@@ -87,7 +87,7 @@ Server routes use **`SUPABASE_SERVICE_ROLE_KEY`** (after admin session check), n
 High-volume profile imports use **`creator_pipeline.quick_add_jobs`** (persistent, team-wide, survives refresh/sessions):
 
 1. **Enqueue** — `POST /api/creator-pipeline/quick-add/jobs` with `{ url }` or `{ urls: [] }`. Dedupes active jobs by normalized platform+handle. UI adds optimistic rows immediately.
-2. **Worker** — `processPendingQuickAddJobs` runs Apify scrape, sets `ready` or `failed`, then **re-plans all ready jobs** with queue-aware matching (`lib/creator-outreach/quick-add-integrity.ts`).
+2. **Worker (Supabase Edge)** — Edge Function `process-creator-quick-add` runs `processPendingQuickAddJobs` (Apify scrape, `ready` / `failed`, queue-aware re-plan). Confirm and CRM persist stay on Vercel.
 3. **Confirm** — `POST .../jobs/:id/confirm` re-plans against CRM + active queue, enforces FIFO unless `force`, runs `quickAddProfile` + persist + outreach.
 4. **Realtime** — `quick_add_jobs` is on `supabase_realtime` so all admins see queue updates without relying on poll alone.
 
@@ -104,15 +104,25 @@ When enabled, ready jobs with **no blocking queue conflicts** are confirmed auto
 
 Invoke the scrape worker:
 
-- After enqueue (fire-and-forget from API)
-- `POST /api/creator-pipeline/process-quick-add` (admin session or `Authorization: Bearer $CREATOR_OUTREACH_CRON_SECRET`)
-- Supabase Edge Function `process-creator-quick-add`
-- **Recommended cron** every 1–2 minutes for backlog (not in repo — configure in Supabase Dashboard)
+- After enqueue / retry — Vercel API calls `supabase.functions.invoke('process-creator-quick-add')` (fire-and-forget)
+- **Recommended cron** — schedule Edge Function `process-creator-quick-add` every 1–2 minutes (Supabase Dashboard)
+- `POST /api/creator-pipeline/process-quick-add` — proxies to Edge; local dev fallback when `NODE_ENV=development` or `QUICK_ADD_VERCEL_WORKER_FALLBACK=true`
 
-Env:
+Deploy Edge worker (bundles `lib/` into `supabase/functions/_shared/` first):
 
-- `QUICK_ADD_WORKER_BATCH_SIZE` — max jobs claimed per worker run (1–10, default 3)
-- Same `CREATOR_OUTREACH_CRON_SECRET` + `APP_URL` as outreach cron
+```bash
+npm run deploy:quick-add-edge
+# or: npm run bundle:quick-add-edge && supabase functions deploy process-creator-quick-add
+supabase secrets set APIFY_API_TOKEN=... CREATOR_OUTREACH_CRON_SECRET=...
+```
+
+Edge secrets: `APIFY_API_TOKEN`, optional `CREATOR_OUTREACH_CRON_SECRET`, optional actor overrides. `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are injected automatically.
+
+Env (Vercel / local Next.js):
+
+- `QUICK_ADD_EDGE_BATCH_SIZE` — jobs per Edge run (1–3, default 1; sequential Apify)
+- `QUICK_ADD_WORKER_BATCH_SIZE` — Vercel fallback batch (1–10, default 3)
+- `QUICK_ADD_VERCEL_WORKER_FALLBACK=true` — run scrape on Vercel when Edge invoke fails (local dev default via `NODE_ENV=development`)
 
 Migration: `20260531120000_quick_add_integrity_realtime.sql` (columns + realtime publication)
 
