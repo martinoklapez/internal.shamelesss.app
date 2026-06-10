@@ -11,7 +11,9 @@
     "bundle:outreach-sends-edge": "node scripts/bundle-outreach-sends-edge.mjs",
     "deploy:quick-add-edge": "npm run bundle:quick-add-edge && supabase functions deploy process-creator-quick-add",
     "deploy:outreach-sends-edge": "npm run bundle:outreach-sends-edge && supabase functions deploy process-creator-outreach-sends",
-    "deploy:pipeline-edge": "npm run bundle:quick-add-edge && npm run bundle:outreach-sends-edge && supabase functions deploy process-creator-quick-add && supabase functions deploy process-creator-outreach-sends"
+    "deploy:pipeline-edge": "npm run bundle:quick-add-edge && npm run bundle:outreach-sends-edge && supabase functions deploy process-creator-quick-add && supabase functions deploy process-creator-outreach-sends",
+    "test:outreach-sends-edge": "node scripts/test-outreach-sends-edge.mjs",
+    "queue:test-outreach": "node scripts/queue-test-outreach.mjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
