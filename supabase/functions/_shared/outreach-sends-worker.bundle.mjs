@@ -129,7 +129,9 @@ function buildCalBookingCardInnerHtml(details) {
 </td>
 </tr>
 </table>
-<div style="margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6;font-size:12px;font-weight:500;line-height:1.4;color:#374151;">${actionLabel} &rarr;</div>
+<div style="margin-top:14px;">
+<span style="display:block;box-sizing:border-box;width:100%;padding:12px 16px;background:#ff5352;color:#000000;font-size:14px;font-weight:600;line-height:1.35;text-align:center;border-radius:10px;">${actionLabel}</span>
+</div>
 </td>
 </tr>
 </table>`;

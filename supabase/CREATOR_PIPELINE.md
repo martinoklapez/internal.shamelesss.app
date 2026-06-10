@@ -156,6 +156,8 @@ select vault.create_secret('YOUR_CREATOR_OUTREACH_CRON_SECRET', 'creator_outreac
 
 Use the same `CREATOR_OUTREACH_CRON_SECRET` value as Vercel and `supabase secrets set CREATOR_OUTREACH_CRON_SECRET=...` on Edge.
 
+If cron fails with “configure vault secrets”, run `scripts/setup-cron-vault.sql` and apply migration `20260610140000_creator_pipeline_cron_vault_grants.sql`.
+
 Inspect jobs: Dashboard → Integrations → Cron, or `select * from cron.job where jobname like 'creator-pipeline-%';`
 
 Unschedule:
