@@ -1,3 +1,4 @@
+import { outreachPlainTextToEmailHtml } from '@/lib/creator-outreach/template-email-html'
 import type { SendFromAddress } from './types'
 
 export const BOOK_MEETING_PLACEHOLDER = 'book_meeting'
@@ -197,25 +198,12 @@ export function outreachBodyToEmailHtml(
   const trimmed = body.trim()
   if (!trimmed) return '<div><br></div>'
   if (!trimmed.includes(BOOK_MEETING_TOKEN)) {
-    return textToMissiveHtml(trimmed)
+    return outreachPlainTextToEmailHtml(trimmed)
   }
 
   const widgetHtml = buildCalBookingWidgetHtml(resolveCalBookingMeetingDetails(options))
   const parts = trimmed.split(BOOK_MEETING_TOKEN)
   return parts
-    .map((part) => textToMissiveHtml(part))
+    .map((part) => outreachPlainTextToEmailHtml(part))
     .join(widgetHtml)
-}
-
-function textToMissiveHtml(text: string): string {
-  const trimmed = text.trim()
-  if (!trimmed) return ''
-  if (/<[a-z][\s\S]*>/i.test(trimmed)) return trimmed
-  return trimmed
-    .split(/\n\n+/)
-    .map((paragraph) => {
-      const inner = escapeHtml(paragraph).replace(/\n/g, '<br>')
-      return `<div>${inner}</div>`
-    })
-    .join('<div><br></div>')
 }

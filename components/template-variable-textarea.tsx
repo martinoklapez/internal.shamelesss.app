@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
 } from 'react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
   getTemplateEditorCursorOffset,
@@ -14,6 +15,7 @@ import {
   serializeTemplateEditor,
   setTemplateEditorCursorOffset,
 } from '@/lib/creator-outreach/template-segments'
+import { Bold } from 'lucide-react'
 
 export type TemplateVariableTextareaHandle = {
   focus: () => void
@@ -106,8 +108,37 @@ export const TemplateVariableTextarea = forwardRef<
     document.execCommand('insertText', false, text)
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    document.execCommand('insertLineBreak')
+    handleInput()
+  }
+
+  const applyFormat = (command: 'bold' | 'italic') => {
+    const editor = editorRef.current
+    if (!editor) return
+
+    editor.focus()
+    document.execCommand(command, false)
+    handleInput()
+  }
+
   return (
     <div className="relative">
+      <div className="flex items-center gap-1 rounded-t-md border border-b-0 border-input bg-muted/40 px-2 py-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0"
+          aria-label="Bold"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyFormat('bold')}
+        >
+          <Bold className="h-3.5 w-3.5" />
+        </Button>
+      </div>
       <div
         id={id}
         ref={editorRef}
@@ -117,10 +148,11 @@ export const TemplateVariableTextarea = forwardRef<
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
+        onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         data-placeholder={placeholder}
         className={cn(
-          'min-h-[220px] w-full resize-y overflow-auto rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm',
+          'min-h-[220px] w-full resize-y overflow-auto rounded-b-md border border-input bg-background px-3 py-2 text-sm leading-relaxed ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm',
           'whitespace-pre-wrap break-words empty:before:pointer-events-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]',
           className
         )}

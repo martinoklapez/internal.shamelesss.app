@@ -4,6 +4,70 @@ export type TemplateTextSegment =
 
 const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g
 
+const INLINE_FORMAT_TAGS = new Set(['B', 'STRONG', 'I', 'EM'])
+const BLOCK_TAGS = new Set(['DIV', 'P'])
+
+/**
+ * Strip unsupported tags; keep bold/italic. Works in browser and Node (Missive send).
+ */
+export function sanitizeTemplateInlineHtml(html: string): string {
+  if (!html || !/<[a-z]/i.test(html)) return html
+
+  let out = html.replace(/<br\s*\/?>/gi, '\n')
+  out = out.replace(/<\s*(strong|b)\s*>/gi, '<strong>')
+  out = out.replace(/<\s*\/\s*(strong|b)\s*>/gi, '</strong>')
+  out = out.replace(/<\s*(em|i)\s*>/gi, '<em>')
+  out = out.replace(/<\s*\/\s*(em|i)\s*>/gi, '</em>')
+  out = out.replace(/<(?!\/?(strong|em)\b)[^>]*>/gi, '')
+
+  return out
+}
+
+function serializeInlineElement(element: HTMLElement): string {
+  const tag = element.tagName
+  const inner = serializeTemplateEditorNodes(element, false)
+  if (tag === 'STRONG' || tag === 'B') return `<strong>${inner}</strong>`
+  if (tag === 'EM' || tag === 'I') return `<em>${inner}</em>`
+  return inner
+}
+
+function appendPlainTextWithBreaks(container: HTMLElement, text: string): void {
+  const lines = text.split('\n')
+  lines.forEach((line, index) => {
+    if (line) container.appendChild(document.createTextNode(line))
+    if (index < lines.length - 1) {
+      container.appendChild(document.createElement('br'))
+    }
+  })
+}
+
+function appendTemplateTextSegment(container: HTMLElement, text: string): void {
+  if (!text) return
+
+  if (!/<[a-z]/i.test(text)) {
+    appendPlainTextWithBreaks(container, text)
+    return
+  }
+
+  const wrapper = document.createElement('span')
+  wrapper.innerHTML = sanitizeTemplateInlineHtml(text)
+  while (wrapper.firstChild) {
+    container.appendChild(wrapper.firstChild)
+  }
+}
+
+function serializeBlockElement(element: HTMLElement): string {
+  const children = Array.from(element.childNodes)
+  if (
+    children.length === 1 &&
+    children[0].nodeType === Node.ELEMENT_NODE &&
+    (children[0] as HTMLElement).tagName === 'BR'
+  ) {
+    return ''
+  }
+  return serializeTemplateEditorNodes(element, false)
+}
+
 export function parseTemplateSegments(text: string): TemplateTextSegment[] {
   const segments: TemplateTextSegment[] = []
   let lastIndex = 0
@@ -51,9 +115,15 @@ export function nodePlainLength(node: Node): number {
 }
 
 export function serializeTemplateEditor(container: HTMLElement): string {
+  return serializeTemplateEditorNodes(container, true)
+}
+
+function serializeTemplateEditorNodes(container: HTMLElement, isRoot: boolean): string {
+  const nodes = Array.from(container.childNodes)
   let result = ''
 
-  for (const node of Array.from(container.childNodes)) {
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i]
     if (node.nodeType === Node.TEXT_NODE) {
       result += node.textContent ?? ''
       continue
@@ -68,8 +138,16 @@ export function serializeTemplateEditor(container: HTMLElement): string {
       result += `{{${element.dataset.token}}}`
     } else if (element.tagName === 'BR') {
       result += '\n'
+    } else if (INLINE_FORMAT_TAGS.has(element.tagName)) {
+      result += serializeInlineElement(element)
+    } else if (BLOCK_TAGS.has(element.tagName)) {
+      result += serializeBlockElement(element)
     } else {
-      result += serializeTemplateEditor(element)
+      result += serializeTemplateEditorNodes(element, false)
+    }
+
+    if (isRoot && i < nodes.length - 1 && BLOCK_TAGS.has(element.tagName)) {
+      result += '\n'
     }
   }
 
@@ -178,7 +256,44 @@ function resolveCursorNode(
         return { node: container, offset: Array.from(container.childNodes).indexOf(element) + 1 }
       }
       remaining -= 1
+      continue
     }
+
+    if (BLOCK_TAGS.has(element.tagName)) {
+      const length = nodePlainLength(element)
+      if (remaining < length) {
+        const nested = resolveCursorNode(element, remaining)
+        if (nested !== 'end') return nested
+      }
+      if (remaining <= length) {
+        return {
+          node: container,
+          offset: Array.from(container.childNodes).indexOf(element) + 1,
+        }
+      }
+      remaining -= length
+      const nodeIndex = Array.from(container.childNodes).indexOf(element)
+      if (nodeIndex < Array.from(container.childNodes).length - 1) {
+        if (remaining === 0) {
+          return { node: container, offset: nodeIndex + 1 }
+        }
+        remaining -= 1
+      }
+      continue
+    }
+
+    const length = nodePlainLength(element)
+    if (remaining < length) {
+      const nested = resolveCursorNode(element, remaining)
+      if (nested !== 'end') return nested
+    }
+    if (remaining <= length) {
+      return {
+        node: container,
+        offset: Array.from(container.childNodes).indexOf(element) + 1,
+      }
+    }
+    remaining -= length
   }
 
   if (remaining === 0) {
@@ -222,7 +337,7 @@ export function renderTemplateEditorContent(container: HTMLElement, text: string
 
   for (const segment of parseTemplateSegments(text)) {
     if (segment.type === 'text') {
-      container.appendChild(document.createTextNode(segment.value))
+      appendTemplateTextSegment(container, segment.value)
       continue
     }
 

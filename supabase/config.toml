@@ -14,3 +14,9 @@ major_version = 15
 
 [functions.process-creator-quick-add]
 verify_jwt = false
+
+[functions.process-creator-outreach-sends]
+verify_jwt = false
+
+[functions.process-creator-outreach]
+verify_jwt = false

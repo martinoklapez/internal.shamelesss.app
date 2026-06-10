@@ -120,10 +120,6 @@ export async function POST(request: Request) {
   try {
     const persisted = await loadCreatorOutreachStoreFromDb(supabase)
     let outreach: EvaluateOutreachResult | undefined
-    let missiveSent: number | undefined
-    let missiveFailed: number | undefined
-    let lastMissiveError: string | undefined
-    let lastMissiveWarning: string | undefined
     let contactIdsToProcess: string[] = []
 
     if (body.action === 'saveOutreachRules') {
@@ -259,10 +255,6 @@ export async function POST(request: Request) {
         return NextResponse.json({
           store: saved,
           outreach: processed.outreach,
-          missiveSent: processed.missiveSent,
-          missiveFailed: processed.missiveFailed,
-          lastMissiveError: processed.lastMissiveError,
-          lastMissiveWarning: processed.lastMissiveWarning,
         })
       }
       default:
@@ -276,20 +268,12 @@ export async function POST(request: Request) {
         contactIds: contactIdsToProcess,
       })
       outreach = processed.outreach
-      missiveSent = processed.missiveSent
-      missiveFailed = processed.missiveFailed
-      lastMissiveError = processed.lastMissiveError
-      lastMissiveWarning = processed.lastMissiveWarning
     }
 
     const saved = await loadCreatorOutreachStoreFromDb(supabase)
     return NextResponse.json({
       store: saved,
       outreach,
-      missiveSent,
-      missiveFailed,
-      lastMissiveError,
-      lastMissiveWarning,
     })
   } catch (error) {
     console.error('POST /api/creator-pipeline/mutate:', error)

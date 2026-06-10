@@ -1,10 +1,22 @@
+import { readRuntimeEnv } from '@/lib/runtime/env'
 import {
   type CalBookingMeetingDetails,
   outreachBodyToEmailHtml,
   replaceBookMeetingInPlainText,
 } from './cal-booking'
+import { outreachPlainTextToEmailHtml } from '@/lib/creator-outreach/template-email-html'
 import { appendOutreachSignatureHtml } from './outreach-email-body'
 import type { OutreachSend } from './types'
+
+function missiveEnv(name: string): string | undefined {
+  return readRuntimeEnv(name)
+}
+
+function missiveEnvFlag(name: string, defaultValue = true): boolean {
+  const value = readRuntimeEnv(name)
+  if (!value) return defaultValue
+  return value !== 'false'
+}
 
 const MISSIVE_API_BASE = 'https://public.missiveapp.com/v1'
 
@@ -69,16 +81,7 @@ function escapeHtml(text: string): string {
 
 /** Plain text or simple HTML → Missive-friendly HTML (paragraph spacing). */
 export function textToMissiveHtml(text: string): string {
-  const trimmed = text.trim()
-  if (!trimmed) return '<div><br></div>'
-  if (/<[a-z][\s\S]*>/i.test(trimmed)) return trimmed
-  return trimmed
-    .split(/\n\n+/)
-    .map((paragraph) => {
-      const inner = escapeHtml(paragraph).replace(/\n/g, '<br>')
-      return `<div>${inner}</div>`
-    })
-    .join('<div><br></div>')
+  return outreachPlainTextToEmailHtml(text)
 }
 
 export function renderOutreachTemplate(
@@ -124,7 +127,7 @@ function isAccountNotFoundError(message: string): boolean {
 function resolveMissiveAccountId(context: MissiveSendContext): string | undefined {
   const fromContext = context.missiveAccountId?.trim()
   if (fromContext) return fromContext
-  return process.env.MISSIVE_ACCOUNT_ID?.trim() || undefined
+  return missiveEnv('MISSIVE_ACCOUNT_ID')
 }
 
 /** True when Missive rejected the configured From address (alias / API permission). */
@@ -133,7 +136,7 @@ export function isMissiveSenderUnavailableReason(reason: string): boolean {
 }
 
 function allowPersonalEmailFallback(): boolean {
-  return process.env.MISSIVE_ALLOW_PERSONAL_FALLBACK !== 'false'
+  return missiveEnvFlag('MISSIVE_ALLOW_PERSONAL_FALLBACK', true)
 }
 
 function senderMismatchHelp(
@@ -189,8 +192,8 @@ function buildSendFromCandidates(primary: string, extras: string[]): string[] {
   }
   add(primary)
   for (const extra of extras) add(extra)
-  add(process.env.MISSIVE_FROM_ADDRESS)
-  add(process.env.MISSIVE_SEND_FROM_ADDRESS)
+  add(missiveEnv('MISSIVE_FROM_ADDRESS'))
+  add(missiveEnv('MISSIVE_SEND_FROM_ADDRESS'))
   return list
 }
 
@@ -357,7 +360,7 @@ export async function sendQueuedOutreachViaMissive(
   template: { subject: string; bodyPreview: string },
   context: MissiveSendContext
 ): Promise<MissiveSendResult> {
-  const token = process.env.MISSIVE_API_TOKEN?.trim()
+  const token = missiveEnv('MISSIVE_API_TOKEN')
   if (!token) {
     return { ok: false, reason: 'MISSIVE_API_TOKEN not configured' }
   }
@@ -389,11 +392,11 @@ export async function sendQueuedOutreachViaMissive(
     ? replySubject(renderedSubject)
     : renderedSubject
 
-  const teamId = process.env.MISSIVE_TEAM_ID?.trim()
-  const organizationId = process.env.MISSIVE_ORGANIZATION_ID?.trim()
+  const teamId = missiveEnv('MISSIVE_TEAM_ID')
+  const organizationId = missiveEnv('MISSIVE_ORGANIZATION_ID')
   const fromName =
     context.fromDisplayName?.trim() ||
-    process.env.MISSIVE_FROM_NAME?.trim() ||
+    missiveEnv('MISSIVE_FROM_NAME') ||
     undefined
 
   const baseDraft: Omit<MissiveDraftPayload, 'from_field'> = {

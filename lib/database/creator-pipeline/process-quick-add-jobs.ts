@@ -153,9 +153,6 @@ export async function confirmQuickAddJob(
   store: Awaited<ReturnType<typeof loadCreatorOutreachStoreFromDb>>
   job: QuickAddJobView
   outreach?: import('@/lib/creator-outreach/rules-engine').EvaluateOutreachResult
-  missiveSent?: number
-  missiveFailed?: number
-  lastMissiveError?: string
 }> {
   const db = creatorPipelineDb(supabase)
 
@@ -275,18 +272,12 @@ export async function confirmQuickAddJob(
     await persistCreatorOutreachStoreToDb(supabase, store)
 
     let outreach: import('@/lib/creator-outreach/rules-engine').EvaluateOutreachResult | undefined
-    let missiveSent: number | undefined
-    let missiveFailed: number | undefined
-    let lastMissiveError: string | undefined
 
     if (result.emailReadyContactId) {
       const processed = await invokeOutreachProcessor(supabase, {
         contactIds: [result.emailReadyContactId],
       })
       outreach = processed.outreach
-      missiveSent = processed.missiveSent
-      missiveFailed = processed.missiveFailed
-      lastMissiveError = processed.lastMissiveError
     }
 
     const now = new Date().toISOString()
@@ -316,9 +307,6 @@ export async function confirmQuickAddJob(
       store: saved,
       job: mapQuickAddJobRow(completed as QuickAddJobRow),
       outreach,
-      missiveSent,
-      missiveFailed,
-      lastMissiveError,
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Confirm failed'

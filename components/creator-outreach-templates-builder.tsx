@@ -17,6 +17,7 @@ import {
 } from '@/lib/creator-outreach/template-placeholders'
 import {
   parseTemplateSegments,
+  sanitizeTemplateInlineHtml,
   TEMPLATE_VARIABLE_BADGE_CLASS,
 } from '@/lib/creator-outreach/template-segments'
 import type { EmailTemplate } from '@/lib/creator-outreach/types'
@@ -42,6 +43,15 @@ function draftFromTemplate(template: EmailTemplate): EmailTemplateDraft {
   }
 }
 
+function TemplateFormattedText({ text }: { text: string }) {
+  if (!/<[a-z]/i.test(text)) {
+    return <span>{text}</span>
+  }
+  return (
+    <span dangerouslySetInnerHTML={{ __html: sanitizeTemplateInlineHtml(text) }} />
+  )
+}
+
 function TemplateWithBadges({ text, className }: { text: string; className?: string }) {
   const parts = parseTemplateSegments(text)
 
@@ -49,7 +59,7 @@ function TemplateWithBadges({ text, className }: { text: string; className?: str
     <span className={className}>
       {parts.map((part, index) =>
         part.type === 'text' ? (
-          <span key={index}>{part.value}</span>
+          <TemplateFormattedText key={index} text={part.value} />
         ) : (
           <Badge key={index} variant="secondary" className={TEMPLATE_VARIABLE_BADGE_CLASS}>
             {`{{${part.key}}}`}

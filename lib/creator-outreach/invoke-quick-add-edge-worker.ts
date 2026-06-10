@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ProcessQuickAddJobsResult } from '@/lib/database/creator-pipeline/process-quick-add-scrape'
 import { processPendingQuickAddJobs } from '@/lib/database/creator-pipeline/process-quick-add-scrape'
+import { edgeWorkerInvokeHeaders } from '@/lib/creator-outreach/edge-worker-invoke-headers'
 import { readRuntimeEnv } from '@/lib/runtime/env'
 
 /**
@@ -12,6 +13,7 @@ export async function invokeQuickAddEdgeWorker(
 ): Promise<ProcessQuickAddJobsResult | undefined> {
   const { data, error } = await supabase.functions.invoke('process-creator-quick-add', {
     body: {},
+    headers: edgeWorkerInvokeHeaders(),
   })
 
   if (!error) {

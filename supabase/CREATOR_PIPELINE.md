@@ -51,24 +51,31 @@ From any entity:
 ## Outreach automation (server-side)
 
 1. **Trigger** `contacts_enqueue_email_ready` on `creator_pipeline.contacts` inserts a row into `outreach_events` when a contact gets a usable email (create, add, or change).
-2. **Worker** `processPendingOutreachEvents` applies `outreach_rules`, writes `outreach_sends` (`queued`), activity. Contact CRM status stays **`new`** until a send succeeds.
-3. **Missive** — `MISSIVE_API_TOKEN` + sender from rule (`send_from_addresses`) → `POST /v1/drafts` with `send: true`; rows move to `sent` and contact/creator status becomes **`contacted`**.
+2. **Queue worker (Vercel)** — `processPendingOutreachEvents` applies `outreach_rules`, writes `outreach_sends` (`queued`), activity. Contact CRM status stays **`new`** until a send succeeds.
+3. **Send worker (Supabase Edge)** — `process-creator-outreach-sends` drains `queued` rows via Missive (`POST /v1/drafts`, `send: true`); rows move to `sent` and contact/creator status becomes **`contacted`**.
 
-Invoke the worker:
+Invoke queue + send:
 
-- Automatically after CRM saves (`POST /api/creator-pipeline/mutate` → persist contacts → process events)
-- `POST /api/creator-pipeline/process-outreach` (admin session or `Authorization: Bearer $CREATOR_OUTREACH_CRON_SECRET`)
-- Supabase Edge Function `process-creator-outreach` (calls the API with cron secret)
-- Optional cron: `curl -X POST -H "Authorization: Bearer $SECRET" https://your-app/api/creator-pipeline/process-outreach`
+- After CRM saves (`mutate` / Quick Add confirm) — queue on Vercel, then `functions.invoke('process-creator-outreach-sends')`
+- **Cron** — `pg_cron` every 2 minutes via migration `20260605120000_creator_pipeline_edge_cron.sql` (see Vault setup below)
+- `POST /api/creator-pipeline/process-outreach` — queue pending events + invoke send worker
+- `POST /api/creator-pipeline/process-outreach-sends` — send queued emails only
+- Edge `process-creator-outreach` — cron proxy to Vercel queue worker (`APP_URL` required)
 
-Env:
+Deploy send worker:
 
-- `CREATOR_OUTREACH_CRON_SECRET` — cron / edge function auth
-- `MISSIVE_API_TOKEN` — Missive API token (Preferences → API)
-- **Senders** (UI `/pipeline/senders`) — allowed From addresses; each must be a Gmail “Send mail as” + Missive alias with API send enabled
-- `MISSIVE_FROM_NAME` — optional display name fallback when a sender row has no `display_name`
-- `MISSIVE_TEAM_ID` + `MISSIVE_ORGANIZATION_ID` — route new threads into a shared team inbox (both required when using `team`)
-- Edge function: `APP_URL` — base URL of this Next app
+```bash
+npm run deploy:outreach-sends-edge
+supabase secrets set MISSIVE_API_TOKEN=... MISSIVE_TEAM_ID=... MISSIVE_ORGANIZATION_ID=...
+```
+
+Env (Vercel): `CREATOR_OUTREACH_CRON_SECRET`, `APP_URL` (for `process-creator-outreach` proxy only).
+
+Env (Edge secrets for sends): `MISSIVE_API_TOKEN`, `MISSIVE_TEAM_ID`, `MISSIVE_ORGANIZATION_ID`, optional `MISSIVE_FROM_NAME`, `OUTREACH_SEND_EDGE_BATCH_SIZE` (default 5, max 20).
+
+Missive sends run **only on Edge** — do not set `MISSIVE_*` on Vercel. Local dev queues on save; Edge invoke or pg_cron sends.
+
+**Senders** (UI `/pipeline/senders`) — allowed From addresses; each must be a Gmail “Send mail as” + Missive alias with API send enabled.
 
 ## App API
 
@@ -76,7 +83,8 @@ Server routes use **`SUPABASE_SERVICE_ROLE_KEY`** (after admin session check), n
 
 - `GET /api/creator-pipeline` — load full store
 - `POST /api/creator-pipeline/mutate` — mutations (`replaceStore`, `scoutProfile`, …)
-- `POST /api/creator-pipeline/process-outreach` — drain pending outreach events
+- `POST /api/creator-pipeline/process-outreach` — queue outreach from pending events + invoke send worker
+- `POST /api/creator-pipeline/process-outreach-sends` — send queued outreach via Edge
 - `GET /api/creator-pipeline/quick-add/jobs` — active Quick Add queue (team-wide)
 - `POST /api/creator-pipeline/quick-add/jobs` — enqueue profile URL(s) for server scrape
 - `POST /api/creator-pipeline/quick-add/jobs/:id/confirm` — confirm ready job → CRM persist
@@ -105,7 +113,7 @@ When enabled, ready jobs with **no blocking queue conflicts** are confirmed auto
 Invoke the scrape worker:
 
 - After enqueue / retry — Vercel API calls `supabase.functions.invoke('process-creator-quick-add')` (fire-and-forget)
-- **Recommended cron** — schedule Edge Function `process-creator-quick-add` every 1–2 minutes (Supabase Dashboard)
+- **Cron** — same `pg_cron` migration as outreach sends (every 2 minutes)
 - `POST /api/creator-pipeline/process-quick-add` — proxies to Edge; local dev fallback when `NODE_ENV=development` or `QUICK_ADD_VERCEL_WORKER_FALLBACK=true`
 
 Deploy Edge worker (bundles `lib/` into `supabase/functions/_shared/` first):
@@ -127,6 +135,35 @@ Env (Vercel / local Next.js):
 Migration: `20260531120000_quick_add_integrity_realtime.sql` (columns + realtime publication)
 
 Admin/dev/developer roles only (same as Creator CRM page).
+
+## Edge worker cron (pg_cron)
+
+Prereq: enable **pg_cron** and **pg_net** under Dashboard → Integrations (do not `CREATE EXTENSION` in SQL on hosted projects).
+
+Migration `20260605120000_creator_pipeline_edge_cron.sql` schedules both workers every **2 minutes**:
+
+| Job name | Edge function |
+|----------|----------------|
+| `creator-pipeline-quick-add` | `process-creator-quick-add` |
+| `creator-pipeline-outreach-sends` | `process-creator-outreach-sends` |
+
+Apply the migration (`supabase db push` or run in SQL editor), then create Vault secrets once:
+
+```sql
+select vault.create_secret('https://YOUR_PROJECT_REF.supabase.co', 'project_url', 'Supabase project URL');
+select vault.create_secret('YOUR_CREATOR_OUTREACH_CRON_SECRET', 'creator_outreach_cron_secret', 'Pipeline edge cron auth');
+```
+
+Use the same `CREATOR_OUTREACH_CRON_SECRET` value as Vercel and `supabase secrets set CREATOR_OUTREACH_CRON_SECRET=...` on Edge.
+
+Inspect jobs: Dashboard → Integrations → Cron, or `select * from cron.job where jobname like 'creator-pipeline-%';`
+
+Unschedule:
+
+```sql
+select cron.unschedule('creator-pipeline-quick-add');
+select cron.unschedule('creator-pipeline-outreach-sends');
+```
 
 ## Chrome extension (`chrome-extension/`)
 

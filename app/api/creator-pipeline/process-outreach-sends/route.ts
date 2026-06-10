@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { invokeOutreachProcessor } from '@/lib/creator-outreach/invoke-outreach-processor'
+import { invokeOutreachSendsEdgeWorker } from '@/lib/creator-outreach/invoke-outreach-sends-edge-worker'
 import { requireCreatorCrmApi } from '@/lib/creator-outreach/require-creator-crm-api'
 import { getAdminSupabaseClient } from '@/lib/supabase/admin'
 
@@ -16,7 +16,6 @@ function isAuthorizedCron(request: Request): boolean {
 
 export async function POST(request: Request) {
   let supabase
-  let contactIds: string[] | undefined
 
   if (isAuthorizedCron(request)) {
     try {
@@ -26,12 +25,6 @@ export async function POST(request: Request) {
         { error: error instanceof Error ? error.message : 'Server not configured' },
         { status: 500 }
       )
-    }
-    try {
-      const body = (await request.json().catch(() => ({}))) as { contactIds?: string[] }
-      contactIds = body.contactIds
-    } catch {
-      // empty body ok for cron
     }
   } else {
     const auth = await requireCreatorCrmApi(request)
@@ -44,20 +37,19 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
-
-    try {
-      const body = (await request.json().catch(() => ({}))) as { contactIds?: string[] }
-      contactIds = body.contactIds
-    } catch {
-      // empty body ok
-    }
   }
 
   try {
-    const result = await invokeOutreachProcessor(supabase, { contactIds })
+    const result = await invokeOutreachSendsEdgeWorker(supabase)
+    if (!result) {
+      return NextResponse.json(
+        { error: 'Outreach send edge worker unavailable. Deploy process-creator-outreach-sends.' },
+        { status: 503 }
+      )
+    }
     return NextResponse.json(result)
   } catch (error) {
-    console.error('POST /api/creator-pipeline/process-outreach:', error)
+    console.error('POST /api/creator-pipeline/process-outreach-sends:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Processing failed' },
       { status: 500 }

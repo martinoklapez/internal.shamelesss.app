@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "bundle:quick-add-edge": "node scripts/bundle-quick-add-edge.mjs",
-    "deploy:quick-add-edge": "npm run bundle:quick-add-edge && supabase functions deploy process-creator-quick-add"
+    "bundle:outreach-sends-edge": "node scripts/bundle-outreach-sends-edge.mjs",
+    "deploy:quick-add-edge": "npm run bundle:quick-add-edge && supabase functions deploy process-creator-quick-add",
+    "deploy:outreach-sends-edge": "npm run bundle:outreach-sends-edge && supabase functions deploy process-creator-outreach-sends",
+    "deploy:pipeline-edge": "npm run bundle:quick-add-edge && npm run bundle:outreach-sends-edge && supabase functions deploy process-creator-quick-add && supabase functions deploy process-creator-outreach-sends"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
