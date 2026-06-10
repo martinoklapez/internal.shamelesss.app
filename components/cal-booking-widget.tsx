@@ -58,7 +58,7 @@ export function CalBookingWidget({ details, className, compact = false }: CalBoo
           </p>
         </div>
       </div>
-      <span className="mt-2.5 block w-full rounded-lg bg-gray-900 px-3 py-2 text-center text-[11px] font-semibold text-white">
+      <span className="mt-2.5 block w-full rounded-lg bg-[#ff5352] px-3 py-2 text-center text-[11px] font-semibold text-black">
         {meeting.actionLabel}
       </span>
     </div>
@@ -84,7 +84,7 @@ export function CalBookingWidget({ details, className, compact = false }: CalBoo
         </div>
       </div>
       <div className="mt-4">
-        <span className="block w-full rounded-lg bg-gray-900 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm">
+        <span className="block w-full rounded-lg bg-[#ff5352] px-4 py-2.5 text-center text-sm font-semibold text-black shadow-sm">
           {meeting.actionLabel}
         </span>
       </div>
