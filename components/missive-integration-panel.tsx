@@ -17,6 +17,11 @@ import type {
 } from '@/lib/creator-outreach/lookup-missive-context'
 import {
   contactCrmStatusLabel,
+  CONTACT_CRM_STATUS_STYLES,
+  canSetPartnershipCrmStatus,
+  PARTNERSHIP_CRM_STATUS_OPTIONS,
+} from '@/lib/creator-outreach/crm-status-ui'
+import {
   contactKindLabel,
 } from '@/lib/creator-outreach/store'
 import type {
@@ -38,29 +43,6 @@ import { cn } from '@/lib/utils'
 
 const MISSIVE_SCRIPT = 'https://integrations.missiveapp.com/missive.js'
 
-function PlatformIcon({
-  platform,
-  className,
-}: {
-  platform: OutreachPlatform
-  className?: string
-}) {
-  if (platform === 'tiktok') {
-    return <SiTiktok className={cn('h-3 w-3 shrink-0', className)} />
-  }
-  return <SiInstagram className={cn('h-3 w-3 shrink-0', className)} />
-}
-
-const CONTACT_CRM_STATUS_STYLES: Record<
-  ContactCrmStatus,
-  { chip: string; dot: string }
-> = {
-  new: { chip: 'bg-gray-100 text-gray-700 ring-gray-200/90', dot: 'bg-gray-400' },
-  contacted: { chip: 'bg-sky-50 text-sky-800 ring-sky-200/80', dot: 'bg-sky-500' },
-  reached: { chip: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80', dot: 'bg-emerald-500' },
-  blocked: { chip: 'bg-red-50 text-red-800 ring-red-200/80', dot: 'bg-red-500' },
-}
-
 function ContactCrmStatusBadge({ status }: { status: ContactCrmStatus }) {
   const { chip, dot } = CONTACT_CRM_STATUS_STYLES[status]
   return (
@@ -74,6 +56,18 @@ function ContactCrmStatusBadge({ status }: { status: ContactCrmStatus }) {
       <span className="truncate">{contactCrmStatusLabel(status)}</span>
     </span>
   )
+}
+function PlatformIcon({
+  platform,
+  className,
+}: {
+  platform: OutreachPlatform
+  className?: string
+}) {
+  if (platform === 'tiktok') {
+    return <SiTiktok className={cn('h-3 w-3 shrink-0', className)} />
+  }
+  return <SiInstagram className={cn('h-3 w-3 shrink-0', className)} />
 }
 
 function ContactKindIcon({
@@ -190,10 +184,113 @@ function ContactRow({
   )
 }
 
-function ContextSheet({ context }: { context: MissiveContextResponse }) {
-  const pipelineHref = context.creator
-    ? `/pipeline`
-    : '/pipeline'
+function PartnershipStagePicker({
+  contact,
+  saving,
+  error,
+  onSelect,
+}: {
+  contact: MissiveContextContactDto
+  saving: boolean
+  error: string | null
+  onSelect: (status: ContactCrmStatus) => void
+}) {
+  if (!canSetPartnershipCrmStatus(contact.status)) return null
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">
+          Partnership stage
+        </p>
+        <ContactCrmStatusBadge status={contact.status} />
+      </div>
+      <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
+        Update CRM status while you work this thread in Missive.
+      </p>
+      <div className="mt-3 space-y-2">
+        {PARTNERSHIP_CRM_STATUS_OPTIONS.map((option) => {
+          const selected = contact.status === option.value
+          const { dot } = CONTACT_CRM_STATUS_STYLES[option.value]
+          return (
+            <button
+              key={option.value}
+              type="button"
+              disabled={saving || selected}
+              onClick={() => onSelect(option.value)}
+              className={cn(
+                'flex w-full items-start gap-2 rounded-md border px-2.5 py-2 text-left transition-colors disabled:cursor-default',
+                selected
+                  ? 'border-gray-300 bg-white ring-1 ring-inset ring-gray-200'
+                  : 'border-transparent bg-white hover:border-gray-200 hover:bg-white disabled:opacity-60'
+              )}
+            >
+              <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', dot)} aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium text-gray-900">
+                  {option.label}
+                </span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                  {option.description}
+                </span>
+              </span>
+              {selected ? (
+                <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                  Current
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
+      </div>
+      {error ? <p className="mt-2 text-[11px] text-red-600">{error}</p> : null}
+    </div>
+  )
+}
+
+function ContextSheet({
+  context,
+  accessToken,
+  conversationId,
+  participantEmails,
+  onContextUpdated,
+}: {
+  context: MissiveContextResponse
+  accessToken: string
+  conversationId: string
+  participantEmails: string[]
+  onContextUpdated: (next: MissiveContextResponse) => void
+}) {
+  const [statusSaving, setStatusSaving] = useState(false)
+  const [statusError, setStatusError] = useState<string | null>(null)
+
+  const matchedContact =
+    context.contacts.find((c) => c.id === context.matchedContactId) ?? context.contact
+
+  const updatePartnershipStage = useCallback(
+    async (status: ContactCrmStatus) => {
+      if (!matchedContact) return
+      setStatusSaving(true)
+      setStatusError(null)
+      try {
+        const next = await updateContactCrmStatus(
+          accessToken,
+          matchedContact.id,
+          status,
+          conversationId,
+          participantEmails
+        )
+        onContextUpdated(next)
+      } catch (err) {
+        setStatusError(err instanceof Error ? err.message : 'Failed to update status')
+      } finally {
+        setStatusSaving(false)
+      }
+    },
+    [accessToken, conversationId, matchedContact, onContextUpdated, participantEmails]
+  )
+
+  const pipelineHref = context.creator ? `/pipeline` : '/pipeline'
 
   if (!context.contact) {
     return (
@@ -229,6 +326,14 @@ function ContextSheet({ context }: { context: MissiveContextResponse }) {
             <ContactRow contact={context.contact} highlight />
           </div>
         </div>
+        {matchedContact ? (
+          <PartnershipStagePicker
+            contact={matchedContact}
+            saving={statusSaving}
+            error={statusError}
+            onSelect={(status) => void updatePartnershipStage(status)}
+          />
+        ) : null}
         <p className="text-xs text-gray-500">
           This contact is not linked to a creator. Link them in the Pipeline app.
         </p>
@@ -273,6 +378,15 @@ function ContextSheet({ context }: { context: MissiveContextResponse }) {
         </p>
         <ContactCrmStatusBadge status={creator.status} />
       </div>
+
+      {matchedContact ? (
+        <PartnershipStagePicker
+          contact={matchedContact}
+          saving={statusSaving}
+          error={statusError}
+          onSelect={(status) => void updatePartnershipStage(status)}
+        />
+      ) : null}
 
       {notes ? (
         <div>
@@ -347,6 +461,33 @@ async function fetchMissiveContext(
   return data as MissiveContextResponse
 }
 
+async function updateContactCrmStatus(
+  accessToken: string,
+  contactId: string,
+  status: ContactCrmStatus,
+  conversationId: string,
+  emails: string[]
+): Promise<MissiveContextResponse> {
+  const res = await fetch('/api/creator-pipeline/mutate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      action: 'updateContact',
+      contactId,
+      patch: { status },
+    }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error((data as { error?: string }).error ?? `Status update failed (${res.status})`)
+  }
+
+  return fetchMissiveContext(accessToken, conversationId, emails)
+}
+
 export function MissiveIntegrationPanel() {
   const [missiveReady, setMissiveReady] = useState(false)
   const [session, setSession] = useState<MissiveAuthSession | null>(null)
@@ -355,6 +496,8 @@ export function MissiveIntegrationPanel() {
   const [signingIn, setSigningIn] = useState(false)
 
   const [context, setContext] = useState<MissiveContextResponse | null>(null)
+  const [activeConversationId, setActiveConversationId] = useState('')
+  const [participantEmails, setParticipantEmails] = useState<string[]>([])
   const [contextLoading, setContextLoading] = useState(false)
   const [contextError, setContextError] = useState<string | null>(null)
   const [outsideMissive, setOutsideMissive] = useState(false)
@@ -371,6 +514,8 @@ export function MissiveIntegrationPanel() {
       setContextError(null)
       try {
         const emails = extractParticipantEmails(conversation)
+        setActiveConversationId(conversation.id)
+        setParticipantEmails(emails)
         const result = await fetchMissiveContext(
           currentSession.access_token,
           conversation.id,
@@ -379,6 +524,8 @@ export function MissiveIntegrationPanel() {
         setContext(result)
       } catch (err) {
         setContext(null)
+        setActiveConversationId('')
+        setParticipantEmails([])
         setContextError(err instanceof Error ? err.message : 'Failed to load context')
       } finally {
         setContextLoading(false)
@@ -395,6 +542,8 @@ export function MissiveIntegrationPanel() {
       const conversationIds = Array.isArray(ids) ? (ids as string[]) : []
       if (conversationIds.length !== 1) {
         setContext(null)
+        setActiveConversationId('')
+        setParticipantEmails([])
         setContextError(null)
         setContextLoading(false)
         return
@@ -547,7 +696,15 @@ export function MissiveIntegrationPanel() {
             ) : contextError ? (
               <p className="p-4 text-sm text-red-600">{contextError}</p>
             ) : context ? (
-              <ContextSheet context={context} />
+              session ? (
+                <ContextSheet
+                  context={context}
+                  accessToken={session.access_token}
+                  conversationId={activeConversationId}
+                  participantEmails={participantEmails}
+                  onContextUpdated={setContext}
+                />
+              ) : null
             ) : (
               <p className="p-4 text-sm text-gray-500">
                 {outsideMissive

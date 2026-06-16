@@ -4,7 +4,10 @@ const CRM_STATUS_RANK: Record<ContactCrmStatus, number> = {
   new: 0,
   contacted: 1,
   reached: 2,
-  blocked: 3,
+  in_talks: 3,
+  test_phase: 4,
+  active_partnership: 5,
+  blocked: 6,
 }
 
 /** Roll up the furthest contact CRM stage onto the creator. */

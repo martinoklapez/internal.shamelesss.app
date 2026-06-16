@@ -54,8 +54,11 @@ import {
   type SocialMediaProfile,
 } from '@/lib/creator-outreach/types'
 import {
-  addCreatorContact,
+  CONTACT_CRM_STATUS_STYLES,
   contactCrmStatusLabel,
+} from '@/lib/creator-outreach/crm-status-ui'
+import {
+  addCreatorContact,
   contactKindLabel,
   createCreator,
   getContactsForCreator,
@@ -115,7 +118,15 @@ const PIPELINE_FILTERS: { id: PipelineFilter; label: string }[] = [
   { id: 'contacts', label: 'Contacts' },
 ]
 
-const CRM_STATUS_COLUMNS: ContactCrmStatus[] = ['new', 'contacted', 'reached', 'blocked']
+const CRM_STATUS_COLUMNS: ContactCrmStatus[] = [
+  'new',
+  'contacted',
+  'in_talks',
+  'test_phase',
+  'active_partnership',
+  'reached',
+  'blocked',
+]
 
 type PipelineViewMode = 'list' | 'kanban'
 
@@ -778,28 +789,6 @@ function OutreachDot({ sent }: { sent: boolean }) {
       title={sent ? 'Outreach sent' : 'Outreach pending'}
     />
   )
-}
-
-const CONTACT_CRM_STATUS_STYLES: Record<
-  ContactCrmStatus,
-  { chip: string; dot: string }
-> = {
-  new: {
-    chip: 'bg-gray-100 text-gray-700 ring-gray-200/90',
-    dot: 'bg-gray-400',
-  },
-  contacted: {
-    chip: 'bg-sky-50 text-sky-800 ring-sky-200/80',
-    dot: 'bg-sky-500',
-  },
-  reached: {
-    chip: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80',
-    dot: 'bg-emerald-500',
-  },
-  blocked: {
-    chip: 'bg-red-50 text-red-800 ring-red-200/80',
-    dot: 'bg-red-500',
-  },
 }
 
 function ContactCrmStatusBadge({

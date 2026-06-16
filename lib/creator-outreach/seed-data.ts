@@ -35,7 +35,15 @@ const LAST_NAMES = [
 ]
 
 const SCOUTERS = ['Alex', 'Sam', 'Riley', 'Jordan', 'Casey', 'Morgan', 'Taylor']
-const CRM_STATUSES: ContactCrmStatus[] = ['new', 'contacted', 'reached', 'blocked']
+const CRM_STATUSES: ContactCrmStatus[] = [
+  'new',
+  'contacted',
+  'in_talks',
+  'test_phase',
+  'active_partnership',
+  'reached',
+  'blocked',
+]
 const CRM_STATUS_WEIGHTS = [0.35, 0.4, 0.18, 0.07]
 
 const AGENCY_NAMES = [

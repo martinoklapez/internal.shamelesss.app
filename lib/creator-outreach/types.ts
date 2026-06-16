@@ -1,6 +1,13 @@
 export type OutreachPlatform = 'tiktok' | 'instagram'
 
-export type ContactCrmStatus = 'new' | 'contacted' | 'reached' | 'blocked'
+export type ContactCrmStatus =
+  | 'new'
+  | 'contacted'
+  | 'reached'
+  | 'in_talks'
+  | 'test_phase'
+  | 'active_partnership'
+  | 'blocked'
 
 export type OutreachSendStatus = 'queued' | 'sent' | 'skipped_duplicate'
 

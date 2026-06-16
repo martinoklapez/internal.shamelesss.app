@@ -340,7 +340,7 @@ export type AddCreatorContactInput = {
 }
 
 export type UpdateCreatorContactInput = Partial<
-  Pick<CreatorContact, 'kind' | 'name' | 'company' | 'email' | 'phone' | 'notes'>
+  Pick<CreatorContact, 'kind' | 'name' | 'company' | 'email' | 'phone' | 'notes' | 'status'>
 >
 
 /** Reassign a contact from another creator to `creatorId`. */
@@ -448,6 +448,17 @@ export function updateCreatorContact(
     contact.phone = normalizePhone(patch.phone)
   }
 
+  if (patch.status !== undefined && patch.status !== contact.status) {
+    contact.status = patch.status
+    if (contact.creatorId) {
+      const creator = store.creators.find((c) => c.id === contact.creatorId)
+      if (creator) {
+        creator.status = deriveCreatorCrmStatusFromContacts(store, contact.creatorId)
+        creator.updatedAt = nowIso()
+      }
+    }
+  }
+
   if (patch.email !== undefined) {
     const normalized = normalizeEmail(patch.email)
     const hadEmail = Boolean(contact.email)
@@ -468,12 +479,7 @@ export function updateCreatorContact(
   return { store }
 }
 
-export function contactCrmStatusLabel(status: ContactCrmStatus): string {
-  if (status === 'new') return 'New'
-  if (status === 'contacted') return 'Contacted'
-  if (status === 'reached') return 'Reached'
-  return 'Blocked'
-}
+export { contactCrmStatusLabel } from './crm-status-ui'
 
 export function removeProfile(
   store: CreatorOutreachStore,

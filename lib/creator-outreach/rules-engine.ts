@@ -56,7 +56,7 @@ function markContactCrmStatusAfterSuccessfulSend(
   if (!contactId) return
   const contact = store.contacts.find((c) => c.id === contactId)
   if (!contact) return
-  if (contact.status === 'blocked' || contact.status === 'reached') return
+  if (contact.status !== 'new') return
   contact.status = 'contacted'
   if (contact.creatorId) {
     const creator = store.creators.find((c) => c.id === contact.creatorId)
