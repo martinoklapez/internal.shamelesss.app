@@ -53,9 +53,11 @@ import {
   type OutreachPlatform,
   type SocialMediaProfile,
 } from '@/lib/creator-outreach/types'
+import { ContactCrmStatusBadge } from '@/components/contact-crm-status-badge'
 import {
-  CONTACT_CRM_STATUS_STYLES,
+  CRM_KANBAN_STATUS_COLUMNS,
   contactCrmStatusLabel,
+  crmStatusForKanbanColumn,
 } from '@/lib/creator-outreach/crm-status-ui'
 import {
   addCreatorContact,
@@ -118,15 +120,7 @@ const PIPELINE_FILTERS: { id: PipelineFilter; label: string }[] = [
   { id: 'contacts', label: 'Contacts' },
 ]
 
-const CRM_STATUS_COLUMNS: ContactCrmStatus[] = [
-  'new',
-  'contacted',
-  'in_talks',
-  'test_phase',
-  'active_partnership',
-  'reached',
-  'blocked',
-]
+const CRM_STATUS_COLUMNS: ContactCrmStatus[] = [...CRM_KANBAN_STATUS_COLUMNS]
 
 type PipelineViewMode = 'list' | 'kanban'
 
@@ -140,7 +134,7 @@ function groupByCrmStatus<T>(
 ): Map<ContactCrmStatus, T[]> {
   const groups = emptyCrmStatusGroups<T>()
   for (const item of items) {
-    groups.get(getStatus(item))!.push(item)
+    groups.get(crmStatusForKanbanColumn(getStatus(item)))!.push(item)
   }
   return groups
 }
@@ -788,34 +782,6 @@ function OutreachDot({ sent }: { sent: boolean }) {
       )}
       title={sent ? 'Outreach sent' : 'Outreach pending'}
     />
-  )
-}
-
-function ContactCrmStatusBadge({
-  status,
-  size = 'sm',
-  className,
-}: {
-  status: ContactCrmStatus
-  size?: 'sm' | 'md'
-  className?: string
-}) {
-  const { chip, dot } = CONTACT_CRM_STATUS_STYLES[status]
-  return (
-    <span
-      className={cn(
-        'inline-flex max-w-full items-center gap-1.5 rounded-md font-medium ring-1 ring-inset',
-        size === 'sm' ? 'px-1.5 py-0.5 text-[10px] leading-tight' : 'px-2.5 py-1 text-xs',
-        chip,
-        className
-      )}
-    >
-      <span
-        className={cn('shrink-0 rounded-full', size === 'sm' ? 'h-1.5 w-1.5' : 'h-2 w-2', dot)}
-        aria-hidden
-      />
-      <span className="truncate">{contactCrmStatusLabel(status)}</span>
-    </span>
   )
 }
 

@@ -15,15 +15,13 @@ import type {
   MissiveContextProfileDto,
   MissiveContextResponse,
 } from '@/lib/creator-outreach/lookup-missive-context'
+import { ContactCrmStatusBadge } from '@/components/contact-crm-status-badge'
 import {
-  contactCrmStatusLabel,
   CONTACT_CRM_STATUS_STYLES,
   canSetPartnershipCrmStatus,
   PARTNERSHIP_CRM_STATUS_OPTIONS,
 } from '@/lib/creator-outreach/crm-status-ui'
-import {
-  contactKindLabel,
-} from '@/lib/creator-outreach/store'
+import { contactKindLabel } from '@/lib/creator-outreach/store'
 import type {
   ContactCrmStatus,
   CreatorContactKind,
@@ -43,20 +41,6 @@ import { cn } from '@/lib/utils'
 
 const MISSIVE_SCRIPT = 'https://integrations.missiveapp.com/missive.js'
 
-function ContactCrmStatusBadge({ status }: { status: ContactCrmStatus }) {
-  const { chip, dot } = CONTACT_CRM_STATUS_STYLES[status]
-  return (
-    <span
-      className={cn(
-        'inline-flex max-w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-tight ring-1 ring-inset',
-        chip
-      )}
-    >
-      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dot)} aria-hidden />
-      <span className="truncate">{contactCrmStatusLabel(status)}</span>
-    </span>
-  )
-}
 function PlatformIcon({
   platform,
   className,
@@ -198,20 +182,14 @@ function PartnershipStagePicker({
   if (!canSetPartnershipCrmStatus(contact.status)) return null
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">
-          Partnership stage
-        </p>
-        <ContactCrmStatusBadge status={contact.status} />
-      </div>
-      <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
-        Update CRM status while you work this thread in Missive.
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">
+        Partnership stage
       </p>
-      <div className="mt-3 space-y-2">
+      <div className="mt-2 flex flex-wrap gap-1.5">
         {PARTNERSHIP_CRM_STATUS_OPTIONS.map((option) => {
           const selected = contact.status === option.value
-          const { dot } = CONTACT_CRM_STATUS_STYLES[option.value]
+          const { chip, dot } = CONTACT_CRM_STATUS_STYLES[option.value]
           return (
             <button
               key={option.value}
@@ -219,26 +197,13 @@ function PartnershipStagePicker({
               disabled={saving || selected}
               onClick={() => onSelect(option.value)}
               className={cn(
-                'flex w-full items-start gap-2 rounded-md border px-2.5 py-2 text-left transition-colors disabled:cursor-default',
-                selected
-                  ? 'border-gray-300 bg-white ring-1 ring-inset ring-gray-200'
-                  : 'border-transparent bg-white hover:border-gray-200 hover:bg-white disabled:opacity-60'
+                'inline-flex max-w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-tight ring-1 ring-inset transition-opacity',
+                chip,
+                selected ? 'cursor-default opacity-100' : 'hover:opacity-90 disabled:opacity-50'
               )}
             >
-              <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', dot)} aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs font-medium text-gray-900">
-                  {option.label}
-                </span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
-                  {option.description}
-                </span>
-              </span>
-              {selected ? (
-                <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-gray-400">
-                  Current
-                </span>
-              ) : null}
+              <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dot)} aria-hidden />
+              <span className="truncate">{option.label}</span>
             </button>
           )
         })}

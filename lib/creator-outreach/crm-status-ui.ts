@@ -38,6 +38,21 @@ export function canSetPartnershipCrmStatus(status: ContactCrmStatus): boolean {
   return status === 'contacted' || isPartnershipCrmStatus(status) || status === 'reached'
 }
 
+/** Kanban uses four columns; partnership stages group under reached. */
+export const CRM_KANBAN_STATUS_COLUMNS = [
+  'new',
+  'contacted',
+  'reached',
+  'blocked',
+] as const satisfies readonly ContactCrmStatus[]
+
+export function crmStatusForKanbanColumn(status: ContactCrmStatus): ContactCrmStatus {
+  if (status === 'in_talks' || status === 'test_phase' || status === 'active_partnership') {
+    return 'reached'
+  }
+  return status
+}
+
 export const CONTACT_CRM_STATUS_STYLES: Record<
   ContactCrmStatus,
   { chip: string; dot: string }
@@ -48,8 +63,8 @@ export const CONTACT_CRM_STATUS_STYLES: Record<
   in_talks: { chip: 'bg-violet-50 text-violet-800 ring-violet-200/80', dot: 'bg-violet-500' },
   test_phase: { chip: 'bg-amber-50 text-amber-900 ring-amber-200/80', dot: 'bg-amber-500' },
   active_partnership: {
-    chip: 'bg-emerald-50 text-emerald-900 ring-emerald-200/80',
-    dot: 'bg-emerald-600',
+    chip: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80',
+    dot: 'bg-emerald-500',
   },
   blocked: { chip: 'bg-red-50 text-red-800 ring-red-200/80', dot: 'bg-red-500' },
 }
