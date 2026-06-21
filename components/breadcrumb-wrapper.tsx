@@ -26,6 +26,7 @@ export function BreadcrumbWrapper() {
   const [userRole, setUserRole] = useState<'admin' | 'dev' | 'developer' | 'promoter' | null>(null)
   const [userProfile, setUserProfile] = useState<{ name: string | null; profile_picture_url: string | null } | null>(null)
   const [characterName, setCharacterName] = useState<string | null>(null)
+  const [phoneNumberLabel, setPhoneNumberLabel] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const supabase = createClient()
 
@@ -111,6 +112,31 @@ export function BreadcrumbWrapper() {
     }
   }, [pathname, supabase, mounted])
 
+  useEffect(() => {
+    if (!mounted) return
+
+    const segments = (pathname || '').split('/').filter(Boolean)
+    if (segments[0] === 'phone-numbers' && segments[1]) {
+      const injected = (window as Window & { __PHONE_NUMBER_LABEL__?: string }).__PHONE_NUMBER_LABEL__
+      if (injected) {
+        setPhoneNumberLabel(injected)
+        delete (window as Window & { __PHONE_NUMBER_LABEL__?: string }).__PHONE_NUMBER_LABEL__
+        return
+      }
+
+      void supabase
+        .from('phone_numbers')
+        .select('e164')
+        .eq('id', segments[1])
+        .maybeSingle()
+        .then(({ data }) => {
+          setPhoneNumberLabel(data?.e164 ?? null)
+        })
+    } else {
+      setPhoneNumberLabel(null)
+    }
+  }, [pathname, supabase, mounted])
+
   const segments = (pathname || '').split('/').filter(Boolean)
 
   const getSegmentLabel = (segment: string, index: number) => {
@@ -130,6 +156,7 @@ export function BreadcrumbWrapper() {
     if (segment === 'support-chat') return 'Support Chat'
     if (segment === 'star-rating-feedback') return 'Star Rating Feedback'
     if (segment === 'pipeline') return 'Creator Pipeline'
+    if (segment === 'phone-numbers') return 'Phone Numbers'
 
     // Nested routes
     if (segments[0] === 'pipeline') {
@@ -140,6 +167,10 @@ export function BreadcrumbWrapper() {
 
     if (segments[0] === 'devices' && index === 1) {
       return `Device ${segment}`
+    }
+
+    if (segments[0] === 'phone-numbers' && index === 1) {
+      return mounted && phoneNumberLabel ? phoneNumberLabel : 'Number'
     }
 
     if (segments[0] === 'characters' && index === 1) {

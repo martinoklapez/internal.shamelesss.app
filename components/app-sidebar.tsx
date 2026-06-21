@@ -19,7 +19,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from './ui/sidebar'
-import { Gamepad2, Home, Flag, Smartphone, Users, X, Sparkles, FlagTriangleRight, Ticket, Receipt, Star, Bell, Eraser, Activity, MessagesSquare, TrendingUp, Kanban } from 'lucide-react'
+import { Gamepad2, Home, Flag, Smartphone, Users, X, Sparkles, FlagTriangleRight, Ticket, Receipt, Star, Bell, Eraser, Activity, MessagesSquare, TrendingUp, Kanban, Phone } from 'lucide-react'
 import { Button } from './ui/button'
 import SignOutButton from './sign-out-button'
 
@@ -122,6 +122,12 @@ const promoterMenuItems = [
     icon: Smartphone,
     roles: ['promoter', 'admin'] as const,
   },
+  {
+    title: 'Phone Numbers',
+    url: '/phone-numbers',
+    icon: Phone,
+    roles: ['promoter', 'admin', 'dev', 'developer'] as const,
+  },
 ]
 
 const supportModerationMenuItems: Array<{
@@ -197,7 +203,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   const showGeneralGroup = generalItems.length > 0
   const showDeveloperGroup = developerItems.length > 0 // Show if user has access to any developer items
   const showCreatorCrmGroup = showCreatorCrmNav
-  const showPromoterGroup = (userRole === 'promoter' || userRole === 'admin') && promoterItems.length > 0
+  const showPromoterGroup = (userRole === 'promoter' || userRole === 'admin' || userRole === 'dev' || userRole === 'developer') && promoterItems.length > 0
   const showSupportModerationGroup = isAdmin // Show for admins and developers only
 
   return (

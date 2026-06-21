@@ -41,13 +41,13 @@ CREATE POLICY "Allow admin developer write notification_content_templates"
   USING (
     EXISTS (
       SELECT 1 FROM public.user_roles ur
-      WHERE ur.user_id = auth.uid() AND ur.role IN ('admin', 'dev', 'developer')
+      WHERE ur.user_id = auth.uid() AND ur.role IN ('admin', 'developer')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.user_roles ur
-      WHERE ur.user_id = auth.uid() AND ur.role IN ('admin', 'dev', 'developer')
+      WHERE ur.user_id = auth.uid() AND ur.role IN ('admin', 'developer')
     )
   );
 

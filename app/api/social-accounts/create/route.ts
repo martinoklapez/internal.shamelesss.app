@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { device_id, platform, username, credentials } = body
+    const { device_id, platform, username, credentials, status } = body
 
     if (!device_id || !platform || !username || !credentials) {
       return NextResponse.json(
@@ -23,6 +23,12 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    const allowedStatuses = ['planned', 'warmup', 'active', 'paused', 'banned']
+    const accountStatus =
+      status !== undefined && typeof status === 'string' && allowedStatuses.includes(status)
+        ? status
+        : 'planned'
 
     if (!['TikTok', 'Instagram', 'Snapchat', 'Pinterest'].includes(platform)) {
       return NextResponse.json(
@@ -57,7 +63,7 @@ export async function POST(request: Request) {
         username,
         name: accountName,
         credentials,
-        status: 'planned',
+        status: accountStatus,
         batch_id: batchId,
       })
       .select()

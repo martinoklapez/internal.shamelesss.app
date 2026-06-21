@@ -1474,7 +1474,9 @@ export default function CreatorOutreachManager() {
         unlinked.push(profile)
         continue
       }
-      const status = creatorsById.get(profile.creatorId)?.status ?? 'new'
+      const status = crmStatusForKanbanColumn(
+        creatorsById.get(profile.creatorId)?.status ?? 'new'
+      )
       byStatus.get(status)!.push(profile)
     }
     return { profilesByCrmStatus: byStatus, unlinkedKanbanProfiles: unlinked }

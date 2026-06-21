@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -16,20 +16,26 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Eye, EyeOff } from 'lucide-react'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { notifyError } from '@/lib/notify'
 import { getSocialPlatformImage } from '@/lib/social-platform-images'
+import {
+  SOCIAL_ACCOUNT_STATUS_OPTIONS,
+  formatSocialStatusLabel,
+  type SocialAccountSelectableStatus,
+} from '@/lib/social-account-status'
+import { SocialAccountStatusBadge } from '@/components/social-account-status-badge'
+import { cn } from '@/lib/utils'
 
 const PLATFORMS = ['TikTok', 'Instagram', 'Snapchat', 'Pinterest'] as const
 type Platform = (typeof PLATFORMS)[number]
 
-type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'banned'
+type SocialAccountStatus = SocialAccountSelectableStatus
 
 interface SocialAccount {
   id?: string
@@ -43,6 +49,138 @@ interface AddSocialAccountDialogProps {
   deviceId: string
   socialAccount?: SocialAccount | null
   children?: React.ReactNode
+}
+
+function PlatformField({
+  platform,
+  onPlatformChange,
+  required,
+}: {
+  platform: Platform | ''
+  onPlatformChange: (platform: Platform) => void
+  required?: boolean
+}) {
+  return (
+    <FormField label="Platform" required={required}>
+      <div className="flex h-9 items-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-2.5 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-0"
+            >
+              <span className="inline-flex min-w-0 items-center gap-2">
+                {platform ? (
+                  <>
+                    <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded-[22%]">
+                      <Image
+                        src={getSocialPlatformImage(platform)}
+                        alt=""
+                        fill
+                        className="object-contain rounded-[22%]"
+                        sizes="20px"
+                        unoptimized
+                      />
+                    </span>
+                    <span className="truncate text-sm font-medium text-gray-900">{platform}</span>
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-500">Select platform</span>
+                )}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="border border-gray-200 bg-white shadow-lg">
+            {PLATFORMS.map((option) => (
+              <DropdownMenuItem
+                key={option}
+                onClick={() => onPlatformChange(option)}
+                className={cn(
+                  'flex items-center gap-2 focus:bg-gray-100',
+                  option === platform && 'bg-gray-50'
+                )}
+              >
+                <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded-[22%]">
+                  <Image
+                    src={getSocialPlatformImage(option)}
+                    alt=""
+                    fill
+                    className="object-contain rounded-[22%]"
+                    sizes="20px"
+                    unoptimized
+                  />
+                </span>
+                <span className="text-sm">{option}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </FormField>
+  )
+}
+
+function StatusField({
+  status,
+  onStatusChange,
+}: {
+  status: SocialAccountStatus
+  onStatusChange: (status: SocialAccountStatus) => void
+}) {
+  return (
+    <FormField label="Status" htmlFor="status">
+      <div className="flex h-9 items-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              id="status"
+              type="button"
+              className="inline-flex items-center rounded-md focus:outline-none focus:ring-0"
+            >
+              <SocialAccountStatusBadge status={status} variant="header" showChevron />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="border border-gray-200 bg-white shadow-lg">
+            {SOCIAL_ACCOUNT_STATUS_OPTIONS.map((option) => (
+              <DropdownMenuItem
+                key={option}
+                onClick={() => onStatusChange(option)}
+                className="flex items-center gap-2 focus:bg-gray-100"
+              >
+                <SocialAccountStatusBadge status={option} variant="menu" />
+                <span className="min-w-[4.5rem] text-sm">{formatSocialStatusLabel(option)}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </FormField>
+  )
+}
+
+function FormField({
+  label,
+  htmlFor,
+  required,
+  children,
+  className,
+}: {
+  label: string
+  htmlFor?: string
+  required?: boolean
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('grid gap-1.5', className)}>
+      <Label htmlFor={htmlFor} className="text-xs font-medium text-gray-500">
+        {label}
+        {required ? ' *' : ''}
+      </Label>
+      {children}
+    </div>
+  )
 }
 
 export function AddSocialAccountDialog({ deviceId, socialAccount, children }: AddSocialAccountDialogProps) {
@@ -76,7 +214,9 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
         status: 'planned',
       })
     }
-    if (open) setShowPassword(true)
+    if (open) {
+      setShowPassword(true)
+    }
   }, [open, socialAccount])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,6 +243,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
             platform: formData.platform,
             username: formData.username,
             credentials: formData.credentials,
+            status: formData.status,
           }
 
       const response = await fetch(url, {
@@ -140,7 +281,7 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
       <DialogTrigger asChild>
         {children || <Button>Add Social Account</Button>}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{isEditing ? 'Edit Social Account' : 'Add Social Account'}</DialogTitle>
@@ -149,98 +290,68 @@ export function AddSocialAccountDialog({ deviceId, socialAccount, children }: Ad
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Platform *</Label>
-              <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Choose platform">
-                {PLATFORMS.map((platform) => {
-                  const isSelected = formData.platform === platform
-                  return (
-                    <button
-                      key={platform}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Account details
+              </p>
+              <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
+                <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                  <StatusField
+                    status={formData.status}
+                    onStatusChange={(status) => setFormData({ ...formData, status })}
+                  />
+                  <PlatformField
+                    platform={formData.platform}
+                    onPlatformChange={(platform) => setFormData({ ...formData, platform })}
+                    required={!isEditing}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Login credentials
+              </p>
+              <div className="grid gap-4">
+                <FormField label="Username" htmlFor="username" required>
+                  <Input
+                    id="username"
+                    placeholder="e.g., @shamelesss_official"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    required
+                  />
+                </FormField>
+                <FormField label="Password" htmlFor="credentials" required>
+                  <div className="relative flex items-center">
+                    <Input
+                      id="credentials"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={formData.credentials}
+                      onChange={(e) => setFormData({ ...formData, credentials: e.target.value })}
+                      className="pr-9"
+                      required
+                    />
+                    <Button
                       type="button"
-                      onClick={() => setFormData({ ...formData, platform })}
-                      className={`flex flex-col items-center gap-1 rounded-md border-2 p-2 transition-colors hover:bg-gray-50 ${
-                        isSelected
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200 bg-white'
-                      }`}
-                      aria-pressed={isSelected}
-                      aria-label={`${platform}`}
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 h-8 w-8 p-0"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-[22%]">
-                        <Image
-                          src={getSocialPlatformImage(platform)}
-                          alt=""
-                          fill
-                          className="object-contain rounded-[22%]"
-                          sizes="28px"
-                          unoptimized
-                        />
-                      </div>
-                      <span className="text-[10px] font-medium text-gray-700 leading-tight">{platform}</span>
-                    </button>
-                  )
-                })}
+                      {showPassword ? (
+                        <EyeOff className="h-3.5 w-3.5 text-gray-500" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5 text-gray-500" />
+                      )}
+                    </Button>
+                  </div>
+                </FormField>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="username">Username *</Label>
-              <Input
-                id="username"
-                placeholder="e.g., @shamelesss_official"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="credentials">Password *</Label>
-              <div className="relative flex items-center">
-                <Input
-                  id="credentials"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={formData.credentials}
-                  onChange={(e) => setFormData({ ...formData, credentials: e.target.value })}
-                  className="pr-9"
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 h-8 w-8 p-0"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-3.5 w-3.5 text-gray-500" />
-                  ) : (
-                    <Eye className="h-3.5 w-3.5 text-gray-500" />
-                  )}
-                </Button>
-              </div>
-            </div>
-            {isEditing && (
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value as SocialAccountStatus })}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="planned">Planned</SelectItem>
-                    <SelectItem value="warmup">Warmup</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="paused">Paused</SelectItem>
-                    <SelectItem value="banned">Banned</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button

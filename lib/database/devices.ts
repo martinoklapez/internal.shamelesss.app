@@ -37,6 +37,7 @@ export interface SocialAccount {
   credentials: string
   status: SocialAccountStatus
   batch_id: string | null
+  phone_number_id: string | null
   created_at: string
   updated_at: string
 }

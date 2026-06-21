@@ -50,7 +50,10 @@ export function crmStatusForKanbanColumn(status: ContactCrmStatus): ContactCrmSt
   if (status === 'in_talks' || status === 'test_phase' || status === 'active_partnership') {
     return 'reached'
   }
-  return status
+  if ((CRM_KANBAN_STATUS_COLUMNS as readonly ContactCrmStatus[]).includes(status)) {
+    return status
+  }
+  return 'new'
 }
 
 export const CONTACT_CRM_STATUS_STYLES: Record<

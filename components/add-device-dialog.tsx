@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { notifyError, notifySuccess } from '@/lib/notify'
+import { notifyDevicesChanged } from '@/lib/devices-events'
 
 interface AddDeviceDialogProps {
   children?: React.ReactNode
@@ -117,6 +118,7 @@ export function AddDeviceDialog({ children }: AddDeviceDialogProps) {
       setManagerId('')
       setOwner('')
       router.refresh()
+      notifyDevicesChanged()
       notifySuccess('Device created')
     } catch (error) {
       console.error('Error creating device:', error)

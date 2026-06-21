@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import {
   Mail,
   Lock,
@@ -52,20 +53,18 @@ import { getSocialPlatformImage } from '@/lib/social-platform-images'
 import { AddICloudProfileDialog } from './add-icloud-profile-dialog'
 import { AddSocialAccountDialog } from './add-social-account-dialog'
 import { AddProxyDialog } from './add-proxy-dialog'
+import { DevicePhoneLinkRow, type DevicePhoneSummary } from './device-phone-link-row'
+import { SocialAccountStatusBadge } from '@/components/social-account-status-badge'
+import {
+  SOCIAL_ACCOUNT_STATUS_OPTIONS,
+  getSocialStatusChipStyle,
+} from '@/lib/social-account-status'
 import { useAppDialogs } from '@/components/app-dialogs-provider'
+import type { TransferDeviceOption } from '@/lib/api/devices-format'
+import { notifyDeviceDetailChanged, notifyDevicesChanged } from '@/lib/devices-events'
 import { notifyError } from '@/lib/notify'
 
 type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'banned' | 'archived'
-
-const SOCIAL_STATUS_CHIP_STYLES: Record<Exclude<SocialAccountStatus, 'archived'>, { bg: string; text: string }> = {
-  planned: { bg: '#F1F1EF', text: '#787774' },   // Gray
-  warmup:  { bg: '#FAF3DD', text: '#C29343' },  // Yellow
-  active:  { bg: '#EEF3ED', text: '#548164' },  // Green
-  paused:  { bg: '#F8ECDF', text: '#CC782F' },  // Orange
-  banned:  { bg: '#FEE2E2', text: '#991B1B' },  // Red — platform-banned account
-}
-// Display style when no status is set (not a choosable value in the modal)
-const SOCIAL_STATUS_NONE_STYLE = { bg: '#F1F1EF', text: '#787774' } // Gray, same as planned
 
 interface SocialAccount {
   id: string
@@ -75,6 +74,7 @@ interface SocialAccount {
   credentials: string
   status?: SocialAccountStatus
   batchId?: string | null
+  phoneNumber?: DevicePhoneSummary | null
 }
 
 interface iCloudProfile {
@@ -88,6 +88,7 @@ interface iCloudProfile {
   city: string
   street: string
   batchId?: string | null
+  phoneNumber?: DevicePhoneSummary | null
 }
 
 interface Proxy {
@@ -129,24 +130,9 @@ interface Device {
 interface DeviceDetailsProps {
   device: Device
   currentUserId: string
-  transferDeviceOptions: Array<{
-    id: string
-    name: string
-    managerId: string | null
-    managerName: string
-    managerProfilePicture: string | null
-    iCloudAlias: string | null
-    iCloudCountry: string | null
-    proxyCountry: string | null
-  }>
 }
 
-
-export default function DeviceDetails({
-  device,
-  currentUserId,
-  transferDeviceOptions,
-}: DeviceDetailsProps) {
+export default function DeviceDetails({ device, currentUserId }: DeviceDetailsProps) {
   const { confirm } = useAppDialogs()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -154,10 +140,18 @@ export default function DeviceDetails({
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [expandedArchivedProfiles, setExpandedArchivedProfiles] = useState<Set<string>>(new Set())
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
+  const [transferDeviceOptions, setTransferDeviceOptions] = useState<TransferDeviceOption[]>([])
+  const [transferOptionsLoading, setTransferOptionsLoading] = useState(false)
   const [transferingAccount, setTransferingAccount] = useState<SocialAccount | null>(null)
   const [selectedManagerId, setSelectedManagerId] = useState<string>('unassigned')
   const [transferTargetDeviceId, setTransferTargetDeviceId] = useState<string>('')
   const [isTransferLoading, setIsTransferLoading] = useState(false)
+
+  const refreshDeviceData = () => {
+    notifyDeviceDetailChanged(device.id)
+    notifyDevicesChanged()
+    router.refresh()
+  }
   const [highlightedSocialAccountId, setHighlightedSocialAccountId] = useState<string | null>(null)
 
   const toggleCredentials = (id: string) => {
@@ -212,7 +206,7 @@ export default function DeviceDetails({
         throw new Error(error.error || 'Failed to archive iCloud profile')
       }
 
-      router.refresh()
+      refreshDeviceData()
     } catch (error) {
       console.error('Error archiving iCloud profile:', error)
       notifyError(error instanceof Error ? error.message : 'Failed to archive iCloud profile')
@@ -241,7 +235,7 @@ export default function DeviceDetails({
         throw new Error(error.error || 'Failed to archive proxy')
       }
 
-      router.refresh()
+      refreshDeviceData()
     } catch (error) {
       console.error('Error archiving proxy:', error)
       notifyError(error instanceof Error ? error.message : 'Failed to archive proxy')
@@ -269,7 +263,7 @@ export default function DeviceDetails({
         throw new Error(error.error || 'Failed to restore social account')
       }
 
-      router.refresh()
+      refreshDeviceData()
     } catch (error) {
       console.error('Error restoring social account:', error)
       notifyError(error instanceof Error ? error.message : 'Failed to restore social account')
@@ -298,7 +292,7 @@ export default function DeviceDetails({
         throw new Error(error.error || 'Failed to archive social account')
       }
 
-      router.refresh()
+      refreshDeviceData()
     } catch (error) {
       console.error('Error archiving social account:', error)
       notifyError(error instanceof Error ? error.message : 'Failed to archive social account')
@@ -326,12 +320,46 @@ export default function DeviceDetails({
         const error = await response.json()
         throw new Error(error.error || 'Failed to update status')
       }
-      router.refresh()
+      refreshDeviceData()
     } catch (error) {
       console.error('Error updating social account status:', error)
       notifyError(error instanceof Error ? error.message : 'Failed to update status')
     }
   }
+
+  useEffect(() => {
+    if (!transferDialogOpen || transferDeviceOptions.length > 0) return
+
+    let cancelled = false
+    setTransferOptionsLoading(true)
+
+    fetch('/api/devices/transfer-options')
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}))
+          throw new Error(body.error || 'Failed to load transfer options')
+        }
+        return response.json()
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setTransferDeviceOptions(data.options ?? [])
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load transfer options:', error)
+        notifyError(error instanceof Error ? error.message : 'Failed to load transfer options')
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTransferOptionsLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [transferDialogOpen, transferDeviceOptions.length])
 
   const managerOptions = Array.from(
     new Map(
@@ -476,6 +504,21 @@ export default function DeviceDetails({
             </Button>
           </div>
         </div>
+        {profile.id && (
+          <DevicePhoneLinkRow
+            phone={profile.phoneNumber}
+            linkType="icloud"
+            targetId={profile.id}
+            targetLabel={profile.alias || profile.email}
+            variant="credentials"
+            onCopyPhone={
+              profile.phoneNumber
+                ? () => copyToClipboard(profile.phoneNumber!.e164, `phone-${profileKey}`)
+                : undefined
+            }
+            copiedPhone={copiedField === `phone-${profileKey}`}
+          />
+        )}
       </div>
 
       {/* Profile Information Section */}
@@ -947,125 +990,144 @@ export default function DeviceDetails({
             device.socialAccounts.map((account) => (
               <div
                 key={account.id}
-                className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${
+                className={`p-4 border rounded-lg transition-colors ${
                   highlightedSocialAccountId === account.id
                     ? 'border-[#FF5252] bg-[#FFF1F1] shadow-[0_0_0_2px_rgba(255,82,82,0.12)]'
                     : 'border-gray-200 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button type="button" className="focus:outline-none focus:ring-0 rounded-md inline-flex items-center shrink-0">
-                            <Badge
-                              className="h-5 shrink-0 pl-1.5 pr-1 gap-0.5 text-[10px] font-medium capitalize tabular-nums border-0 inline-flex items-center"
-                              style={
-                                account.status && account.status in SOCIAL_STATUS_CHIP_STYLES
-                                  ? {
-                                      backgroundColor: SOCIAL_STATUS_CHIP_STYLES[account.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES].bg,
-                                      color: SOCIAL_STATUS_CHIP_STYLES[account.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES].text,
-                                    }
-                                  : { backgroundColor: SOCIAL_STATUS_NONE_STYLE.bg, color: SOCIAL_STATUS_NONE_STYLE.text }
-                              }
-                            >
-                              <span>{account.status ?? 'None'}</span>
-                              <ChevronDown className="h-3 w-3 shrink-0 opacity-80" />
-                            </Badge>
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="bg-white border border-gray-200 shadow-lg">
-                          {(['planned', 'warmup', 'active', 'paused', 'banned'] as const).map((s) => (
-                            <DropdownMenuItem
-                              key={s}
-                              onClick={() => handleSocialAccountStatusChange(account, s)}
-                              className="flex items-center gap-2 focus:bg-gray-100"
-                            >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="relative h-8 w-8 shrink-0 mt-0.5">
+                      <Image
+                        src={getSocialPlatformImage(account.platform)}
+                        alt={account.platform}
+                        width={32}
+                        height={32}
+                        className="object-contain rounded-[22%]"
+                        unoptimized
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {account.name || account.username}
+                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button type="button" className="focus:outline-none focus:ring-0 rounded-md inline-flex items-center shrink-0">
                               <Badge
-                                className="h-4 w-14 shrink-0 justify-center px-1.5 text-[9px] font-medium capitalize border-0"
+                                className="h-5 shrink-0 pl-1.5 pr-1 gap-0.5 text-[10px] font-medium capitalize tabular-nums border-0 inline-flex items-center"
                                 style={{
-                                  backgroundColor: SOCIAL_STATUS_CHIP_STYLES[s].bg,
-                                  color: SOCIAL_STATUS_CHIP_STYLES[s].text,
+                                  backgroundColor: getSocialStatusChipStyle(account.status).bg,
+                                  color: getSocialStatusChipStyle(account.status).text,
                                 }}
                               >
-                                {s}
+                                <span>{account.status ?? 'None'}</span>
+                                <ChevronDown className="h-3 w-3 shrink-0 opacity-80" />
                               </Badge>
-                              <span className="text-sm min-w-[4.5rem]">
-                                {s.charAt(0).toUpperCase() + s.slice(1)}
-                              </span>
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {account.name || account.username}
-                      </span>
-                      {account.name && account.name !== account.username && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          (@{account.username})
-                        </span>
-                      )}
-                      <div className="relative h-5 w-5 shrink-0">
-                        <Image
-                          src={getSocialPlatformImage(account.platform)}
-                          alt={account.platform}
-                          width={20}
-                          height={20}
-                          className="object-contain rounded-[22%]"
-                          unoptimized
-                        />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="bg-white border border-gray-200 shadow-lg">
+                            {SOCIAL_ACCOUNT_STATUS_OPTIONS.map((s) => (
+                              <DropdownMenuItem
+                                key={s}
+                                onClick={() => handleSocialAccountStatusChange(account, s)}
+                                className="flex items-center gap-2 focus:bg-gray-100"
+                              >
+                                <SocialAccountStatusBadge status={s} variant="menu" />
+                                <span className="text-sm min-w-[4.5rem]">
+                                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                                </span>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
+                      {account.name && account.name !== account.username && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          @{account.username}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-400">{account.platform}</p>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-3 w-3 text-gray-400" />
-                    <span className="text-xs font-mono text-gray-600">
-                      {visibleCredentials.has(account.id)
-                        ? account.credentials
-                        : '••••••••••••'}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => toggleCredentials(account.id)}
-                  >
-                    {visibleCredentials.has(account.id) ? (
-                      <EyeOff className="h-3 w-3" />
-                    ) : (
-                      <Eye className="h-3 w-3" />
-                    )}
-                  </Button>
-                  <AddSocialAccountDialog deviceId={device.id} socialAccount={account}>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <AddSocialAccountDialog deviceId={device.id} socialAccount={account}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Edit">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </AddSocialAccountDialog>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0"
+                      className="h-7 w-7 p-0"
+                      onClick={() => openTransferDialog(account)}
+                      title="Transfer to another device"
                     >
-                      <Pencil className="h-3 w-3" />
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
                     </Button>
-                  </AddSocialAccountDialog>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => openTransferDialog(account)}
-                    title="Transfer to another device"
-                  >
-                    <ArrowRightLeft className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => handleArchiveSocialAccount(account.id)}
-                  >
-                    <Archive className="h-3 w-3" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => handleArchiveSocialAccount(account.id)}
+                      title="Archive"
+                    >
+                      <Archive className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <div className="flex items-center justify-between gap-3 min-w-0 flex-1 basis-[220px]">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Lock className="h-4 w-4 text-gray-600" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Password:</span>
+                    </div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 shrink-0"
+                        onClick={() => toggleCredentials(account.id)}
+                      >
+                        {visibleCredentials.has(account.id) ? (
+                          <EyeOff className="h-3 w-3" />
+                        ) : (
+                          <Eye className="h-3 w-3" />
+                        )}
+                      </Button>
+                      <span className="text-sm font-mono text-gray-900 dark:text-white truncate">
+                        {visibleCredentials.has(account.id)
+                          ? account.credentials
+                          : '••••••••••••'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 shrink-0"
+                        onClick={() => copyToClipboard(account.credentials, `social-${account.id}`)}
+                      >
+                        {copiedField === `social-${account.id}` ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {account.id && (
+                    <DevicePhoneLinkRow
+                      phone={account.phoneNumber}
+                      linkType="social"
+                      targetId={account.id}
+                      targetLabel={`${account.platform} @${account.username}`}
+                      variant="credentials"
+                      className="min-w-0 flex-1 basis-[220px]"
+                    />
+                  )}
                 </div>
               </div>
             ))
@@ -1100,20 +1162,10 @@ export default function DeviceDetails({
                   <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
                     <Badge
                       className="h-5 shrink-0 pl-1.5 pr-1 gap-0.5 text-[10px] font-medium capitalize tabular-nums border-0 inline-flex items-center pointer-events-none"
-                      style={
-                        transferingAccount.status && transferingAccount.status in SOCIAL_STATUS_CHIP_STYLES
-                          ? {
-                              backgroundColor:
-                                SOCIAL_STATUS_CHIP_STYLES[
-                                  transferingAccount.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES
-                                ].bg,
-                              color:
-                                SOCIAL_STATUS_CHIP_STYLES[
-                                  transferingAccount.status as keyof typeof SOCIAL_STATUS_CHIP_STYLES
-                                ].text,
-                            }
-                          : { backgroundColor: SOCIAL_STATUS_NONE_STYLE.bg, color: SOCIAL_STATUS_NONE_STYLE.text }
-                      }
+                      style={{
+                        backgroundColor: getSocialStatusChipStyle(transferingAccount.status).bg,
+                        color: getSocialStatusChipStyle(transferingAccount.status).text,
+                      }}
                     >
                       <span>{transferingAccount.status ?? 'None'}</span>
                     </Badge>
@@ -1183,7 +1235,11 @@ export default function DeviceDetails({
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-900">Target device</label>
               <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-                {filteredTransferDevices.length === 0 ? (
+                {transferOptionsLoading ? (
+                  <div className="rounded-md border border-dashed border-gray-300 p-3 text-xs text-gray-500">
+                    Loading devices…
+                  </div>
+                ) : filteredTransferDevices.length === 0 ? (
                   <div className="rounded-md border border-dashed border-gray-300 p-3 text-xs text-gray-500">
                     No devices found for this manager.
                   </div>

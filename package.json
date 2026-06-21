@@ -12,10 +12,13 @@
     "deploy:quick-add-edge": "npm run bundle:quick-add-edge && supabase functions deploy process-creator-quick-add",
     "deploy:outreach-sends-edge": "npm run bundle:outreach-sends-edge && supabase functions deploy process-creator-outreach-sends",
     "deploy:pipeline-edge": "npm run bundle:quick-add-edge && npm run bundle:outreach-sends-edge && supabase functions deploy process-creator-quick-add && supabase functions deploy process-creator-outreach-sends",
+    "deploy:twilio-inbound-sms": "supabase functions deploy twilio-inbound-sms",
     "test:outreach-sends-edge": "node scripts/test-outreach-sends-edge.mjs",
     "queue:test-outreach": "node scripts/queue-test-outreach.mjs",
     "queue:one-outreach-send": "node scripts/queue-one-outreach-send.mjs",
-    "setup:cron-vault": "node scripts/setup-cron-vault.mjs"
+    "setup:cron-vault": "node scripts/setup-cron-vault.mjs",
+    "test:twilio-sms": "node scripts/send-twilio-test-sms.mjs",
+    "sync:twilio-phones": "node scripts/sync-twilio-phone-numbers.mjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

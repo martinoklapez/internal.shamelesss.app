@@ -31,6 +31,15 @@ export function isValidPhoneInput(
   return parsePhone(trimmed, defaultCountry) !== undefined
 }
 
+/** ISO 3166-1 alpha-2 from E.164 (e.g. +1505… → US). */
+export function countryCodeFromE164(e164: string): CountryCode | null {
+  const trimmed = e164.trim()
+  if (!trimmed) return null
+  const parsed = parsePhoneNumberFromString(trimmed)
+  if (parsed?.isValid() && parsed.country) return parsed.country
+  return null
+}
+
 /** Human-readable display; falls back to stored value if parsing fails. */
 export function formatPhoneForDisplay(
   e164: string,

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { getSocialPlatformImage } from '@/lib/social-platform-images'
 import { notifyError } from '@/lib/notify'
+import { notifyDevicesChanged } from '@/lib/devices-events'
 
 type SocialAccountStatus = 'planned' | 'warmup' | 'active' | 'paused' | 'banned' | 'archived'
 
@@ -302,6 +303,7 @@ function SocialAccountCard({ account }: { account: SocialAccount }) {
         throw new Error(err.error || 'Failed to update status')
       }
       router.refresh()
+      notifyDevicesChanged()
     } catch (e) {
       console.error('Error updating social account status:', e)
       notifyError(e instanceof Error ? e.message : 'Failed to update status')

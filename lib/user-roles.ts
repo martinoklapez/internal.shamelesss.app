@@ -65,7 +65,7 @@ export async function canAccessRoute(userId: string, route: string): Promise<boo
 
   // Promoters can access home and devices
   if (role === 'promoter') {
-    return route === '/home' || route.startsWith('/devices')
+    return route === '/home' || route.startsWith('/devices') || route.startsWith('/phone-numbers')
   }
 
   return false
@@ -84,7 +84,7 @@ export function getAllowedRoutes(role: UserRole | null): string[] {
   }
 
   if (role === 'promoter') {
-    return ['/home', '/devices']
+    return ['/home', '/devices', '/phone-numbers']
   }
 
   return []

@@ -1,5 +1,13 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  createPanelRoleCookieValue,
+  isPanelRole,
+  PANEL_ROLE_COOKIE,
+  panelRoleCookieOptions,
+  PANEL_ROLES,
+  readPanelRoleFromCookie,
+} from '@/lib/auth/panel-role-cache'
 
 const EXTENSION_CORS_PATHS = ['/api/creator-pipeline', '/api/creator-outreach/avatar-proxy']
 
@@ -62,6 +70,7 @@ export async function middleware(request: NextRequest) {
     '/home',
     '/games',
     '/devices',
+    '/phone-numbers',
     '/feature-flags',
     '/characters',
     '/generate',
@@ -84,17 +93,28 @@ export async function middleware(request: NextRequest) {
 
   // Check role-based access for authenticated users
   if (isProtectedRoute && user) {
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single()
+    const cachedRole = await readPanelRoleFromCookie(
+      request.cookies.get(PANEL_ROLE_COOKIE)?.value,
+      user.id
+    )
 
-    const role = roleData?.role
+    let role = cachedRole
+    let roleFromDatabase = false
 
-    // Only allow admin, dev, developer, and promoter roles
-    const allowedRoles = ['admin', 'dev', 'developer', 'promoter']
-    if (!role || !allowedRoles.includes(role)) {
+    if (!role) {
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+
+      if (roleData?.role && isPanelRole(roleData.role)) {
+        role = roleData.role
+        roleFromDatabase = true
+      }
+    }
+
+    if (!role || !PANEL_ROLES.includes(role)) {
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url)
@@ -115,6 +135,11 @@ export async function middleware(request: NextRequest) {
         url.pathname = '/home'
         return NextResponse.redirect(url)
       }
+    }
+
+    if (roleFromDatabase) {
+      const cookieValue = await createPanelRoleCookieValue(user.id, role)
+      supabaseResponse.cookies.set(PANEL_ROLE_COOKIE, cookieValue, panelRoleCookieOptions())
     }
   }
 
