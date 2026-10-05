@@ -4,6 +4,8 @@ export const REMOVED_FEATURE_FLAG_IDS = [
   'chats',
   'friends',
   'reengagement',
+  'engagement_live_activity',
+  'instant_match',
   'explore_filter_paywall_on_gender_tap',
   'explore_filter_paywall_on_region_tap',
   'force_paywall_filters_tap',
