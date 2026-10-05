@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDate } from '@/lib/utils/date'
 import type { FeatureFlag } from '@/lib/database/feature-flags'
+import { REMOVED_FEATURE_FLAG_IDS, isRemovedFeatureFlag } from '@/lib/feature-flags-removed'
 
 interface FeatureFlagsManagerProps {
   featureFlags: FeatureFlag[]
@@ -19,7 +20,7 @@ type FlagGroupDef = {
   /** Ordered flag_ids in this group */
   flagIds: readonly string[]
   badge?: string
-  variant?: 'legacy' | 'upsell' | 'ui'
+  variant?: 'legacy' | 'upsell' | 'ui' | 'removed'
 }
 
 const FLAG_GROUPS: readonly FlagGroupDef[] = [
@@ -41,39 +42,13 @@ const FLAG_GROUPS: readonly FlagGroupDef[] = [
     variant: 'ui',
   },
   {
-    id: 'paywall-v2-onboarding',
-    title: 'Onboarding & game start',
+    id: 'removed-paywall-flags',
+    title: 'Removed paywall flags',
     description:
-      'Block progression until subscribed after the relevant paywall (onboarding completion or starting a game).',
-    flagIds: ['force_paywall_onboarding', 'force_paywall_game_start'],
-    badge: 'Upsell',
-    variant: 'upsell',
-  },
-  {
-    id: 'paywall-v2-explore',
-    title: 'Explore',
-    description:
-      'Plus entitlement required for explore flows: friend requests, accepting/rejecting, and loading more profiles.',
-    flagIds: [
-      'force_paywall_explore_friend_send',
-      'force_paywall_explore_friend_actions',
-      'force_paywall_explore_load_more',
-    ],
-    badge: 'Upsell',
-    variant: 'upsell',
-  },
-  {
-    id: 'paywall-v2-profile',
-    title: 'Filters & profile',
-    description:
-      'Plus entitlement for filters, revealing social handles, and fullscreen profile photos.',
-    flagIds: [
-      'force_paywall_filters',
-      'force_paywall_social_handle_reveal',
-      'force_paywall_profile_fullscreen',
-    ],
-    badge: 'Upsell',
-    variant: 'upsell',
+      'No longer read by current app builds — paywall / explore behavior is hardcoded. Rows stay in the database for older clients and audit.',
+    flagIds: REMOVED_FEATURE_FLAG_IDS,
+    badge: 'Removed',
+    variant: 'removed',
   },
 ] as const
 
@@ -89,6 +64,8 @@ function groupBadgeClass(variant: FlagGroupDef['variant']) {
       return 'bg-violet-100 text-violet-900 border-violet-200'
     case 'ui':
       return 'bg-slate-100 text-slate-800 border-slate-200'
+    case 'removed':
+      return 'bg-gray-200 text-gray-700 border-gray-300'
     default:
       return 'bg-gray-100 text-gray-800 border-gray-200'
   }
@@ -98,27 +75,43 @@ function FlagRow({
   flag,
   loading,
   onToggle,
+  removed = false,
 }: {
   flag: FeatureFlag
   loading: boolean
   onToggle: (flagId: string, current: boolean) => void
+  removed?: boolean
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 py-5 border-b border-gray-100 last:border-0">
+    <div
+      className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 py-5 border-b border-gray-100 last:border-0 ${
+        removed ? 'opacity-90' : ''
+      }`}
+    >
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <code className="text-sm font-semibold text-gray-900 bg-gray-50 px-1.5 py-0.5 rounded">
-            {flag.flag_id}
-          </code>
-          <span
-            className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${
-              flag.is_enabled
-                ? 'bg-green-100 text-green-800'
-                : 'bg-gray-100 text-gray-700'
+          <code
+            className={`text-sm font-semibold px-1.5 py-0.5 rounded ${
+              removed ? 'text-gray-600 bg-gray-100 line-through decoration-gray-400' : 'text-gray-900 bg-gray-50'
             }`}
           >
-            {flag.is_enabled ? 'On' : 'Off'}
-          </span>
+            {flag.flag_id}
+          </code>
+          {removed ? (
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full shrink-0 bg-gray-200 text-gray-700">
+              Removed
+            </span>
+          ) : (
+            <span
+              className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${
+                flag.is_enabled
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {flag.is_enabled ? 'On' : 'Off'}
+            </span>
+          )}
         </div>
         {flag.description && (
           <p className="text-sm text-gray-600 leading-relaxed">{flag.description}</p>
@@ -127,17 +120,19 @@ function FlagRow({
           <span>Updated {formatDate(flag.updated_at)}</span>
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0 sm:pt-0.5">
-        <Label htmlFor={`toggle-${flag.flag_id}`} className="text-xs text-gray-500 sr-only sm:not-sr-only">
-          Toggle
-        </Label>
-        <Switch
-          id={`toggle-${flag.flag_id}`}
-          checked={flag.is_enabled}
-          onCheckedChange={() => onToggle(flag.flag_id, flag.is_enabled)}
-          disabled={loading}
-        />
-      </div>
+      {!removed && (
+        <div className="flex items-center gap-2 shrink-0 sm:pt-0.5">
+          <Label htmlFor={`toggle-${flag.flag_id}`} className="text-xs text-gray-500 sr-only sm:not-sr-only">
+            Toggle
+          </Label>
+          <Switch
+            id={`toggle-${flag.flag_id}`}
+            checked={flag.is_enabled}
+            onCheckedChange={() => onToggle(flag.flag_id, flag.is_enabled)}
+            disabled={loading}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -158,6 +153,8 @@ export default function FeatureFlagsManager({ featureFlags: initialFeatureFlags 
   )
 
   const handleToggle = async (flagId: string, currentValue: boolean) => {
+    if (isRemovedFeatureFlag(flagId)) return
+
     setLoadingFlagId(flagId)
 
     try {
@@ -223,6 +220,7 @@ export default function FeatureFlagsManager({ featureFlags: initialFeatureFlags 
                   flag={flag}
                   loading={loadingFlagId === flag.flag_id}
                   onToggle={handleToggle}
+                  removed={group.variant === 'removed'}
                 />
               ))}
             </CardContent>

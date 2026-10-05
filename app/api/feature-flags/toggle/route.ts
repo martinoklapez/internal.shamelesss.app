@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { isRemovedFeatureFlag } from '@/lib/feature-flags-removed'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -17,6 +18,13 @@ export async function POST(request: Request) {
     if (!flagId || typeof isEnabled !== 'boolean') {
       return NextResponse.json(
         { error: 'Invalid request body' },
+        { status: 400 }
+      )
+    }
+
+    if (isRemovedFeatureFlag(flagId)) {
+      return NextResponse.json(
+        { error: 'This feature flag was removed from the app and cannot be toggled' },
         { status: 400 }
       )
     }
