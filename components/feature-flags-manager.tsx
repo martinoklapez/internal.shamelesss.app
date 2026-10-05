@@ -25,27 +25,10 @@ type FlagGroupDef = {
 
 const FLAG_GROUPS: readonly FlagGroupDef[] = [
   {
-    id: 'legacy-paywall',
-    title: 'Legacy paywall',
+    id: 'removed-flags',
+    title: 'Removed flags',
     description:
-      'Global gate: users must subscribe to use the app. Still honored on older app versions.',
-    flagIds: ['force_paywall'],
-    badge: 'Legacy',
-    variant: 'legacy',
-  },
-  {
-    id: 'navigation',
-    title: 'Navigation',
-    description: 'Which tabs appear in the main app navigation.',
-    flagIds: ['chats', 'friends'],
-    badge: 'UI',
-    variant: 'ui',
-  },
-  {
-    id: 'removed-paywall-flags',
-    title: 'Removed paywall flags',
-    description:
-      'No longer read by current app builds — paywall / explore behavior is hardcoded. Rows stay in the database for older clients and audit.',
+      'No longer read by current app builds — behavior is hardcoded in the client. Rows stay in the database for older clients and audit.',
     flagIds: REMOVED_FEATURE_FLAG_IDS,
     badge: 'Removed',
     variant: 'removed',

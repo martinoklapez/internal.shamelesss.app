@@ -1,5 +1,9 @@
 /** Flags no longer read by current app builds (behavior hardcoded). Kept in DB for audit / old clients. */
 export const REMOVED_FEATURE_FLAG_IDS = [
+  'force_paywall',
+  'chats',
+  'friends',
+  'reengagement',
   'explore_filter_paywall_on_gender_tap',
   'explore_filter_paywall_on_region_tap',
   'force_paywall_filters_tap',
