@@ -25,7 +25,7 @@ export default async function ProfilesPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Profiles</h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
             List and search <code className="text-xs bg-gray-100 px-1 rounded">profiles</code>, filter by
-            demo role, delete accounts (profile, roles, auth — storage untouched). When{' '}
+            role (including demo) under Filters, delete accounts (profile, roles, auth — storage untouched). When{' '}
             <code className="text-xs bg-gray-100 px-1 rounded">PROFILES_BACKUP_PASSCODE</code> is set on the
             server, backup/export/restore unlocks via the archive icon and that passcode.
           </p>

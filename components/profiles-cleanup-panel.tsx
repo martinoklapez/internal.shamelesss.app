@@ -173,12 +173,25 @@ function matchesPresence(filter: ProfilePresenceChoice, has: boolean): boolean {
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
+  dev: 'Dev',
   developer: 'Developer',
   promoter: 'Promoter',
   tester: 'Tester',
   demo: 'Demo',
   user: 'User',
 }
+
+/** Every role option in Filters → Roles (not limited to roles seen in the current page of data). */
+const ROLE_FILTER_KEYS: readonly string[] = [
+  FILTER_NO_ROLE,
+  'admin',
+  'dev',
+  'developer',
+  'promoter',
+  'tester',
+  'demo',
+  'user',
+]
 
 function roleBadgeClassName(role: string) {
   if (role === 'admin') {
@@ -218,7 +231,6 @@ export default function ProfilesCleanupPanel() {
   const { toast } = useToast()
   const [profiles, setProfiles] = useState<CleanupProfileRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [demoOnlyList, setDemoOnlyList] = useState(false)
   const [search, setSearch] = useState('')
   const [filterRoles, setFilterRoles] = useState<Set<string>>(() => new Set())
   const [filterCountries, setFilterCountries] = useState<Set<string>>(() => new Set())
@@ -257,21 +269,65 @@ export default function ProfilesCleanupPanel() {
     backupSecretRef.current = null
     setBackupPanelOpen(false)
     setSelected(new Set())
-    setDemoOnlyList(false)
     setConfirmOpen(false)
     setExportDeleteOpen(false)
     setAllowDeleteStaff(false)
   }, [])
 
+  const roleFilterLoadSignature = useMemo(
+    () => [...filterRoles].sort().join('\0'),
+    [filterRoles]
+  )
+
+  /** Refetch when Demo is included in role filters (demo users may be missing from the default list). */
+  const profileListLoadMode = useMemo(() => {
+    if (filterRoles.size === 1 && filterRoles.has('demo')) return 'demo_only' as const
+    if (filterRoles.has('demo')) return 'merge_demo' as const
+    return 'full' as const
+  }, [roleFilterLoadSignature, filterRoles])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const q = demoOnlyList ? '?demo_only=true' : ''
-      const res = await fetch(`/api/profiles-cleanup/list${q}`)
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to load profiles')
+      const fetchList = async (demoOnly: boolean) => {
+        const q = demoOnly ? '?demo_only=true' : ''
+        const res = await fetch(`/api/profiles-cleanup/list${q}`)
+        const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to load profiles')
+        }
+        return data
       }
+
+      const demoOnlyList = profileListLoadMode === 'demo_only'
+      const mergeDemoProfiles = profileListLoadMode === 'merge_demo'
+
+      let data = await fetchList(demoOnlyList)
+      if (mergeDemoProfiles) {
+        const demoData = await fetchList(true)
+        const byUserId = new Map<string, CleanupProfileRow>()
+        for (const p of data.profiles || []) {
+          byUserId.set(p.user_id, {
+            ...p,
+            has_active_push_token: Boolean(p.has_active_push_token),
+          })
+        }
+        for (const p of demoData.profiles || []) {
+          byUserId.set(p.user_id, {
+            ...p,
+            has_active_push_token: Boolean(p.has_active_push_token),
+          })
+        }
+        data = {
+          ...data,
+          profiles: [...byUserId.values()].sort((a, b) => {
+            const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+            const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+            return tb - ta
+          }),
+        }
+      }
+
       setProfiles(
         (data.profiles || []).map((p: CleanupProfileRow) => ({
           ...p,
@@ -296,7 +352,7 @@ export default function ProfilesCleanupPanel() {
     } finally {
       setLoading(false)
     }
-  }, [toast, demoOnlyList])
+  }, [toast, profileListLoadMode])
 
   useEffect(() => {
     load()
@@ -327,21 +383,6 @@ export default function ProfilesCleanupPanel() {
     }
     return groups
   }, [backupPasscodeSlotCount])
-
-  const roleFacetKeys = useMemo(() => {
-    const s = new Set<string>()
-    for (const p of profiles) {
-      s.add(p.role ? p.role : FILTER_NO_ROLE)
-    }
-    const order = (a: string, b: string) => {
-      const la =
-        (a !== FILTER_NO_ROLE ? ROLE_LABELS[a] ?? a : '(No role)').toLowerCase()
-      const lb =
-        (b !== FILTER_NO_ROLE ? ROLE_LABELS[b] ?? b : '(No role)').toLowerCase()
-      return la.localeCompare(lb)
-    }
-    return [...s].sort(order)
-  }, [profiles])
 
   const countryFacetKeys = useMemo(() => {
     const s = new Set<string>()
@@ -588,7 +629,6 @@ export default function ProfilesCleanupPanel() {
     if (backupPanelOpen) {
       setBackupPanelOpen(false)
       setSelected(new Set())
-      setDemoOnlyList(false)
       setConfirmOpen(false)
       setExportDeleteOpen(false)
       setAllowDeleteStaff(false)
@@ -1087,25 +1127,9 @@ export default function ProfilesCleanupPanel() {
                 </Button>
               ) : null}
             </div>
-            {backupPanelOpen && (
-              <>
-                <label className="flex items-center gap-2 text-xs text-gray-600 shrink-0 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300"
-                    checked={demoOnlyList}
-                    onChange={(e) => setDemoOnlyList(e.target.checked)}
-                  />
-                  Demo role only
-                </label>
-                <span className="text-xs text-gray-500 shrink-0">
-                  {filtered.length === profiles.length
-                    ? `${profiles.length} profiles`
-                    : `${filtered.length} of ${profiles.length}`}
-                  {selected.size > 0 ? ` · ${selected.size} selected` : ''}
-                </span>
-              </>
-            )}
+            {backupPanelOpen && selected.size > 0 ? (
+              <span className="text-xs text-gray-500 shrink-0">{selected.size} selected</span>
+            ) : null}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button
@@ -1214,9 +1238,11 @@ export default function ProfilesCleanupPanel() {
                 align="start"
                 className="max-h-[min(320px,70vh)] w-72 overflow-y-auto overscroll-contain py-3"
               >
-                <p className="text-xs font-medium text-gray-500 px-3 pb-2">Show users whose role is one of:</p>
+                <p className="text-xs font-medium text-gray-500 px-3 pb-2">
+                  Show users whose role is one of (includes Demo even if not in the default list):
+                </p>
                 <div className="space-y-0.5">
-                  {roleFacetKeys.map((rk) => (
+                  {ROLE_FILTER_KEYS.map((rk) => (
                     <label
                       key={rk}
                       className="flex cursor-pointer items-start gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-gray-50"
@@ -1246,7 +1272,7 @@ export default function ProfilesCleanupPanel() {
                   <button
                     type="button"
                     className="text-xs text-blue-600 hover:underline"
-                    onClick={() => setFilterRoles(new Set(roleFacetKeys))}
+                    onClick={() => setFilterRoles(new Set(ROLE_FILTER_KEYS))}
                   >
                     Select all
                   </button>
